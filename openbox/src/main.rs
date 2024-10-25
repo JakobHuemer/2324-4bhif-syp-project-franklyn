@@ -1,6 +1,7 @@
 use iced::{
-    Center, Element, Subscription, Task, Theme, alignment,
+    alignment,
     widget::{button, center, column, container, row, text, text_input},
+    Center, Element, Subscription, Task, Theme,
 };
 use image::RgbaImage;
 use openbox::ws::Event;
@@ -15,14 +16,14 @@ enum Message {
     LastnameChanged(String),
 
     Ev(openbox::ws::Event),
-    Connect(u32),
+    Connect(String),
 }
 
 #[derive(PartialEq)]
 enum ConnectionState {
     Idle,
     Connected,
-    Reconnecting(u32),
+    Reconnecting(String),
     Disconnected,
 }
 
@@ -45,15 +46,11 @@ impl<'a> Openbox<'a> {
                 lastname: String::new(),
 
                 connection: ConnectionState::Idle,
-                server_address: _PROD_URL,
+                server_address: _DEV_URL,
                 old_image: None,
             },
             Task::none(),
         )
-    }
-
-    fn to_username(&self) -> String {
-        format!("{}_{}", self.firstname, self.lastname)
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
@@ -70,13 +67,12 @@ impl<'a> Openbox<'a> {
                 self.lastname = lastname;
                 Task::none()
             }
-            Message::Ev(Event::UpdateImage(new_image)) =>{
+            Message::Ev(Event::UpdateImage(new_image)) => {
                 self.old_image = Some(new_image);
                 Task::none()
-            },
+            }
             Message::Connect(pin) => {
                 self.connection = ConnectionState::Reconnecting(pin);
-
                 Task::none()
             }
             _ => Task::none(),
@@ -84,11 +80,15 @@ impl<'a> Openbox<'a> {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        match self.connection {
-            ConnectionState::Reconnecting(pin) => {
-                openbox::ws::subscribe(self.server_address.to_string(), pin, self.to_username(), self.old_image.clone())
-                    .map(Message::Ev)
-            }
+        match &self.connection {
+            ConnectionState::Reconnecting(pin) => openbox::ws::subscribe(
+                self.pin.clone(),
+                self.firstname.clone(),
+                self.lastname.clone(),
+                self.server_address.to_string(),
+                self.old_image.clone(),
+            )
+            .map(Message::Ev),
             ConnectionState::Disconnected => Subscription::none(),
             ConnectionState::Idle | ConnectionState::Connected => Subscription::none(),
         }
@@ -117,26 +117,34 @@ impl<'a> Openbox<'a> {
                 .padding(10);
 
             let mut button = button(
-                    text("connect").height(40)
-                        .align_y(alignment::Vertical::Center)
-                        .align_x(alignment::Horizontal::Center)
-                )
-                .width(300)
-                .padding([0, 20]);
+                text("connect")
+                    .height(40)
+                    .align_y(alignment::Vertical::Center)
+                    .align_x(alignment::Horizontal::Center),
+            )
+            .width(300)
+            .padding([0, 20]);
 
-            let pin = self.pin.parse::<u32>();
-
-            if pin.is_ok() && !self.firstname.is_empty() && !self.lastname.is_empty() {
-                button = button.on_press(Message::Connect(pin.unwrap()));
+            if self.pin.parse::<u16>().is_ok()
+                && self.pin.len() == 3
+                && !self.firstname.is_empty()
+                && !self.lastname.is_empty()
+            {
+                button = button.on_press(Message::Connect(self.pin.clone()));
             }
 
-            column![column![logo].padding([50, 50]), pin_input, firstname_input, lastname_input, button]
-                .spacing(10)
-                .align_x(Center)
+            column![
+                column![logo].padding([50, 50]),
+                pin_input,
+                firstname_input,
+                lastname_input,
+                button
+            ]
+            .spacing(10)
+            .align_x(Center)
         } else {
             column![
                 logo,
-                text(format!("Pin: {}", self.pin)).size(30),
                 row![
                     text(&self.firstname).size(50),
                     text(&self.lastname).size(50)

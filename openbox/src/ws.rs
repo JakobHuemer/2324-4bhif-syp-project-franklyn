@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+use std::future::Future;
+
 use iced::{stream, Subscription};
 
 use futures::SinkExt;
-use std::future::Future;
 use tokio::net::TcpStream;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use bytes::Bytes;
 
 use http_body_util::Empty;
@@ -13,11 +15,13 @@ use hyper::upgrade::Upgraded;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
 
-use image::{ImageFormat, Rgba, RgbaImage};
+use image::RgbaImage;
 use reqwest::multipart::{Form, Part};
 
-use fastwebsockets::{handshake, FragmentCollector, Frame, OpCode};
+use fastwebsockets::{handshake, FragmentCollector, Frame, OpCode, Payload};
 use log::info;
+
+use crate::screen;
 
 struct SpawnExecutor;
 
@@ -44,13 +48,27 @@ pub enum Event {
 
 pub async fn connect(
     server_address: &str,
-    user: &str,
-) -> Result<FragmentCollector<TokioIo<Upgraded>>> {
+    pin: &str,
+    firstname: &str,
+    lastname: &str,
+) -> Result<(FragmentCollector<TokioIo<Upgraded>>, String)> {
     let stream = TcpStream::connect(&server_address).await?;
+
+    let res = reqwest::Client::new()
+        .post(format!("http://{server_address}/exams/join/{pin}"))
+        .json(&HashMap::<&str, &str>::from_iter([
+            ("firstname", firstname),
+            ("lastname", lastname),
+        ]))
+        .send()
+        .await?;
+
+    let location = res.headers().get("location").unwrap().to_str().unwrap();
+    let session_id = location.split('/').last().unwrap().to_string();
 
     let req = Request::builder()
         .method("GET")
-        .uri(format!("http://{}/examinee/{}", server_address, user))
+        .uri(location)
         .header("Host", server_address)
         .header(UPGRADE, "websocket")
         .header(CONNECTION, "upgrade")
@@ -59,35 +77,41 @@ pub async fn connect(
         .body(Empty::<Bytes>::new())?;
 
     let (ws, _) = handshake::client(&SpawnExecutor, req, stream).await?;
-    Ok(FragmentCollector::new(ws))
+    Ok((FragmentCollector::new(ws), session_id))
 }
 
-pub fn subscribe(server_address: String, pin: u32, username: String, mut current_image: Option<RgbaImage>) -> Subscription<Event> {
+pub fn subscribe(
+    pin: String,
+    firstname: String,
+    lastname: String,
+    server_address: String,
+    mut current_image: Option<RgbaImage>,
+) -> Subscription<Event> {
     let connection_cloj = stream::channel(100, move |mut output| async move {
         let mut state = State::Disconnected;
+        let mut session_id = String::new();
 
         loop {
             match &mut state {
-                State::Disconnected => match connect(&server_address, &username).await {
-                    Ok(ws) => {
-                        state = State::Connected(ws);
-                        let _ = output.send(Event::Nothing).await;
+                State::Disconnected => {
+                    match connect(&server_address, &pin, &firstname, &lastname).await {
+                        Ok((ws, session)) => (state, session_id) = (State::Connected(ws), session),
+                        Err(e) => {
+                            eprintln!("Disconnected with error: {e:?}");
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                        }
                     }
-                    Err(e) => {
-                        eprintln!("{e:?}");
 
-                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                        let _ = output.send(Event::Nothing).await;
-                    }
-                },
+                    let _ = output.send(Event::Nothing).await;
+                }
                 State::Connected(ws) => {
-                    let new_image = handle_message(&server_address, &username, ws, current_image.as_ref()).await;
+                    let new_image =
+                        handle_message(&server_address, &firstname, ws, current_image.as_ref())
+                            .await;
 
                     if let Some(image) = new_image {
-                        println!("here");
                         current_image = Some(image);
-                    }
-                    else {
+                    } else {
                         let _ = output.send(Event::Nothing).await;
                     }
                 }
@@ -101,9 +125,9 @@ pub fn subscribe(server_address: String, pin: u32, username: String, mut current
 
 pub async fn handle_message(
     server_address: &str,
-    username: &str,
+    session_id: &str,
     ws: &mut FragmentCollector<TokioIo<Upgraded>>,
-    current_image: Option<&RgbaImage>,
+    cur_img: Option<&RgbaImage>,
 ) -> Option<RgbaImage> {
     let msg = match ws.read_frame().await {
         Ok(msg) => msg,
@@ -116,80 +140,33 @@ pub async fn handle_message(
         }
     };
 
-    match msg.opcode {
-        OpCode::Text | OpCode::Binary => {
-            let mut buf = Vec::<u8>::new();
+    let payload = match msg.payload {
+        Payload::Bytes(buf) => buf,
+        _ => panic!("TODO: figure out if we get other payloads"),
+    };
 
-            let image = xcap::Monitor::all()
-                .unwrap()
-                .first()
-                .context("ERROR: no monitor found")
-                .unwrap()
-                .capture_image()
-                .unwrap();
-            image
-                .write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
-                .unwrap();
+    let (file_part, image, option) = match &payload[..] {
+        b"{\"type\":\"CAPTURE_SCREEN\",\"payload\":{\"frame_type\":\"ALPHA\"}}" => 
+            screen::take_screenshot(true, cur_img),
+        b"BETA" => todo!(),
+        b"{\"type\":\"CAPTURE_SCREEN\",\"payload\":{\"frame_type\":\"UNSPECIFIED\"}}" => 
+            screen::take_screenshot(false, cur_img),
+        p => panic!("ERROR: invalid payload {p:?}"),
+    };
 
-            // assume same resolution
-            let path_ending = compare_image(current_image, image);
+    let path = format!(
+        "http://{}/telemetry/by-session/{}/screen/upload/{}",
+        server_address, session_id, option,
+    );
 
-            let file_part = Part::bytes(buf)
-                .file_name("image.png")
-                .mime_str("image/png")
-                .unwrap();
+    let res = reqwest::Client::new()
+        .post(path)
+        .multipart(Form::new().part("image", file_part))
+        .send()
+        .await
+        .unwrap();
 
-            reqwest::Client::new()
-                .post(&format!(
-                    "http://{server_address}/screenshot/{username}/{}", path_ending.0
-                ))
-                .multipart(Form::new().part("image", file_part))
-                .send()
-                .await
-                .unwrap();
+    println!("{res:?}");
 
-            // if we got a new alpha frame set current image to new image
-            if path_ending.0 == "alpha" {
-                return Some(path_ending.1);
-            }
-
-            None
-        }
-        _ => None,
-    }
+    Some(image)
 }
-
-pub fn compare_image(current_image: Option<&RgbaImage>, new_image: RgbaImage) -> (&'static str, RgbaImage) {
-
-    let Some(image) = current_image else { println!("this alpha"); return  ("alpha", new_image)};
-
-    let mut counter = 0;
-
-    let width = image.width();
-    let height = image.height();
-
-    let mut output_image = RgbaImage::from_pixel(width, height, Rgba([0, 0, 0, 0]));
-
-    for x in 0..width {
-        for y in 0..height {
-            let alpha_rgb = image.get_pixel(x, y);
-            let beta_rgb = new_image.get_pixel(x, y);
-
-            if alpha_rgb != beta_rgb {
-                counter += 1;
-                output_image.put_pixel(x, y, beta_rgb.clone());
-            }
-        }
-    }
-
-    // if more than half of the frame is different make it the new alpha frame
-    if counter > width * height / 2 {
-        println!(" that alpha");
-        return ("alpha", new_image);
-    }
-
-    println!("dif");
-
-    ("beta", output_image)
-}
-
