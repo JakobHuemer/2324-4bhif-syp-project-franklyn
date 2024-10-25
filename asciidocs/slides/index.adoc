@@ -27,14 +27,22 @@ endif::[]
 
 [.font-xx-large]
 === Änderungen
-* Dokumentation des bisher Erledigten
-* Spezifikation der Schnittstellen der Mehrtestfähigkeit
-* Aufbereitung YouTrack
+
+* Franklyn 3 "Eintestversion" mit dem Rust-Client läuft jetzt wieder in der Schule. (Cvijić und Schnalzenberger)
+* openbox rust alpha/beta frames (Cvijić)
+* GitHub actions windows build (Cvijić)
+* Downloads der neuen Openbox sind jetzt auch wieder über die Franklyn 3 Website möglich (Cvijić)
+** https://franklyn3.htl-leonding.ac.at/[Franklyn3]
+* Mehrtestfähigkeit
 
 === Live Demo
 
 === Architektur
 plantuml::./plantuml/architecture.puml[]
+
+=== CLD
+
+image::images/cld-2024-10-25.png[]
 
 [.font-xx-large]
 === [.margin-b-10]#Terminologie#
