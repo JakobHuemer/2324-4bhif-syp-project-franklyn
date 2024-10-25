@@ -36,7 +36,7 @@ endif::[]
 * GitHub actions windows build (Cvijić)
 * Downloads der neuen Openbox sind jetzt auch wieder über die Franklyn 3 Website möglich (Cvijić)
 ** https://franklyn3.htl-leonding.ac.at/[Franklyn3]
-* Mehrtestfähigkeit
+* Mehrtestfähigkeit - *Work in progress*
 
 === Live Demo
 
