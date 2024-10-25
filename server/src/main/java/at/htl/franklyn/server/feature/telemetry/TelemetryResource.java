@@ -2,6 +2,7 @@ package at.htl.franklyn.server.feature.telemetry;
 
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
+import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
@@ -52,5 +53,24 @@ public class TelemetryResource {
                 .chain(session -> imageService.saveFrameOfSession(session, betaFrame, FrameType.BETA))
                 .onFailure().transform(BadRequestException::new)
                 .onItem().transform(v -> Response.ok().build());
+    }
+
+    @GET
+    @Path("/by-user/{userId}/{examId}/screen/download")
+    @Produces("image/png") // Hardcoded since MediaType enum does not have image/png
+    @WithSession
+    public Uni<Response> downloadFrame(
+            @PathParam("userId") Long userId,
+            @PathParam("examId") Long examId
+    ) {
+        return Uni.createFrom()
+                .item(userId)
+                .onItem().ifNull().fail()
+                .replaceWith(examId)
+                .onItem().ifNull().fail()
+                .chain(ignored -> imageService.loadLatestFrameOfUser(userId, examId))
+                .onItem().transform(buf -> Response.ok(buf).build())
+                .onFailure(IllegalStateException.class).transform(NotFoundException::new)
+                .onFailure(e -> !(e instanceof NotFoundException)).transform(BadRequestException::new);
     }
 }

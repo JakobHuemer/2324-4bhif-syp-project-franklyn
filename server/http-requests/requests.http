@@ -32,6 +32,11 @@ Accept: application/json
 GET http://localhost:8080/exams/{{id}}/examinees
 Accept: application/json
 
+> {%
+client.global.set("userId", response.body[0].id)
+console.log(client.global.get("userId"))
+ %}
+
 ### Join Exam
 POST http://localhost:8080/exams/join/{{pin}}
 Content-Type: application/json
@@ -73,6 +78,9 @@ Content-Disposition: form-data; name="image"; filename="beta-frame.png"
 
 < ../src/test/resources/beta-frame.png
 --WebAppBoundary--
+
+### Download latest frame
+GET http://localhost:8080/telemetry/by-user/{{userId}}/{{id}}/screen/download
 
 ### Delete exam telemetry
 DELETE http://localhost:8080/exams/{{id}}/telemetry

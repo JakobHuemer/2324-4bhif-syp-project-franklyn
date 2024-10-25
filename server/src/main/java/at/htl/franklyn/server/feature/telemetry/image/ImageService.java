@@ -7,6 +7,7 @@ import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.unchecked.Unchecked;
 import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.core.buffer.Buffer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -153,5 +154,12 @@ public class ImageService {
                     return Uni.createFrom().voidItem();
                 })
                 .onItem().transformToUni(v -> imageRepository.deleteImagesOfParticipation(p));
+    }
+
+    public Uni<Buffer> loadLatestFrameOfUser(long examId, long userId) {
+        return imageRepository
+                .getImageByExamAndUser(examId, userId)
+                .onItem().ifNull().failWith(new IllegalStateException("No image found to send."))
+                .onItem().transformToUni(image -> vertx.fileSystem().readFile(image.getPath()));
     }
 }

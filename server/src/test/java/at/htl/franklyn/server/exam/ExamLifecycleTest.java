@@ -177,7 +177,8 @@ public class ExamLifecycleTest {
         ExamineeDto expectedExaminee = new ExamineeDto(
                 "Max",
                 "Mustermann",
-                true
+                true,
+                1L
         );
 
         // Act
@@ -212,7 +213,8 @@ public class ExamLifecycleTest {
         ExamineeDto examineeDto = new ExamineeDto(
             "Test",
             "User",
-            false // value of is_connected does not matter on connection and is ignored
+            false, // value of is_connected does not matter on connection and is ignored
+            0L
         );
 
         // Act

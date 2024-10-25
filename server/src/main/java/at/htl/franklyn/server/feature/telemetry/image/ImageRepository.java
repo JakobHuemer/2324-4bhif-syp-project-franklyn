@@ -11,4 +11,18 @@ public class ImageRepository implements PanacheRepository<Image> {
         return delete("participation.id = ?1", p.getId())
                 .replaceWithVoid();
     }
+
+    public Uni<Image> getImageByExamAndUser(long examId, long userId) {
+        return find(
+                """
+                        select i from Image i join Participation p on (i.participation.id = p.id)
+                            where p.exam.id = ?1 and p.examinee.id = ?2
+                                and i.captureTimestamp = (
+                                    select max(m.captureTimestamp)
+                                        from Image m
+                                        where m.participation.id = p.id
+                                )
+                    """, examId, userId)
+                .firstResult();
+    }
 }
