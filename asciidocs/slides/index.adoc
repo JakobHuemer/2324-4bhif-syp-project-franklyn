@@ -3,6 +3,9 @@
 ifdef::env-ide[]
 :imagesdir: ../images
 endif::[]
+ifndef::env-ide[]
+:imagesdir: ./images
+endif::[]
 
 [.title]
 = Franklyn
@@ -42,7 +45,7 @@ plantuml::./plantuml/architecture.puml[]
 
 === CLD
 
-image::images/cld-2024-10-25.png[]
+image::cld-2024-10-25.png[]
 
 [.font-xx-large]
 === [.margin-b-10]#Terminologie#
