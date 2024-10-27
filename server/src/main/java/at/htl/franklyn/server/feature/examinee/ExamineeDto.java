@@ -30,6 +30,9 @@ public record ExamineeDto(
         String lastname,
 
         @JsonProperty("is_connected")
-        boolean isConnected
+        boolean isConnected,
+
+        @JsonProperty("id")
+        Long id
 ) {
 }

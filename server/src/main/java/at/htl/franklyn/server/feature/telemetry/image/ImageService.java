@@ -1,9 +1,13 @@
 package at.htl.franklyn.server.feature.telemetry.image;
 
+import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
+import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.unchecked.Unchecked;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.core.buffer.Buffer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -30,10 +34,22 @@ public class ImageService {
     @Inject
     ImageRepository imageRepository;
 
+    @Inject
+    ExamineeCommandSocket commandSocket;
+
+    @Inject
+    Vertx vertx;
+
+    private Path getScreenshotFolderPath(UUID session) {
+        return Paths.get(
+                screenshotsPath,
+                session.toString()
+        );
+    }
+
     public Uni<Void> saveFrameOfSession(UUID session, InputStream frame, FrameType type) {
         final File imageFile = Paths.get(
-                screenshotsPath,
-                session.toString(),
+                getScreenshotFolderPath(session).toAbsolutePath().toString(),
                 String.format("%d.%s", System.currentTimeMillis(), IMG_FORMAT)
         ).toAbsolutePath().toFile();
 
@@ -78,7 +94,11 @@ public class ImageService {
                                 )
                                 .firstResult()
                                 .onItem().ifNull().failWith(Unchecked.supplier(() -> {
-                                    // TODO: request new alpha frame
+                                    // Request new alpha frame so the next client frame can be processed
+                                    commandSocket
+                                            .requestFrame(session, FrameType.ALPHA)
+                                            .subscribe()
+                                            .with(v -> Log.warnf("No alpha frame found for %s. A new one has been requested", session));
                                     throw new IllegalStateException("Can not store beta frame without previous alpha");
                                 }))
                                 .onItem()
@@ -121,5 +141,25 @@ public class ImageService {
                     );
                 }))
                 .replaceWithVoid();
+    }
+
+    public Uni<Void> deleteAllFramesOfParticipation(Participation p) {
+        String folderPath = getScreenshotFolderPath(p.getId()).toString();
+        return vertx.fileSystem()
+                .exists(folderPath)
+                .onItem().transformToUni(exists -> {
+                    if (exists) {
+                        return vertx.fileSystem().deleteRecursive(folderPath, true);
+                    }
+                    return Uni.createFrom().voidItem();
+                })
+                .onItem().transformToUni(v -> imageRepository.deleteImagesOfParticipation(p));
+    }
+
+    public Uni<Buffer> loadLatestFrameOfUser(long examId, long userId) {
+        return imageRepository
+                .getImageByExamAndUser(examId, userId)
+                .onItem().ifNull().failWith(new IllegalStateException("No image found to send."))
+                .onItem().transformToUni(image -> vertx.fileSystem().readFile(image.getPath()));
     }
 }

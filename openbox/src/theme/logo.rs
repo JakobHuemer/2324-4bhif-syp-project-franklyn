@@ -1,4 +1,6 @@
-use iced::{Border, Color, Shadow, Vector, theme::Palette, border::Radius, widget::container::Style};
+use iced::{
+    border::Radius, theme::Palette, widget::container::Style, Border, Color, Shadow, Vector,
+};
 
 pub struct LogoTheme {
     palette: Palette,

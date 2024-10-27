@@ -31,9 +31,6 @@ public class ExamResource {
     ExamRepository examRepository;
 
     @Inject
-    ParticipationRepository participationRepository;
-
-    @Inject
     ParticipationService participationService;
 
     @POST
@@ -83,18 +80,18 @@ public class ExamResource {
     @Path("{id}")
     @WithTransaction
     public Uni<Response> deleteExamById(@PathParam("id") long id) {
-        return examRepository.deleteById(id)
-                .onItem().transform(deleted -> {
-                    if (deleted) {
-                        return Response
-                                .noContent()
-                                .build();
-                    } else {
-                        return Response
-                                .status(Response.Status.NOT_FOUND)
-                                .build();
+        return examRepository
+                .findById(id)
+                .onItem().ifNull().failWith(NotFoundException::new)
+                .onItem().transformToUni(e -> examService.deleteTelemetry(e).replaceWith(e))
+                .onItem().transformToUni(e -> examRepository.deleteById(id))
+                .onFailure().transform(e -> {
+                    if (e instanceof NotFoundException) {
+                        return e;
                     }
-                });
+                    return new BadRequestException(e);
+                })
+                .onItem().transform(v -> Response.noContent().build());
     }
 
     @GET
@@ -187,10 +184,21 @@ public class ExamResource {
                 });
     }
 
-    @POST
+    @DELETE
     @WithTransaction
-    @Path("/deleteTelemetry/{id}")
+    @Path("/{id}/telemetry")
     public Uni<Response> deleteTelemetryOfExam(@PathParam("id") long id) {
-        return null;
+        return examRepository
+                .findById(id)
+                .onItem().ifNull().failWith(NotFoundException::new)
+                .chain(e -> examService.deleteTelemetry(e))
+                .onFailure().transform(e -> {
+                    if (e instanceof NotFoundException) {
+                        return e;
+                    }
+                    return new BadRequestException(e);
+                })
+                .onItem()
+                .transform(v -> Response.noContent().build());
     }
 }
