@@ -46,6 +46,28 @@ pub enum Event {
     UpdateImage(RgbaImage),
 }
 
+#[derive(Debug)]
+enum CaptureType {
+    Alpha,
+    Beta,
+    Unspecified,
+}
+
+impl CaptureType {
+    fn from_blob(blob: &[u8]) -> Option<Self> {
+        if blob.len() < 54 {
+            return None;
+        }
+
+        Some(match &blob[50..54] {
+            b"ALPH" => Self::Alpha,
+            b"BETA" => Self::Beta,
+            b"UNSP" => Self::Unspecified,
+            _ => return None,
+        })
+    }
+}
+
 pub async fn connect(
     server_address: &str,
     pin: &str,
@@ -106,7 +128,7 @@ pub fn subscribe(
                 }
                 State::Connected(ws) => {
                     let new_image =
-                        handle_message(&server_address, &firstname, ws, current_image.as_ref())
+                        handle_message(&server_address, &session_id, ws, current_image.as_ref())
                             .await;
 
                     if let Some(image) = new_image {
@@ -133,24 +155,20 @@ pub async fn handle_message(
         Ok(msg) => msg,
         Err(e) => {
             eprintln!("{e:?}");
-            ws.write_frame(Frame::close_raw(vec![].into()))
-                .await
-                .unwrap();
+            let _ = ws.write_frame(Frame::close_raw(vec![].into())).await;
             return None;
         }
     };
 
     let payload = match msg.payload {
-        Payload::Bytes(buf) => buf,
+        Payload::Bytes(buf) => CaptureType::from_blob(&buf[..])?,
         _ => panic!("TODO: figure out if we get other payloads"),
     };
 
-    let (file_part, image, option) = match &payload[..] {
-        b"{\"type\":\"CAPTURE_SCREEN\",\"payload\":{\"frame_type\":\"ALPHA\"}}" => 
-            screen::take_screenshot(true, cur_img),
-        b"BETA" => todo!(),
-        b"{\"type\":\"CAPTURE_SCREEN\",\"payload\":{\"frame_type\":\"UNSPECIFIED\"}}" => 
-            screen::take_screenshot(false, cur_img),
+    let (file_part, image, option) = match payload {
+        CaptureType::Alpha => screen::take_screenshot(true, cur_img),
+        CaptureType::Beta => todo!(),
+        CaptureType::Unspecified => screen::take_screenshot(false, cur_img),
         p => panic!("ERROR: invalid payload {p:?}"),
     };
 
@@ -165,8 +183,6 @@ pub async fn handle_message(
         .send()
         .await
         .unwrap();
-
-    println!("{res:?}");
 
     Some(image)
 }

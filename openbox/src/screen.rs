@@ -3,7 +3,7 @@ use image::{ImageFormat, Rgba, RgbaImage};
 use reqwest::multipart::Part;
 
 pub fn take_screenshot(
-    expect_alpha: bool, 
+    expect_alpha: bool,
     cur: Option<&RgbaImage>,
 ) -> (Part, RgbaImage, &'static str) {
     let image = xcap::Monitor::all()
