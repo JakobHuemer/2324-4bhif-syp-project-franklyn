@@ -5,7 +5,7 @@ import {environment} from "../../../env/environment";
 import {lastValueFrom} from "rxjs";
 import {set} from "../model";
 import {Exam} from "../model/entity/Exam";
-import {ExamDto} from "../model/entity/dto/exam-dto";
+import {ExamDto} from "../model/entity/dto/ExamDto";
 import {ExamState} from "../model/entity/Exam-State";
 
 @Injectable({

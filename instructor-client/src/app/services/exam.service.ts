@@ -4,7 +4,7 @@ import {set} from "../model";
 import {Exam} from "../model/entity/Exam";
 import {StoreService} from "./store.service";
 import {Location} from "@angular/common";
-import {ExamDto} from "../model/entity/dto/exam-dto";
+import {ExamDto} from "../model/entity/dto/ExamDto";
 
 @Injectable({
   providedIn: 'root'
