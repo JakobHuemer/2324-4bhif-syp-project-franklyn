@@ -48,5 +48,62 @@
     id="endTimeInput">
 </div>
 
+<div class="mb-3">
+  <h6>Oder Einheiten auswählen:</h6>
+  <table>
+    <tr>
+      @for (i of environment.schoolUnits; track i.id) {
+        <td>
+          <button class="
+            rounded-circle
+            p-1
+            px-2
+            btn
+            btn-outline-info
+            mx-1"
+                  data-bs-toggle="tooltip"
+                  data-bs-placement="top"
+                  title="{{i.time}}"
+                  [ngClass]="btnToggled(i.id)">
+            {{pad(i.id, 2)}}
+          </button>
+        </td>
+      }
+    </tr>
+  </table>
+</div>
 
+@if (environment.displayEveningSchoolUnits) {
+  <div class="mb-3">
+    <h6>Abendschule:</h6>
+    <table>
+      <tr>
+        @for (i of environment.eveningSchoolUnits; track i.id) {
+          <td>
+            <button class="
+              rounded-circle
+              p-1
+              px-2
+              btn
+              mx-1"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="top"
+                    title="{{i.time}}"
+                    [ngClass]="btnToggled(i.id)">
+              {{pad(i.id, 2)}}
+            </button>
+          </td>
+        }
+      </tr>
+    </table>
+  </div>
+}
+
+<div class="position-relative">
+  <button
+    class="btn btn-success position-absolute end-0 bottom-0"
+    [disabled]="false"> <!--TODO: disable if input not valid-->
+    Test erstellen
+  </button>
+</div>
 
