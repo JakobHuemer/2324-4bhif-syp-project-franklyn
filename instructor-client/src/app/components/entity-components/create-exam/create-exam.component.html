@@ -1,1 +1,52 @@
-<p>hier ist das Test-erstellen Fenster</p>
+<h5 class="mb-3 fw-bold">Allgemeines</h5>
+
+<div class="mb-3">
+  <label for="titleInput" class="form-label">Titel:</label>
+  <input
+    type="text"
+    class="form-control w-25"
+    id="titleInput"
+    placeholder="Titel eingeben">
+  <p class="form-text text-danger" [hidden]="true">
+    <!--TODO: input handling-->
+    Bitte gib einen Titel an!
+  </p>
+</div>
+
+<div class="mb-3">
+  <label for="dateInput" class="form-label">Testdatum:</label>
+  <input
+    type="date"
+    class="form-control w-25"
+    id="dateInput">
+</div>
+
+<div class="mb-3">
+  <label for="screencaptureIntervalInput" class="form-label">Interval mit dem Screenshots aufgenommen werden (in Sekunden):</label>
+  <input
+    type="number"
+    class="form-control w-25"
+    id="screencaptureIntervalInput"
+    placeholder="0">
+</div>
+
+<h5 class="mb-3 fw-bold">Start- und Endzeit festlegen</h5>
+
+<div class="mb-3">
+  <label for="startTimeInput" class="form-label">Von:</label>
+  <input
+    type="time"
+    class="form-control w-25"
+    id="startTimeInput">
+</div>
+
+<div class="mb-3">
+  <label for="endTimeInput" class="form-label">Bis:</label>
+  <input
+    type="time"
+    class="form-control w-25"
+    id="endTimeInput">
+</div>
+
+
+
