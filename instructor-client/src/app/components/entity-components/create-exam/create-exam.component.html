@@ -2,50 +2,89 @@
 
 <div class="mb-3">
   <label for="titleInput" class="form-label">Titel:</label>
-  <input
+  <input #title
     type="text"
     class="form-control w-25"
     id="titleInput"
-    placeholder="Titel eingeben">
-  <p class="form-text text-danger" [hidden]="true">
-    <!--TODO: input handling-->
+    placeholder="Titel eingeben"
+    (keyup)="setIsValidTitle(title.value)"
+    [value]="store.value.createExam.title">
+  <p class="form-text text-danger" [hidden]="isValidTitle">
     Bitte gib einen Titel an!
   </p>
 </div>
 
 <div class="mb-3">
   <label for="dateInput" class="form-label">Testdatum:</label>
-  <input
+  <input #date
     type="date"
     class="form-control w-25"
-    id="dateInput">
+    id="dateInput"
+    [value]="store.value.createExam.start
+      .toISOString()
+      .split('T')[0]"
+    (input)="setIsValidDate(date.value)">
+  <p class="form-text text-danger" [hidden]="isValidDate">
+    Bitte gib ein Datum an!
+  </p>
 </div>
 
-<div class="mb-3">
-  <label for="screencaptureIntervalInput" class="form-label">Interval mit dem Screenshots aufgenommen werden (in Sekunden):</label>
-  <input
-    type="number"
-    class="form-control w-25"
-    id="screencaptureIntervalInput"
-    placeholder="0">
+<div class="mb-3 position-relative w-25">
+  <label
+    for="patrol-speed-range"
+    class="form-label">
+    Patrol speed: {{this.store.value.timer.patrolSpeed}} sec
+    <span
+      class="position-absolute end-0"
+      data-bs-toggle="tooltip"
+      data-bs-placement="top"
+      title="Der Zeitabstand zwischen den Screenshots, die auf den Schüler-PCs aufgenommen werden.">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
+        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+      </svg>
+    </span>
+  </label>
+  <div>
+    <label
+      for="patrol-speed-range"
+      class="form-label">
+      {{environment.minPatrolSpeed}}
+    </label>
+    <input #patrolSpeed
+           type="range"
+           class="form-range w-auto"
+           [min]="environment.minPatrolSpeed"
+           [max]="environment.maxPatrolSpeed"
+           id="patrol-speed-range"
+           name="patrol-speed-range"
+           [value]="store.value.timer.patrolSpeed"
+           (input)="setPatrolSpeed(patrolSpeed.value)">
+    <label for="patrol-speed-range">{{environment.maxPatrolSpeed}}</label>
+  </div>
 </div>
 
 <h5 class="mb-3 fw-bold">Start- und Endzeit festlegen</h5>
 
 <div class="mb-3">
   <label for="startTimeInput" class="form-label">Von:</label>
-  <input
+  <input #startTime
     type="time"
     class="form-control w-25"
-    id="startTimeInput">
+    id="startTimeInput"
+    (input)="setStartTime(startTime.value, endTime.value)">
 </div>
 
 <div class="mb-3">
   <label for="endTimeInput" class="form-label">Bis:</label>
-  <input
+  <input #endTime
     type="time"
     class="form-control w-25"
-    id="endTimeInput">
+    id="endTimeInput"
+    (input)="setEndTime(startTime.value, endTime.value)">
+  <p class="form-text text-danger" [hidden]="isValidEndTime">
+    Diese Zeit muss nach der Start-Zeit sein.
+  </p>
 </div>
 
 <div class="mb-3">
@@ -61,10 +100,11 @@
             btn
             btn-outline-info
             mx-1"
-                  data-bs-toggle="tooltip"
-                  data-bs-placement="top"
-                  title="{{i.time}}"
-                  [ngClass]="btnToggled(i.id)">
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="{{i.time}}"
+            (click)="selectedUnit(i)"
+            [ngClass]="btnToggled(i.id)">
             {{pad(i.id, 2)}}
           </button>
         </td>
@@ -86,10 +126,11 @@
               px-2
               btn
               mx-1"
-                    data-bs-toggle="tooltip"
-                    data-bs-placement="top"
-                    title="{{i.time}}"
-                    [ngClass]="btnToggled(i.id)">
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="{{i.time}}"
+              (click)="selectedUnit(i)"
+              [ngClass]="btnToggled(i.id)">
               {{pad(i.id, 2)}}
             </button>
           </td>
@@ -102,7 +143,8 @@
 <div class="position-relative">
   <button
     class="btn btn-success position-absolute end-0 bottom-0"
-    [disabled]="false"> <!--TODO: disable if input not valid-->
+    [disabled]="!isValidTitle || !isValidDate || !isValidEndTime"
+    (click)="createTestBtnClicked()">
     Test erstellen
   </button>
 </div>

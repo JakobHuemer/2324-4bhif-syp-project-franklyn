@@ -6,6 +6,8 @@ import {Patrol} from "./entity/Patrol";
 import {ServerMetrics} from "./entity/ServerMetrics";
 import {Timer} from "./entity/Timer";
 import {ExamData} from "./entity/ExamData";
+import {CreateExam} from "./entity/CreateExam";
+import {environment} from "../../../env/environment";
 
 export interface Model {
   readonly cacheBuster: CacheBuster,
@@ -14,7 +16,8 @@ export interface Model {
   readonly patrol: Patrol,
   readonly serverMetrics: ServerMetrics,
   readonly timer: Timer,
-  readonly resetText: string
+  readonly resetText: string,
+  readonly createExam: CreateExam
 }
 
 const initialState: Model = {
@@ -46,7 +49,13 @@ const initialState: Model = {
     memoryUtilisationColor: "#0d6efd"
   },
   timer: new Timer(),
-  resetText: ""
+  resetText: "",
+  createExam: {
+    title: "",
+    start: new Date(Date.now()),
+    end: new Date(Date.now()+ 3000000), // add 50 minutes
+    screencapture_interval_seconds: environment.patrolSpeed
+  }
 };
 
 export const store = new BehaviorSubject<Model>(initialState);

@@ -1,4 +1,4 @@
-export interface CreateExamDto {
+export interface CreateExam {
   title: string
   start: Date,
   end: Date,
