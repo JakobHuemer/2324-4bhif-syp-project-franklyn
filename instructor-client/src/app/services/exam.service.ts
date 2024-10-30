@@ -5,6 +5,8 @@ import {Exam} from "../model/entity/Exam";
 import {StoreService} from "./store.service";
 import {Location} from "@angular/common";
 import {ExamDto} from "../model/entity/dto/ExamDto";
+import {CreateExam} from "../model/entity/CreateExam";
+import {Observable} from "rxjs";
 
 @Injectable({
   providedIn: 'root'
@@ -50,7 +52,7 @@ export class ExamService {
     this.webApi.deleteExamByIdFromServer(exam.id);
   }
 
-  createNewExam(exam: ExamDto): void {
-    this.webApi.createNewExam(exam);
+  createNewExam(exam: CreateExam): Promise<Observable<Exam>> {
+    return this.webApi.createNewExam(exam);
   }
 }

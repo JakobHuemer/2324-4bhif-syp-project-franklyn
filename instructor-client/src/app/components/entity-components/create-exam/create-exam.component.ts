@@ -1,9 +1,11 @@
-import {AfterViewInit, Component, ElementRef, inject, model, ViewChild} from '@angular/core';
+import {AfterViewInit, Component, ElementRef, inject, ViewChild} from '@angular/core';
 import {environment} from "../../../../../env/environment";
 import {NgClass} from "@angular/common";
 import {StoreService} from "../../../services/store.service";
 import {FormsModule} from "@angular/forms";
-import {set, store} from "../../../model";
+import {set} from "../../../model";
+import {CreateExam} from "../../../model/entity/CreateExam";
+import {ExamService} from "../../../services/exam.service";
 
 @Component({
   selector: 'app-create-exam',
@@ -17,6 +19,7 @@ import {set, store} from "../../../model";
 })
 export class CreateExamComponent implements AfterViewInit{
   protected store = inject(StoreService).store;
+  private examSvc = inject(ExamService);
 
   protected readonly environment = environment;
 
@@ -27,6 +30,11 @@ export class CreateExamComponent implements AfterViewInit{
   protected isValidDate: boolean = true;
   protected isValidEndTime: boolean = this.store.value.createExam
     .end > this.store.value.createExam.start;
+
+  protected createdExam: boolean = false;
+  protected createdExamInfo: string = "";
+  protected createdExamValue: string = "";
+  protected textColourForCreateExamResponse: string = "";
 
   @ViewChild("startTime") startTimeInput!: ElementRef;
   @ViewChild("endTime") endTimeInput!: ElementRef;
@@ -374,9 +382,11 @@ export class CreateExamComponent implements AfterViewInit{
     );
   }
 
-  protected createTestBtnClicked(): void {
-    //TODO: notification that exam successfully created with the new pin
+  protected async createTestBtnClicked(): Promise<void> {
+    // save exam
+    let exam: CreateExam = this.store.value.createExam;
 
+    // clear exam
     set(model => {
       model.createExam.title = "";
       model.createExam.start = new Date(Date.now());
@@ -384,6 +394,8 @@ export class CreateExamComponent implements AfterViewInit{
       model.createExam.screencapture_interval_seconds = environment
         .patrolSpeed;
     });
+
+    // reset values
     this.isValidTitle = this.store
       .value
       .createExam
@@ -391,6 +403,24 @@ export class CreateExamComponent implements AfterViewInit{
     this.isValidDate = true;
     this.isValidEndTime = this.store.value.createExam
       .end > this.store.value.createExam.start;
+
+    (await this.examSvc.createNewExam(exam)).subscribe({
+      next: (exam) => {
+        this.createdExamInfo = "Der Test wurde erfolgreich erstellt:";
+        this.createdExamValue = "Pin: " + exam.pin;
+        this.createdExam = true;
+        this.examSvc.reloadAllExams();
+      },
+      error: error => {
+        this.createdExamInfo = "Der Test wurde nicht erfolgreich erstellt:";
+        let errMsg = (error.message) ? error.message :
+          error.status ? `${error.status} - ${error.statusText}` :
+            'Server error';
+        this.createdExamValue = errMsg;
+        this.textColourForCreateExamResponse = "text-danger";
+        this.createdExam = true;
+      }
+    });
   }
 
 }

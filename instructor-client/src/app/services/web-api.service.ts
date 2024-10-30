@@ -2,11 +2,12 @@ import {inject, Injectable} from '@angular/core';
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import {Examinee, ServerMetrics} from "../model";
 import {environment} from "../../../env/environment";
-import {lastValueFrom} from "rxjs";
+import {lastValueFrom, Observable} from "rxjs";
 import {set} from "../model";
 import {Exam} from "../model/entity/Exam";
 import {ExamDto} from "../model/entity/dto/ExamDto";
 import {ExamState} from "../model/entity/Exam-State";
+import {CreateExam} from "../model/entity/CreateExam";
 
 @Injectable({
   providedIn: 'root'
@@ -156,16 +157,11 @@ export class WebApiService {
       });
   }
 
-  public async createNewExam(exam: ExamDto): Promise<void> {
-    this.httpClient.post<Exam>(
+  public async createNewExam(exam: CreateExam): Promise<Observable<Exam>> {
+    return this.httpClient.post<Exam>(
       `${environment.serverBaseUrl}/exams`,
       exam
-    ).subscribe({
-      next: (exam) => {
-        this.getExamsFromServer();
-      },
-      error: err => console.error(err)
-    });
+    );
   }
 
   public async deleteExamByIdFromServer(id: number): Promise<void> {
@@ -173,10 +169,13 @@ export class WebApiService {
       `${environment.serverBaseUrl}/exams/${id}`,
       {headers: this.headers})
       .subscribe({
-        next: () => {
+        next: (response) => {
+          console.log(response); // as tooltip
           this.getExamsFromServer();
         },
-        error: (error) => console.log(error)
+        error: (error) => {
+          console.log(error); // as tooltip
+        }
       });
   }
 
