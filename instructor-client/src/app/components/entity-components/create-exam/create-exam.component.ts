@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, ElementRef, inject, ViewChild} from '@angular/core';
+import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, inject, ViewChild} from '@angular/core';
 import {environment} from "../../../../../env/environment";
 import {NgClass} from "@angular/common";
 import {StoreService} from "../../../services/store.service";
@@ -6,6 +6,7 @@ import {FormsModule} from "@angular/forms";
 import {set} from "../../../model";
 import {CreateExam} from "../../../model/entity/CreateExam";
 import {ExamService} from "../../../services/exam.service";
+import {distinctUntilChanged, map} from "rxjs";
 
 @Component({
   selector: 'app-create-exam',
@@ -22,16 +23,21 @@ export class CreateExamComponent implements AfterViewInit{
   private examSvc = inject(ExamService);
 
   protected readonly environment = environment;
+  private readonly cdRef = inject(ChangeDetectorRef);
 
   protected isValidTitle: boolean = this.store
     .value
     .createExam
     .title !== "";
   protected isValidDate: boolean = true;
-  protected isValidEndTime: boolean = this.store.value.createExam
+  protected isEndTimeAfterStartTime: boolean = this.store.value.createExam
     .end > this.store.value.createExam.start;
+  protected isValidStartTime: boolean = this.store.value.createExam
+    .start > new Date(Date.now());
+  protected isValidEndTime: boolean = this.store.value.createExam
+    .end > new Date(Date.now());
+  protected dateNotInPast: boolean = true;
 
-  protected createdExam: boolean = false;
   protected createdExamInfo: string = "";
   protected createdExamValue: string = "";
   protected textColourForCreateExamResponse: string = "";
@@ -40,6 +46,19 @@ export class CreateExamComponent implements AfterViewInit{
   @ViewChild("endTime") endTimeInput!: ElementRef;
 
   ngAfterViewInit() {
+    this.initialiseTimeInputs();
+
+    this.store.pipe(
+      map(model => model.createdExam),
+      distinctUntilChanged()
+    ).subscribe(next => {
+      this.cdRef.detectChanges();
+      this.initialiseTimeInputs();
+      this.checkAllFieldsIfValid();
+    });
+  }
+
+  private initialiseTimeInputs() {
     this.startTimeInput.nativeElement.value = this.dateToTimeString(
       this.store.value.createExam.start
     );
@@ -150,7 +169,7 @@ export class CreateExamComponent implements AfterViewInit{
   }
 
   protected setIsValidTitle(title: string): void {
-    this.isValidTitle = title !== "";
+    this.checkAllFieldsIfValid();
 
     if (this.store.value.createExam.title !== title) {
       set(model => {
@@ -185,6 +204,7 @@ export class CreateExamComponent implements AfterViewInit{
         model.createExam.start = startDate;
         model.createExam.end = endDate;
       });
+      this.checkAllFieldsIfValid();
     }
   }
 
@@ -195,7 +215,7 @@ export class CreateExamComponent implements AfterViewInit{
     });
   }
 
-  protected setStartTime(startTimeString: string, endTimeString: string): void {
+  protected setStartTime(startTimeString: string): void {
     var startTime: number[] = this.getHoursAndMinutes(startTimeString);
     var storeStartDate = this.store.value.createExam.start;
 
@@ -212,10 +232,10 @@ export class CreateExamComponent implements AfterViewInit{
       });
     }
 
-    this.setIsValidEndTime(startTimeString, endTimeString);
+    this.checkAllFieldsIfValid();
   }
 
-  protected setEndTime(startTimeString: string, endTimeString: string): void {
+  protected setEndTime(endTimeString: string): void {
     var endTime: number[] = this.getHoursAndMinutes(endTimeString);
     var storeEndDate = this.store.value.createExam.end;
 
@@ -232,18 +252,7 @@ export class CreateExamComponent implements AfterViewInit{
       });
     }
 
-    this.setIsValidEndTime(startTimeString, endTimeString);
-  }
-
-  private setIsValidEndTime(startTimeString: string, endTimeString: string): void {
-    var startTime: number[] = this.getHoursAndMinutes(startTimeString);
-    var endTime: number[] = this.getHoursAndMinutes(endTimeString);
-
-    this.isValidEndTime = !(endTime[0] < startTime[0] ||
-      (
-        endTime[0] === startTime[0] &&
-        endTime[1] < startTime[1]
-      ));
+    this.checkAllFieldsIfValid();
   }
 
   protected dateToTimeString(date: Date): string {
@@ -315,7 +324,7 @@ export class CreateExamComponent implements AfterViewInit{
 
     // switch if end time is not valid since
     // we just assume that the first selected one is a start time
-    if (!this.isValidEndTime) {
+    if (!this.isEndTimeAfterStartTime) {
       const bucket = endDate;
       endDate = startDate;
       startDate = bucket;
@@ -386,41 +395,60 @@ export class CreateExamComponent implements AfterViewInit{
     // save exam
     let exam: CreateExam = this.store.value.createExam;
 
-    // clear exam
-    set(model => {
-      model.createExam.title = "";
-      model.createExam.start = new Date(Date.now());
-      model.createExam.end = new Date(Date.now() + 3000000);
-      model.createExam.screencapture_interval_seconds = environment
-        .patrolSpeed;
-    });
-
-    // reset values
-    this.isValidTitle = this.store
-      .value
-      .createExam
-      .title !== "";
-    this.isValidDate = true;
-    this.isValidEndTime = this.store.value.createExam
-      .end > this.store.value.createExam.start;
-
     (await this.examSvc.createNewExam(exam)).subscribe({
       next: (exam) => {
         this.createdExamInfo = "Der Test wurde erfolgreich erstellt:";
         this.createdExamValue = "Pin: " + exam.pin;
-        this.createdExam = true;
+
+        set(model => {
+          model.createdExam = true;
+        })
+
         this.examSvc.reloadAllExams();
+
+        // clear exam
+        set(model => {
+          model.createExam.title = "";
+          model.createExam.start = new Date(Date.now());
+          model.createExam.end = new Date(Date.now() + 3000000);
+          model.createExam.screencapture_interval_seconds = environment
+            .patrolSpeed;
+        });
       },
       error: error => {
         this.createdExamInfo = "Der Test wurde nicht erfolgreich erstellt:";
-        let errMsg = (error.message) ? error.message :
+        this.createdExamValue = (error.message) ? error.message :
           error.status ? `${error.status} - ${error.statusText}` :
             'Server error';
-        this.createdExamValue = errMsg;
         this.textColourForCreateExamResponse = "text-danger";
-        this.createdExam = true;
+
+        set(model => {
+          model.createdExam = true;
+        })
       }
     });
+  }
+
+  private checkAllFieldsIfValid() : void {
+    this.isValidTitle = this.store
+      .value
+      .createExam
+      .title !== "";
+    this.isEndTimeAfterStartTime = this.store.value.createExam
+      .end > this.store.value.createExam.start;
+
+    let curDate: Date = new Date(Date.now());
+
+    this.isValidStartTime = this.store.value.createExam
+      .start > curDate;
+    this.isValidEndTime = this.store.value.createExam
+      .end > curDate;
+
+    curDate.setHours(0, 0, 0, 0);
+    let storeDate = this.store.value.createExam.start;
+    storeDate.setHours(0, 0, 0, 0);
+
+    this.dateNotInPast = storeDate.getTime() >= curDate.getTime();
   }
 
 }

@@ -1,4 +1,4 @@
-@if (!createdExam) {
+@if (!store.value.createdExam) {
   <h5 class="mb-3 fw-bold">Allgemeines</h5>
 
   <div class="mb-3">
@@ -27,6 +27,9 @@
            (input)="setIsValidDate(date.value)">
     <p class="form-text text-danger" [hidden]="isValidDate">
       Bitte gib ein Datum an!
+    </p>
+    <p class="form-text text-danger" [hidden]="dateNotInPast">
+      Dieses Datum muss in der Zukunft liegen!
     </p>
   </div>
 
@@ -73,7 +76,10 @@
            type="time"
            class="form-control w-25"
            id="startTimeInput"
-           (input)="setStartTime(startTime.value, endTime.value)">
+           (input)="setStartTime(startTime.value)">
+    <p class="form-text text-danger" [hidden]="isValidStartTime">
+      Diese Zeit muss in der Zukunft liegen!
+    </p>
   </div>
 
   <div class="mb-3">
@@ -82,9 +88,12 @@
            type="time"
            class="form-control w-25"
            id="endTimeInput"
-           (input)="setEndTime(startTime.value, endTime.value)">
+           (input)="setEndTime(endTime.value)">
+    <p class="form-text text-danger" [hidden]="isEndTimeAfterStartTime">
+      Diese Zeit muss nach der Start-Zeit sein!
+    </p>
     <p class="form-text text-danger" [hidden]="isValidEndTime">
-      Diese Zeit muss nach der Start-Zeit sein.
+      Diese Zeit muss in der Zukunft liegen!
     </p>
   </div>
 
@@ -144,7 +153,12 @@
   <div class="position-relative">
     <button
       class="btn btn-success position-absolute end-0 bottom-0"
-      [disabled]="!isValidTitle || !isValidDate || !isValidEndTime"
+      [disabled]="!isValidTitle ||
+        !isValidDate ||
+        !isEndTimeAfterStartTime ||
+        !isValidEndTime ||
+        !isValidStartTime ||
+        !dateNotInPast"
       (click)="createTestBtnClicked()">
       Test erstellen
     </button>

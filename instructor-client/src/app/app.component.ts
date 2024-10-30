@@ -85,6 +85,7 @@ export class AppComponent implements OnInit{
       //safety measure to prevent any possible bugs
       model.patrol.patrolExaminee = undefined;
       model.patrol.isPatrolModeOn = false;
+      model.createdExam = false;
     })
   }
 

@@ -18,6 +18,7 @@ export interface Model {
   readonly timer: Timer,
   readonly resetText: string,
   readonly createExam: CreateExam
+  readonly createdExam: boolean;
 }
 
 const initialState: Model = {
@@ -55,7 +56,8 @@ const initialState: Model = {
     start: new Date(Date.now()),
     end: new Date(Date.now()+ 3000000), // add 50 minutes
     screencapture_interval_seconds: environment.patrolSpeed
-  }
+  },
+  createdExam: false
 };
 
 export const store = new BehaviorSubject<Model>(initialState);
