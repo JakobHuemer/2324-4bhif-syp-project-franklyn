@@ -397,7 +397,7 @@ export class CreateExamComponent implements AfterViewInit{
 
     (await this.examSvc.createNewExam(exam)).subscribe({
       next: (exam) => {
-        this.createdExamInfo = "Der Test wurde erfolgreich erstellt:";
+        this.createdExamInfo = "Der Test wurde erfolgreich gespeichert:";
         this.createdExamValue = "Pin: " + exam.pin;
 
         set(model => {
@@ -416,7 +416,7 @@ export class CreateExamComponent implements AfterViewInit{
         });
       },
       error: error => {
-        this.createdExamInfo = "Der Test wurde nicht erfolgreich erstellt:";
+        this.createdExamInfo = "Der Test wurde nicht erfolgreich gespeichert:";
         this.createdExamValue = (error.message) ? error.message :
           error.status ? `${error.status} - ${error.statusText}` :
             'Server error';
