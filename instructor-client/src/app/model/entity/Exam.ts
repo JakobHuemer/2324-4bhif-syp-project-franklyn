@@ -9,5 +9,6 @@ export interface Exam {
   plannedEnd: Date,
   actualStart: Date | undefined,
   actualEnd: Date | undefined,
-  screencaptureIntervalSeconds: number
+  screencaptureIntervalSeconds: number,
+  amountOfExaminees: number
 }

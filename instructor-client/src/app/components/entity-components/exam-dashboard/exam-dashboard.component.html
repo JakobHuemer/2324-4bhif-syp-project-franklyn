@@ -168,7 +168,7 @@
             <div class="card-body d-flex justify-content-between">
               <div>
                 <h6 class="card-subtitle mb-2 text-body-secondary">Eingeschriebene Schüler</h6>
-                <h5 class="card-title">Nummer 42</h5>
+                <h5 class="card-title">{{exam.amountOfExaminees}}</h5>
               </div>
               <div class="me-5">
                 <svg
@@ -207,8 +207,9 @@
 
     <div class="d-flex position-absolute bottom-0 justify-content-between p-2 w-100"
          routerLinkActive="active">
-      <a routerLink="edit-test-view"
-         class="btn btn-primary button-width">
+      <a routerLink=""
+        class="btn btn-primary button-width">
+        <!--routerLink="edit-test-view"-->
         Edit
       </a>
       <button
@@ -216,8 +217,9 @@
         class="btn btn-success button-width">
         Aktualisieren
       </button>
-      <a routerLink="video-viewer"
+      <a routerLink=""
          class="btn btn-primary button-width">
+        <!--routerLink="video-viewer"-->
         Videos
       </a>
     </div>

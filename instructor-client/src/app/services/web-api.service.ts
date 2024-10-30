@@ -92,7 +92,8 @@ export class WebApiService {
                   actualStart: undefined,
                   actualEnd: undefined,
                   screencaptureIntervalSeconds: eDto
-                    .screencapture_interval_seconds
+                    .screencapture_interval_seconds,
+                  amountOfExaminees: -1
                 }
 
                 if (eDto.actual_start !== null) {
