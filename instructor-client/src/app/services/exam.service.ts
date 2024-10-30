@@ -4,7 +4,6 @@ import {set} from "../model";
 import {Exam} from "../model/entity/Exam";
 import {StoreService} from "./store.service";
 import {Location} from "@angular/common";
-import {ExamDto} from "../model/entity/dto/ExamDto";
 import {CreateExam} from "../model/entity/CreateExam";
 import {Observable} from "rxjs";
 

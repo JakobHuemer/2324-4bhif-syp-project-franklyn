@@ -6,7 +6,6 @@ import {lastValueFrom, Observable} from "rxjs";
 import {set} from "../model";
 import {Exam} from "../model/entity/Exam";
 import {ExamDto} from "../model/entity/dto/ExamDto";
-import {ExamState} from "../model/entity/Exam-State";
 import {CreateExam} from "../model/entity/CreateExam";
 
 @Injectable({
@@ -75,67 +74,42 @@ export class WebApiService {
   }
 
   public async getExamsFromServer(): Promise<void> {
-    /*this.httpClient.get<Exam[]>(
+    this.httpClient.get<ExamDto[]>(
       `${environment.serverBaseUrl}/exams`,
       {headers: this.headers})
       .subscribe({
-        "next": (exams) => set((model) => {
-          model.examData.exams = this.sortExams(exams);
+        "next": (exams) => {
+          set((model) => {
+            model.examData.exams = exams.map(
+              eDto => {
+                let exam: Exam = {
+                  id: eDto.id,
+                  title: eDto.title,
+                  pin: eDto.pin,
+                  state: eDto.state,
+                  plannedStart: new Date(eDto.planned_start),
+                  plannedEnd: new Date(eDto.planned_end),
+                  actualStart: new Date(eDto.actual_start),
+                  actualEnd: new Date(eDto.actual_end),
+                  screencaptureIntervalSeconds: eDto
+                    .screencapture_interval_seconds
+                }
 
-          if (model.examData.exams.length >= 1) {
-            model.examData.curExam = model.examData.exams[0];
-          };
-        }),
+                return exam;
+              }
+            );
+
+            model.examData.exams = this.sortExams(
+              model.examData.exams
+            );
+
+            if (model.examData.exams.length >= 1) {
+              model.examData.curExam = model.examData.exams[0];
+            }
+          });
+        },
         "error": (err) => console.error(err),
-      });*/
-
-    let date = Date.now()
-
-    set((model) => {
-      model.examData.exams = [
-        {
-          id: 0,
-          plannedStart: new Date(date),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a1",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-        {
-          id: 1,
-          plannedStart: new Date(new Date().setHours(3)),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a2",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-        {
-          id: 2,
-          plannedStart: new Date(date),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a3",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-        {
-          id: 3,
-          plannedStart: new Date(new Date(date).setHours(1)),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a4",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-      ];
-      model.examData.exams = this.sortExams(model.examData.exams);
-
-      if (model.examData.exams.length >= 1) {
-        model.examData.curExam = model.examData.exams[0];
-      };
-    })
+      });
   }
 
   public async getExamByIdFromServer(id: number): Promise<void> {

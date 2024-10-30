@@ -2,10 +2,12 @@ import {ExamState} from "./Exam-State";
 
 export interface Exam {
   id: number,
-  plannedStart: Date,
-  plannedEnd: Date,
-  actualEnd: Date,
   title: string,
   pin: number,
-  state: ExamState
+  state: ExamState,
+  plannedStart: Date,
+  plannedEnd: Date,
+  actualStart: Date,
+  actualEnd: Date,
+  screencaptureIntervalSeconds: number
 }
