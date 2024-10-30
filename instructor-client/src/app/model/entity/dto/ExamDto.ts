@@ -7,7 +7,7 @@ export interface ExamDto {
   state: ExamState,
   planned_start: string,
   planned_end: string,
-  actual_start: string,
-  actual_end: string,
+  actual_start: string | null,
+  actual_end: string | null,
   screencapture_interval_seconds: number
 }

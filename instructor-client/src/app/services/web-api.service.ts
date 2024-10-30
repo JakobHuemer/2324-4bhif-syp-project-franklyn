@@ -89,10 +89,18 @@ export class WebApiService {
                   state: eDto.state,
                   plannedStart: new Date(eDto.planned_start),
                   plannedEnd: new Date(eDto.planned_end),
-                  actualStart: new Date(eDto.actual_start),
-                  actualEnd: new Date(eDto.actual_end),
+                  actualStart: undefined,
+                  actualEnd: undefined,
                   screencaptureIntervalSeconds: eDto
                     .screencapture_interval_seconds
+                }
+
+                if (eDto.actual_start !== null) {
+                  exam.actualStart = new Date(eDto.actual_start);
+                }
+
+                if (eDto.actual_end !== null) {
+                  exam.actualEnd = new Date(eDto.actual_end);
                 }
 
                 return exam;

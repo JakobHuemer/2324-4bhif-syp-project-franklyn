@@ -29,8 +29,15 @@ export class ExamDashboardComponent {
       this.exam.plannedStart.getFullYear();
   }
 
+  protected pad(num: number, size: number) {
+    let s = num+"";
+    while (s.length < size) s = "0" + s;
+    return s;
+  }
+
   getFormattedTimeFrom(date: Date): string {
-    return date.getHours() + ":" + date.getMinutes();
+    return this.pad(date.getHours(), 2) + ":" +
+      this.pad(date.getMinutes(), 2);
   }
 
   protected readonly ExamState = ExamState;

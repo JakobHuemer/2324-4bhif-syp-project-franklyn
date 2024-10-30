@@ -7,7 +7,7 @@ export interface Exam {
   state: ExamState,
   plannedStart: Date,
   plannedEnd: Date,
-  actualStart: Date,
-  actualEnd: Date,
+  actualStart: Date | undefined,
+  actualEnd: Date | undefined,
   screencaptureIntervalSeconds: number
 }
