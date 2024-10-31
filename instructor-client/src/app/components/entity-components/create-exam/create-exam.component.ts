@@ -7,6 +7,8 @@ import {set} from "../../../model";
 import {CreateExam} from "../../../model/entity/CreateExam";
 import {ExamService} from "../../../services/exam.service";
 import {distinctUntilChanged, map} from "rxjs";
+import {SchoolUnit} from "../../../model/entity/SchoolUnit";
+import {SchoolUnitService} from "../../../services/school-unit.service";
 
 @Component({
   selector: 'app-create-exam',
@@ -21,9 +23,10 @@ import {distinctUntilChanged, map} from "rxjs";
 export class CreateExamComponent implements AfterViewInit{
   protected store = inject(StoreService).store;
   private examSvc = inject(ExamService);
+  private schoolUnitSvc = inject(SchoolUnitService);
+  private readonly cdRef = inject(ChangeDetectorRef);
 
   protected readonly environment = environment;
-  private readonly cdRef = inject(ChangeDetectorRef);
 
   protected isValidTitle: boolean = this.store
     .value
@@ -44,6 +47,7 @@ export class CreateExamComponent implements AfterViewInit{
 
   @ViewChild("startTime") startTimeInput!: ElementRef;
   @ViewChild("endTime") endTimeInput!: ElementRef;
+  @ViewChild("date") dateInput!: ElementRef;
 
   ngAfterViewInit() {
     this.initialiseTimeInputs();
@@ -51,7 +55,7 @@ export class CreateExamComponent implements AfterViewInit{
     this.store.pipe(
       map(model => model.createdExam),
       distinctUntilChanged()
-    ).subscribe(next => {
+    ).subscribe(() => {
       this.cdRef.detectChanges();
       this.initialiseTimeInputs();
       this.checkAllFieldsIfValid();
@@ -66,6 +70,12 @@ export class CreateExamComponent implements AfterViewInit{
     this.endTimeInput.nativeElement.value = this.dateToTimeString(
       this.store.value.createExam.end
     );
+
+    this.dateInput.nativeElement.value = this.store.value
+      .createExam
+      .start
+      .toISOString()
+      .split('T')[0];
   }
 
   protected pad(num: number, size: number) {
@@ -74,99 +84,32 @@ export class CreateExamComponent implements AfterViewInit{
     return s;
   }
 
-  protected btnToggled(id: number): string | string[] {
-    var btnClass: string | string[] = "btn-outline-info";
+  protected btnToggled(schoolUnit: SchoolUnit): string | string[] {
+    let btnClass: string | string[] = "btn-outline-info";
 
-    var fromDate = this.store.value.createExam.start;
-    var toDate = this.store.value.createExam.end;
-
-    var time1ID = this.getSchoolUnitByTime(fromDate);
-    var time2ID = this.getSchoolUnitByTime(toDate);
-
-    if (id == time1ID || id == time2ID)  {
+    if (schoolUnit.isSelected)  {
       btnClass = ["btn-info", "text-black"];
     }
 
     return btnClass;
   }
 
-  private getSchoolUnitByTime(date: Date): number {
-    const times: {
-      id: number,
-      start: Date,
-      end: Date
-    }[] = [
-      ...environment
-        .schoolUnits
-        .map((item) =>
-          this.getUnitByItem(item, date)),
-      ...environment
-        .eveningSchoolUnits
-        .map((item) =>
-          this.getUnitByItem(item, date, true))
-    ];
+  protected dateToTimeString(date: Date): string {
+    let timeString = `${date.getHours()}:`;
 
-    for (var i = 0; i < times.length - 1; i++) {
-      if (date.getTime() < times[i+1].start.getTime()) {
-        return times[i].id;
-      }
+    if (date.getHours() < 10) {
+      timeString = "0" + timeString;
     }
 
-    return times[times.length-1].id;
-  }
-
-  private getUnitByItem(item: {id: number, time:string}, baseDate: Date, isEveningSchool: boolean = false):
-    {
-      id: number,
-      start: Date,
-      end: Date
-    } {
-    const itemDate = new Date(baseDate);
-    const hoursAndMinutes = this.getHoursAndMinutes(item.time);
-
-    itemDate.setHours(hoursAndMinutes[0]);
-    itemDate.setMinutes(hoursAndMinutes[1]);
-    itemDate.setSeconds(0);
-    itemDate.setMilliseconds(0);
-
-    const endItemDate = new Date(itemDate);
-
-    if (isEveningSchool) {
-      endItemDate.setMinutes(
-        itemDate.getMinutes() + environment.eveningSchoolUnitMinutes
-      );
-    } else {
-      endItemDate.setMinutes(
-        itemDate.getMinutes() + environment.schoolUnitMinutes
-      );
+    if (date.getMinutes() < 10) {
+      timeString += "0";
     }
 
-    return {
-      id: item.id,
-      start: itemDate,
-      end: endItemDate
-    };
+    timeString += date.getMinutes();
+
+    return timeString;
   }
 
-  private getHoursAndMinutes(time: string): number[] {
-    const hoursAndMinutes = [0, 0];
-
-    const splitTime = time.split(":");
-
-    if (splitTime.length === 2) {
-      hoursAndMinutes[0] = Number(splitTime[0]);
-      const splitMinutes = splitTime[1].split(" ");
-      hoursAndMinutes[1] = Number(splitMinutes[0]);
-
-      if (splitMinutes.length === 2) {
-        if (hoursAndMinutes[0] < 12 && splitMinutes[1] === "PM") {
-          hoursAndMinutes[0] += 12;
-        }
-      }
-    }
-
-    return hoursAndMinutes;
-  }
 
   protected setIsValidTitle(title: string): void {
     this.checkAllFieldsIfValid();
@@ -182,9 +125,9 @@ export class CreateExamComponent implements AfterViewInit{
     this.isValidDate = dateString !== "";
 
     if (this.isValidDate) {
-      var date = new Date(dateString);
+      let date = new Date(dateString);
 
-      var startDate = new Date(
+      let startDate = new Date(
         this.store.value.createExam.start.getTime()
       );
 
@@ -192,7 +135,7 @@ export class CreateExamComponent implements AfterViewInit{
       startDate.setMonth(date.getMonth());
       startDate.setDate(date.getDate());
 
-      var endDate = new Date(
+      let endDate = new Date(
         this.store.value.createExam.end.getTime()
       );
 
@@ -209,19 +152,20 @@ export class CreateExamComponent implements AfterViewInit{
   }
 
   protected setPatrolSpeed(val: string): void {
-    var patrolSpeed = Number(val);
+    let patrolSpeed = Number(val);
     set((model) => {
       model.timer.patrolSpeed = patrolSpeed;
     });
   }
 
   protected setStartTime(startTimeString: string): void {
-    var startTime: number[] = this.getHoursAndMinutes(startTimeString);
-    var storeStartDate = this.store.value.createExam.start;
+    let startTime: number[] = this.schoolUnitSvc
+      .getHoursAndMinutes(startTimeString);
+    let storeStartDate = this.store.value.createExam.start;
 
     if (startTime[0] !== storeStartDate.getHours() ||
       startTime[1] !== storeStartDate.getMinutes()) {
-      var startDate = this.store.value.createExam.start;
+      let startDate = this.store.value.createExam.start;
       startDate.setHours(startTime[0]);
       startDate.setMinutes(startTime[1]);
       startDate.setSeconds(0);
@@ -233,15 +177,17 @@ export class CreateExamComponent implements AfterViewInit{
     }
 
     this.checkAllFieldsIfValid();
+    this.schoolUnitSvc.checkIfSelected();
   }
 
   protected setEndTime(endTimeString: string): void {
-    var endTime: number[] = this.getHoursAndMinutes(endTimeString);
-    var storeEndDate = this.store.value.createExam.end;
+    let endTime: number[] = this.schoolUnitSvc
+      .getHoursAndMinutes(endTimeString);
+    let storeEndDate = this.store.value.createExam.end;
 
     if (endTime[0] !== storeEndDate.getHours() ||
       endTime[1] !== storeEndDate.getMinutes()) {
-      var endDate = this.store.value.createExam.end;
+      let endDate = this.store.value.createExam.end;
       endDate.setHours(endTime[0]);
       endDate.setMinutes(endTime[1]);
       endDate.setSeconds(0);
@@ -253,73 +199,80 @@ export class CreateExamComponent implements AfterViewInit{
     }
 
     this.checkAllFieldsIfValid();
+    this.schoolUnitSvc.checkIfSelected();
   }
 
-  protected dateToTimeString(date: Date): string {
-    var timeString = `${date.getHours()}:`;
+  private setStartDate(newDate: Date) {
+    let storeDate = this.store.value.createExam.start;
+    let date: Date = this.setBaseDateForDate(newDate, storeDate);
 
-    if (date.getHours() < 10) {
-      timeString = "0" + timeString;
-    }
+    set(model => {
+      model.createExam.start = date;
+    });
 
-    if (date.getMinutes() < 10) {
-      timeString += "0";
-    }
-
-    timeString += date.getMinutes();
-
-    return timeString;
-  }
-
-  protected selectedUnit(item: {
-    id: number,
-    time: string
-  }): void {
-    let classes = this.btnToggled(item.id);
-    let date = this.getUnitByItem(
-      item,
-      this.store.value.createExam.start,
-      false
+    this.startTimeInput.nativeElement.value = this.dateToTimeString(
+      this.store.value.createExam.start
     );
-    const isStartDate = this.isStartDate(date.start);
+    this.schoolUnitSvc.checkIfSelected();
+    this.checkAllFieldsIfValid();
+  }
 
-    if (Array.isArray(classes)) {
-      if (isStartDate) {
-        let id = this.getSchoolUnitByTime(
-          this.store.value.createExam.start
-        );
-        let result = this
-          .getSchoolUnitById(id);
+  private setEndDate(newDate: Date) {
+    let storeDate = this.store.value.createExam.end;
+    let date: Date = this.setBaseDateForDate(newDate, storeDate);
 
-        if (result !== undefined) {
-          this.setStartDate(result.start);
-          this.setEndDate(result.end);
-        }
-      } else {
-        let id = this.getSchoolUnitByTime(
-          this.store.value.createExam.end
-        );
-        let result = this
-          .getSchoolUnitById(id);
+    set(model => {
+      model.createExam.end = date;
+    });
 
-        if (result !== undefined) {
-          this.setStartDate(result.start);
-          this.setEndDate(result.end);
-        }
-      }
-    } else {
-      if (isStartDate) {
-        this.setStartDate(date.start);
-      } else {
-        this.setEndDate(date.end);
-      }
-    }
+    this.endTimeInput.nativeElement.value = this.dateToTimeString(
+      this.store.value.createExam.end
+    );
+    this.schoolUnitSvc.checkIfSelected();
+    this.checkAllFieldsIfValid();
+  }
+
+  private setStartAndEndDate(newStartDate: Date, newEndDate: Date) {
+    let storeDate = this.store.value.createExam.start;
+    let startDate: Date = this.setBaseDateForDate(
+      newStartDate,
+      storeDate
+    );
+    let endDate: Date = this.setBaseDateForDate(
+      newEndDate,
+      storeDate
+    );
+
+    set(model => {
+      model.createExam.start = startDate;
+      model.createExam.end = endDate;
+    });
+
+    this.startTimeInput.nativeElement.value = this.dateToTimeString(
+      this.store.value.createExam.start
+    );
+    this.endTimeInput.nativeElement.value = this.dateToTimeString(
+      this.store.value.createExam.end
+    );
+
+    this.schoolUnitSvc.checkIfSelected();
+    this.checkAllFieldsIfValid();
+  }
+
+  private setBaseDateForDate(date: Date, baseDate: Date): Date {
+    let newDate: Date = new Date(date);
+
+    newDate.setFullYear(baseDate.getFullYear());
+    newDate.setMonth(baseDate.getMonth());
+    newDate.setDate(baseDate.getDate());
+
+    return newDate;
   }
 
   private isStartDate(date: Date): boolean {
     let startDate: Date = this.store.value.createExam.start;
     let endDate: Date = this.store.value.createExam.end;
-
+    let compareDate: Date = this.setBaseDateForDate(date, startDate);
     let result = false;
 
     // switch if end time is not valid since
@@ -330,12 +283,12 @@ export class CreateExamComponent implements AfterViewInit{
       startDate = bucket;
     }
 
-    if (date.getTime() < endDate.getTime()) {
-      if (date.getTime() < startDate.getTime()) {
+    if (compareDate.getTime() < endDate.getTime()) {
+      if (compareDate.getTime() < startDate.getTime()) {
         result = true;
       } else if(
-        Math.abs(startDate.getTime() - date.getTime()) <
-        Math.abs(endDate.getTime() - date.getTime())
+        Math.abs(startDate.getTime() - compareDate.getTime()) <
+        Math.abs(endDate.getTime() - compareDate.getTime())
       ) {
         // startDate is closer
         result = true;
@@ -345,51 +298,18 @@ export class CreateExamComponent implements AfterViewInit{
     return result;
   }
 
-  private getSchoolUnitById(id: number): {
-    id: number,
-    start: Date,
-    end: Date
-  } | undefined {
-    let isEveningSchool = false;
-    let results = environment.schoolUnits
-      .filter(su => su.id === id);
-
-    if (results.length === 0) {
-      results = environment.eveningSchoolUnits
-        .filter(su => su.id === id);
-      isEveningSchool = true;
-    }
-
-    if (results.length === 1) {
-      return this.getUnitByItem(
-        results[0],
-        this.store.value.createExam.start,
-        isEveningSchool
-      );
+  protected selectUnit(date: SchoolUnit): void {
+    if (date.isSelected) {
+      this.setStartAndEndDate(date.start, date.end);
     } else {
-      return undefined;
+      if (this.isStartDate(date.start)) {
+        this.setStartDate(date.start);
+      } else {
+        this.setEndDate(date.end);
+      }
     }
   }
 
-  private setStartDate(date: Date) {
-    set(model => {
-      model.createExam.start = date;
-    });
-
-    this.startTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.start
-    );
-  }
-
-  private setEndDate(date: Date) {
-    set(model => {
-      model.createExam.end = date;
-    });
-
-    this.endTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.end
-    );
-  }
 
   protected async createTestBtnClicked(): Promise<void> {
     // save exam
@@ -445,10 +365,9 @@ export class CreateExamComponent implements AfterViewInit{
       .end > curDate;
 
     curDate.setHours(0, 0, 0, 0);
-    let storeDate = this.store.value.createExam.start;
+    let storeDate = new Date(this.store.value.createExam.start);
     storeDate.setHours(0, 0, 0, 0);
 
     this.dateNotInPast = storeDate.getTime() >= curDate.getTime();
   }
-
 }

@@ -21,9 +21,6 @@
            type="date"
            class="form-control w-25"
            id="dateInput"
-           [value]="store.value.createExam.start
-      .toISOString()
-      .split('T')[0]"
            (input)="setIsValidDate(date.value)">
     <p class="form-text text-danger" [hidden]="isValidDate">
       Bitte gib ein Datum an!
@@ -101,7 +98,7 @@
     <h6>Oder Einheiten auswählen:</h6>
     <table>
       <tr>
-        @for (i of environment.schoolUnits; track i.id) {
+        @for (i of store.value.schoolUnits; track i.id) {
           <td>
             <button class="
             rounded-circle
@@ -112,9 +109,9 @@
             mx-1"
                     data-bs-toggle="tooltip"
                     data-bs-placement="top"
-                    title="{{i.time}}"
-                    (click)="selectedUnit(i)"
-                    [ngClass]="btnToggled(i.id)">
+                    title="{{dateToTimeString(i.start)}}"
+                    (click)="selectUnit(i)"
+                    [ngClass]="btnToggled(i)">
               {{pad(i.id, 2)}}
             </button>
           </td>
@@ -128,7 +125,7 @@
       <h6>Abendschule:</h6>
       <table>
         <tr>
-          @for (i of environment.eveningSchoolUnits; track i.id) {
+          @for (i of store.value.eveningSchoolUnits; track i.id) {
             <td>
               <button class="
               rounded-circle
@@ -138,9 +135,9 @@
               mx-1"
                       data-bs-toggle="tooltip"
                       data-bs-placement="top"
-                      title="{{i.time}}"
-                      (click)="selectedUnit(i)"
-                      [ngClass]="btnToggled(i.id)">
+                      title="{{dateToTimeString(i.start)}}"
+                      (click)="selectUnit(i)"
+                      [ngClass]="btnToggled(i)">
                 {{pad(i.id, 2)}}
               </button>
             </td>

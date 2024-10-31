@@ -8,6 +8,7 @@ import {Timer} from "./entity/Timer";
 import {ExamData} from "./entity/ExamData";
 import {CreateExam} from "./entity/CreateExam";
 import {environment} from "../../../env/environment";
+import {SchoolUnit} from "./entity/SchoolUnit";
 
 export interface Model {
   readonly cacheBuster: CacheBuster,
@@ -19,6 +20,8 @@ export interface Model {
   readonly resetText: string,
   readonly createExam: CreateExam
   readonly createdExam: boolean;
+  readonly schoolUnits: SchoolUnit[];
+  readonly eveningSchoolUnits: SchoolUnit[];
 }
 
 const initialState: Model = {
@@ -57,7 +60,9 @@ const initialState: Model = {
     end: new Date(Date.now()+ 3000000), // add 50 minutes
     screencapture_interval_seconds: environment.patrolSpeed
   },
-  createdExam: false
+  createdExam: false,
+  schoolUnits: [],
+  eveningSchoolUnits: []
 };
 
 export const store = new BehaviorSubject<Model>(initialState);
