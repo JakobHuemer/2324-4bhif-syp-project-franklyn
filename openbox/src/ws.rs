@@ -1,25 +1,19 @@
-use std::collections::HashMap;
-use std::future::Future;
-
-use iced::{stream, Subscription};
-
-use futures::SinkExt;
-use tokio::net::TcpStream;
-
 use anyhow::Result;
 use bytes::Bytes;
-
+use fastwebsockets::{handshake, FragmentCollector, Frame, Payload};
+use futures::SinkExt;
 use http_body_util::Empty;
 use hyper::header::{CONNECTION, UPGRADE};
 use hyper::upgrade::Upgraded;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
-
+use iced::{stream, Subscription};
 use image::RgbaImage;
-use reqwest::multipart::{Form, Part};
-
-use fastwebsockets::{handshake, FragmentCollector, Frame, OpCode, Payload};
-use log::info;
+use reqwest::multipart::Form;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::future::Future;
+use tokio::net::TcpStream;
 
 use crate::screen;
 
@@ -46,26 +40,21 @@ pub enum Event {
     UpdateImage(RgbaImage),
 }
 
-#[derive(Debug)]
-enum CaptureType {
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", content = "payload")]
+enum WsMessage {
+    #[serde(rename = "CAPTURE_SCREEN")]
+    CaptureScreen { frame_type: Option<FrameType> },
+    #[serde(rename = "DISCONNECT")]
+    Disconnect,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum FrameType {
     Alpha,
     Beta,
     Unspecified,
-}
-
-impl CaptureType {
-    fn from_blob(blob: &[u8]) -> Option<Self> {
-        if blob.len() < 54 {
-            return None;
-        }
-
-        Some(match &blob[50..54] {
-            b"ALPH" => Self::Alpha,
-            b"BETA" => Self::Beta,
-            b"UNSP" => Self::Unspecified,
-            _ => return None,
-        })
-    }
 }
 
 pub async fn connect(
@@ -160,16 +149,23 @@ pub async fn handle_message(
         }
     };
 
-    let payload = match msg.payload {
-        Payload::Bytes(buf) => CaptureType::from_blob(&buf[..])?,
+    let Ok(payload) = (match msg.payload {
+        Payload::Bytes(buf) => {
+            let s = buf.iter().map(|&b| b as char).collect::<String>();
+            serde_json::from_str::<WsMessage>(&s)
+        }
         _ => panic!("TODO: figure out if we get other payloads"),
+    }) else {
+        panic!("ERROR: invalid payload");
     };
 
     let (file_part, image, option) = match payload {
-        CaptureType::Alpha => screen::take_screenshot(true, cur_img),
-        CaptureType::Beta => todo!(),
-        CaptureType::Unspecified => screen::take_screenshot(false, cur_img),
-        p => panic!("ERROR: invalid payload {p:?}"),
+        WsMessage::Disconnect => return None,
+        WsMessage::CaptureScreen { frame_type } => match frame_type.unwrap() {
+            FrameType::Alpha => screen::take_screenshot(true, cur_img),
+            FrameType::Beta => todo!(),
+            FrameType::Unspecified => screen::take_screenshot(false, cur_img),
+        },
     };
 
     let path = format!(
@@ -177,7 +173,7 @@ pub async fn handle_message(
         server_address, session_id, option,
     );
 
-    let res = reqwest::Client::new()
+    reqwest::Client::new()
         .post(path)
         .multipart(Form::new().part("image", file_part))
         .send()
