@@ -1,6 +1,5 @@
 package at.htl.franklyn.server.exam;
 
-import at.htl.franklyn.server.feature.exam.Exam;
 import at.htl.franklyn.server.feature.exam.ExamDto;
 import at.htl.franklyn.server.feature.exam.ExamInfoDto;
 import at.htl.franklyn.server.feature.exam.ExamState;
