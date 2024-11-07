@@ -47,4 +47,25 @@ public class ExamRepository implements PanacheRepository<Exam> {
                 .getResultList()
         );
     }
+
+    public Uni<List<ExamInfoDto>> listAllWithExamineeCounts() {
+        return sf.withSession(session ->
+                session.createQuery(
+                                """
+                                select new at.htl.franklyn.server.feature.exam.ExamInfoDto(
+                                    e.id,
+                                    e.plannedStart,
+                                    e.plannedEnd,
+                                    e.actualStart,
+                                    e.actualEnd,
+                                    e.title,
+                                    e.pin,
+                                    e.state,
+                                    e.screencaptureInterval,
+                                    (select count(*) from Participation p where p.exam.id = e.id)
+                                ) from Exam e
+                                """, ExamInfoDto.class)
+                        .getResultList()
+        );
+    }
 }

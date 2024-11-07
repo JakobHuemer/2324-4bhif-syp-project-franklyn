@@ -2,6 +2,7 @@ package at.htl.franklyn.server.exam;
 
 import at.htl.franklyn.server.feature.exam.Exam;
 import at.htl.franklyn.server.feature.exam.ExamDto;
+import at.htl.franklyn.server.feature.exam.ExamInfoDto;
 import at.htl.franklyn.server.feature.exam.ExamState;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
 import io.quarkus.test.junit.QuarkusTest;
@@ -29,7 +30,7 @@ public class ExamLifecycleTest {
     private static final String BASE_URL = "exams";
     private static final String JOIN_URL = "join";
 
-    private static Exam createdExam;
+    private static ExamInfoDto createdExam;
     private static String userSession;
 
     @Test
@@ -42,10 +43,10 @@ public class ExamLifecycleTest {
         long interval = 5L;
 
         ExamDto examDto = new ExamDto(
-                title,
-                start,
-                end,
-               interval
+            title,
+            start,
+            end,
+            interval
         );
 
         // Act
@@ -60,31 +61,29 @@ public class ExamLifecycleTest {
         assertThat(response.statusCode())
                 .isEqualTo(RestResponse.StatusCode.CREATED);
 
-        Exam exam = response.then()
+        ExamInfoDto exam = response.then()
                 .log().body()
-                .extract().as(Exam.class);
+                .extract().as(ExamInfoDto.class);
 
         assertThat(response.header("Location"))
                 .contains(BASE_URL)
-                .contains(exam.getId().toString());
+                .contains(Long.toString(exam.id()));
 
-        assertThat(exam.getId())
-                .isNotNull();
-        assertThat(exam.getActualEnd())
+        assertThat(exam.actualEnd())
                 .isNull();
-        assertThat(exam.getActualStart())
+        assertThat(exam.actualStart())
                 .isNull();
-        assertThat(exam.getPin())
+        assertThat(exam.pin())
                 .isBetween(0, 1000);
-        assertThat(exam.getPlannedStart())
+        assertThat(exam.plannedStart())
                 .isEqualTo(start);
-        assertThat(exam.getPlannedEnd())
+        assertThat(exam.plannedEnd())
                 .isEqualTo(end);
-        assertThat(exam.getState())
+        assertThat(exam.state())
                 .isEqualTo(ExamState.CREATED);
-        assertThat(exam.getTitle())
+        assertThat(exam.title())
                 .isEqualTo(title);
-        assertThat(exam.getScreencaptureInterval())
+        assertThat(exam.screencaptureInterval())
                 .isEqualTo(interval);
 
         createdExam = exam;
@@ -100,26 +99,26 @@ public class ExamLifecycleTest {
         Response response = given()
                 .basePath(BASE_URL)
             .when()
-                .get(createdExam.getId().toString());
+                .get(Long.toString(createdExam.id()));
 
         // Assert
         assertThat(response.statusCode())
                 .isEqualTo(RestResponse.StatusCode.OK);
 
-        Exam actualExam = response.then()
+        ExamInfoDto actualExam = response.then()
                 .log().body()
-                .extract().as(Exam.class);
+                .extract().as(ExamInfoDto.class);
 
         assertThat(actualExam)
                 .usingRecursiveComparison()
                 .ignoringFieldsOfTypes(LocalDateTime.class)
                 .isEqualTo(createdExam);
 
-        assertThat(actualExam.getPlannedStart())
-                .isCloseTo(createdExam.getPlannedStart(), within(1, ChronoUnit.MINUTES));
+        assertThat(actualExam.plannedStart())
+                .isCloseTo(createdExam.plannedStart(), within(1, ChronoUnit.MINUTES));
 
-        assertThat(actualExam.getPlannedEnd())
-                .isCloseTo(createdExam.getPlannedEnd(), within(1, ChronoUnit.MINUTES));
+        assertThat(actualExam.plannedEnd())
+                .isCloseTo(createdExam.plannedEnd(), within(1, ChronoUnit.MINUTES));
     }
 
     @Test
@@ -127,7 +126,8 @@ public class ExamLifecycleTest {
     void test_simpleGetAllExams_ok() {
         // Arrange
         // created Exam is taken from the post test with @Order(1)
-        Exam expectedExam1 = new Exam(
+        ExamInfoDto expectedExam1 = new ExamInfoDto(
+                1,
                 LocalDateTime.of(2024, 10, 17, 10, 1),
                 LocalDateTime.of(2024, 10, 17, 12, 30),
                 null,
@@ -135,9 +135,9 @@ public class ExamLifecycleTest {
                 "test",
                 123,
                 ExamState.ONGOING,
-                5L
+                5,
+                1
         );
-        expectedExam1.setId(1L);
 
         // Act
         Response response = given()
@@ -149,9 +149,9 @@ public class ExamLifecycleTest {
         assertThat(response.statusCode())
                 .isEqualTo(RestResponse.StatusCode.OK);
 
-        Exam[] exams = response.then()
+        ExamInfoDto[] exams = response.then()
                 .log().body()
-                .extract().as(Exam[].class);
+                .extract().as(ExamInfoDto[].class);
 
         assertThat(exams)
                 .hasSize(2);
@@ -167,7 +167,7 @@ public class ExamLifecycleTest {
 
         assertThat(exams)
                 .usingRecursiveComparison(configuration)
-                .isEqualTo(new Exam[] { expectedExam1, createdExam });
+                .isEqualTo(new ExamInfoDto[] { expectedExam1, createdExam });
     }
 
     @Test
@@ -223,7 +223,7 @@ public class ExamLifecycleTest {
                 .body(examineeDto)
                 .basePath(BASE_URL)
             .when()
-                .post(String.format("%s/%3d", JOIN_URL, createdExam.getPin()));
+                .post(String.format("%s/%3d", JOIN_URL, createdExam.pin()));
 
         // Assert
         assertThat(response.statusCode())
@@ -246,12 +246,12 @@ public class ExamLifecycleTest {
         Response startResponse = given()
                 .basePath(BASE_URL)
             .when()
-                .post(String.format("%s/start", createdExam.getId()));
+                .post(String.format("%s/start", createdExam.id()));
 
         Response response = given()
                 .basePath(BASE_URL)
             .when()
-                .get(createdExam.getId().toString());
+                .get(Long.toString(createdExam.id()));
 
         // Assert
         assertThat(startResponse.statusCode())
@@ -260,13 +260,13 @@ public class ExamLifecycleTest {
         assertThat(response.statusCode())
                 .isEqualTo(RestResponse.StatusCode.OK);
 
-        Exam actualExam = response.then()
+        ExamInfoDto actualExam = response.then()
                 .log().body()
-                .extract().as(Exam.class);
+                .extract().as(ExamInfoDto.class);
 
-        assertThat(actualExam.getActualStart())
+        assertThat(actualExam.actualStart())
                 .isNotNull();
-        assertThat(actualExam.getState())
+        assertThat(actualExam.state())
                 .isEqualTo(ExamState.ONGOING);
     }
 
@@ -322,12 +322,12 @@ public class ExamLifecycleTest {
         Response startResponse = given()
                 .basePath(BASE_URL)
                 .when()
-                .post(String.format("%s/complete", createdExam.getId()));
+                .post(String.format("%s/complete", createdExam.id()));
 
         Response response = given()
                 .basePath(BASE_URL)
                 .when()
-                .get(createdExam.getId().toString());
+                .get(Long.toString(createdExam.id()));
 
         // Assert
         assertThat(startResponse.statusCode())
@@ -336,13 +336,13 @@ public class ExamLifecycleTest {
         assertThat(response.statusCode())
                 .isEqualTo(RestResponse.StatusCode.OK);
 
-        Exam actualExam = response.then()
+        ExamInfoDto actualExam = response.then()
                 .log().body()
-                .extract().as(Exam.class);
+                .extract().as(ExamInfoDto.class);
 
-        assertThat(actualExam.getActualEnd())
+        assertThat(actualExam.actualEnd())
                 .isNotNull();
-        assertThat(actualExam.getState())
+        assertThat(actualExam.state())
                 .isEqualTo(ExamState.DONE);
     }
 
@@ -355,7 +355,7 @@ public class ExamLifecycleTest {
         Response response = given()
                 .basePath(BASE_URL)
             .when()
-                .delete(String.format("%s/telemetry", createdExam.getId()));
+                .delete(String.format("%d/telemetry", createdExam.id()));
 
         // Assert
         assertThat(response.statusCode())
@@ -371,7 +371,7 @@ public class ExamLifecycleTest {
         Response response = given()
                 .basePath(BASE_URL)
             .when()
-                .delete(createdExam.getId().toString());
+                .delete(Long.toString(createdExam.id()));
 
         // Assert
         assertThat(response.statusCode())

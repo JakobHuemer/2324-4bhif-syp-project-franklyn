@@ -39,10 +39,11 @@ public class ExamResource {
     @WithTransaction
     public Uni<Response> createExam(@Valid ExamDto examDto, @Context UriInfo uriInfo) {
         return examService.createExam(examDto)
+                .onItem().transformToUni(exam -> examService.transformToDto(exam))
                 .onItem().transform(e -> {
                     URI uri = uriInfo
                             .getAbsolutePathBuilder()
-                            .path(e.getId().toString())
+                            .path(Long.toString(e.id()))
                             .build();
 
                     return Response
@@ -57,22 +58,20 @@ public class ExamResource {
     @Path("{id}")
     @WithSession
     public Uni<Response> getExamById(@PathParam("id") long id) {
-        return examService.exists(id)
-                .chain(exists -> {
-                    if (!exists) {
-                        return Uni.createFrom().item(Response.status(Response.Status.NOT_FOUND).build());
-                    } else {
-                        return examRepository.findById(id)
-                                .onItem().transform(exam -> Response.ok(exam).build());
-                    }
-                });
+        return examRepository.findById(id)
+                .onItem().ifNull().failWith(new NotFoundException())
+                .onItem().ifNotNull().transformToUni(exam ->
+                        examService.transformToDto(exam)
+                            .onFailure().transform(BadRequestException::new)
+                )
+                .onItem().transform(examInfoDto -> Response.ok(examInfoDto).build());
     }
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @WithSession
     public Uni<Response> getAllExams() {
-        return examRepository.listAll()
+        return examRepository.listAllWithExamineeCounts()
                 .onItem().transform(exams -> Response.ok(exams).build());
     }
 

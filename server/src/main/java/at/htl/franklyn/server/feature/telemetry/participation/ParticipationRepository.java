@@ -33,6 +33,10 @@ public class ParticipationRepository implements PanacheRepositoryBase<Participat
         return find("exam.id = ?1", examId).list();
     }
 
+    public Uni<Long> getParticipationCountOfExam(long examId) {
+        return count("exam.id = ?1", examId);
+    }
+
     public Uni<List<Participation>> getParticipationsOfExam(Exam e) {
         return getParticipationsOfExam(e.getId());
     }

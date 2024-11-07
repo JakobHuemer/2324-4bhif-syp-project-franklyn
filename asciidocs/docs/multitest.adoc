@@ -247,7 +247,7 @@ The manage Exams interface of franklyn-server is a `REST` interface under the pa
     "screencapture_interval_seconds": number
 }
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/dto/ExamDto.java[ExamDto]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamDto.java[ExamDto]
 * *Response format*: `JSON`
 * *Response structure*:
 +
@@ -262,10 +262,11 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
   "title": string,
   "pin": number,
   "screencapture_interval_seconds": number,
-  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED"
+  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
+  "registered_students_num": number
 }
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/Exam.java[Exam]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamInfoDto.java[ExamInfoDto]
 * *Additional Notes*: The `Location` header returns the full rest api path to the newly created exam
 
 ====== Get exam by ID
@@ -289,10 +290,11 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
   "title": string,
   "pin": number,
   "screencapture_interval_seconds": number,
-  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED"
+  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
+  "registered_students_num": number
 }
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/Exam.java[Exam]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamInfoDto.java[ExamInfoDto]
 * *Additional Notes*: N/A
 
 ====== Get all exams
@@ -316,12 +318,13 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
       "title": string,
       "pin": number,
       "screencapture_interval_seconds": number,
-      "state": "CREATED" | "ONGOING" | "DONE" | "DELETED"
+      "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
+      "registered_students_num": number
     },
     ...
 ]
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/Exam.java[Exam]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamInfoDto.java[ExamInfoDto]
 * *Additional Notes*: N/A
 
 ====== Delete exam by id
@@ -385,7 +388,7 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
     ...
 ]
 ----
-See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/dto/ExamineeDto.java[ExamineeDto]
+See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/examinee/ExamineeDto.java[ExamineeDto]
 * *Additional Notes*: N/A
 
 ===== Manage Recordings
@@ -547,7 +550,7 @@ The participate interface is a `REST` interface used by the student-client to es
   "lastname": string
 }
 ----
-See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/dto/ExamineeDto.java[ExamineeDto]
+See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/examinee/ExamineeDto.java[ExamineeDto]
 * *Response format*: `Location header`
 * *Response structure*: Location header containing the full url student-clients have to connect to, to receive commands (`Command Interface`) +
 e.g. `http://localhost:8080/connect/a353a68b-26f2-4803-8abf-80d4bbbc7f55`

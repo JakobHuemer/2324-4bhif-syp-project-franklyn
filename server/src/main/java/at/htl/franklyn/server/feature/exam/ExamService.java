@@ -172,6 +172,22 @@ public class ExamService {
                 .firstResult();
     }
 
+    public Uni<ExamInfoDto> transformToDto(Exam exam) {
+        return participationRepository.getParticipationCountOfExam(exam.getId())
+                .onItem().transform(examineeCount -> new ExamInfoDto(
+                        exam.getId(),
+                        exam.getPlannedStart(),
+                        exam.getPlannedEnd(),
+                        exam.getActualStart(),
+                        exam.getActualEnd(),
+                        exam.getTitle(),
+                        exam.getPin(),
+                        exam.getState(),
+                        exam.getScreencaptureInterval(),
+                        examineeCount
+                ));
+    }
+
     /**
      * Generates a new random PIN to be used for a new exam.
      * This function can theoretically loop endlessly if 1000 Exams are active at once.
