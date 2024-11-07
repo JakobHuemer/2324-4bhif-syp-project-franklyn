@@ -1,5 +1,6 @@
 package at.htl.franklyn.server.feature.telemetry.command;
 
+import at.htl.franklyn.server.feature.telemetry.command.disconnect.DisconnectClientCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotPayload;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateService;
@@ -17,6 +18,7 @@ import jakarta.enterprise.context.control.ActivateRequestContext;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -132,5 +134,14 @@ public class ExamineeCommandSocket {
                             conn.sendText(new RequestScreenshotCommand(new RequestScreenshotPayload(type)))
                             .onFailure().invoke(e -> Log.error("Send failed:", e))
                 );
+    }
+
+    public Uni<Void> broadcastDisconnect(List<UUID> participationIds) {
+        return Multi.createFrom().iterable(participationIds)
+                .onItem().transform(uuid -> connections.get(uuid.toString()))
+                .onItem().transform(connId -> openConnections.findByConnectionId(connId).orElse(null))
+                .onItem().transform(conn -> conn != null ? conn.sendText(new DisconnectClientCommand()) : Uni.createFrom().voidItem())
+                .onItem().transformToUniAndConcatenate(u -> u)
+                .toUni();
     }
 }

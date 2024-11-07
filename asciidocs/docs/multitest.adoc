@@ -156,16 +156,16 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | `GET /exams`
 
-| 🟡
+| 🟢
 | `DELETE /exams/{id}`
 
-| 🟡
+| 🟢
 | `POST /exams/{id}/start`
 
 | 🟡
 | `POST /exams/{id}/complete`
 
-| 🟡
+| 🟢
 | `DELETE /exams/{id}/telementry`
 
 | 🟢
@@ -485,11 +485,10 @@ A command sent to the student-client generally looks like the following:
 [source, json]
 ----
 {
-  "type": "CAPTURE_SCREEN",
+  "type": "CAPTURE_SCREEN" | "DISCONNECT",
   "payload": object | null
 }
 ----
-NOTE: Currently, there is only one command type `CAPTURE_SCREEN`, however in the future there may be more and the datatype will look similar to: `"CMD1" | "CMD2" | "CMD3" | ...`
 
 ====== Request screenshot
 * *Description*: Requests a screencapture from the student-client (openbox)
@@ -506,6 +505,20 @@ NOTE: Currently, there is only one command type `CAPTURE_SCREEN`, however in the
 ----
 * *Expected Response*: `POST` request to the telemetry endpoint for the given frametype. I.e. `/telemetry/by-session/{session-id}/screen/upload/alpha` for alpha frames and `/telemetry/by-session/{session-id}/screen/upload/beta` for beta frames
 * *Additional Notes*: If `frame_type` is set to unspecified, it is up to the student-client (openbox) to choose which frame is appropriate for the current situation. If a specific frame type is specified the client MUST follow this command.
+
+====== Disconnect
+* *Description*: Requests the student-client (openbox) to disconnect from the server, effectively stopping any telemetry capture at the end of the exam.
+* *Command structure*:
++
+[source, json]
+----
+{
+  "type": "DISCONNECT",
+  "payload": null
+}
+----
+* *Expected Response*: Nothing. Studentclient (openbox) should disconnect
+* *Additional Notes*: For client implementations: Displaying a popup or another attention catching GUI Element to the user is encouraged.
 
 ====== Heartbeat (Ping/Pong)
 Besides requesting commands, the server periodically sends small `PING` packets and expects `PONG` responses. This is an exception to the rule, that the server does not accept its responses over the websocket tunnel. Since `PING`/`PONG` is implemented on a protocol level for `Websockets`, simplifying implementations for breaking "rules" is a tradeoff made here.

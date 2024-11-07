@@ -93,19 +93,17 @@ public class TelemetryJobManager {
             Context context = VertxContext.getOrCreateDuplicatedContext(vertx);
             VertxContextSafetyToggle.setContextSafe(context, true);
             context.runOnContext(event -> {
-                sf.withSession(session -> {
-                    return participationRepository
-                            .getParticipationsOfExam(examId)
-                            .toMulti()
-                            .flatMap(list -> Multi.createFrom().iterable(list))
-                            .onItem().transformToUniAndConcatenate(participation ->
-                                    commandSocket.requestFrame(participation.getId(), FrameType.UNSPECIFIED)
-                                            .onFailure().recoverWithNull())
-                            // Chain must stay on same thread to avoid killing hibernate or else we get a
-                            // "Detected use of the reactive Session from a different Thread"
-                            .emitOn(r -> context.runOnContext(ignored -> r.run()))
-                            .toUni();
-                })
+                sf.withSession(session -> participationRepository
+                        .getParticipationsOfExam(examId)
+                        .toMulti()
+                        .flatMap(list -> Multi.createFrom().iterable(list))
+                        .onItem().transformToUniAndConcatenate(participation ->
+                                commandSocket.requestFrame(participation.getId(), FrameType.UNSPECIFIED)
+                                        .onFailure().recoverWithNull())
+                        // Chain must stay on same thread to avoid killing hibernate or else we get a
+                        // "Detected use of the reactive Session from a different Thread"
+                        .emitOn(r -> context.runOnContext(ignored -> r.run()))
+                        .toUni())
                 .subscribe().with(ignored -> {});
             });
         }
