@@ -319,7 +319,7 @@ public class ExamLifecycleTest {
         // created Exam is taken from the post test with @Order(1)
 
         // Act
-        Response startResponse = given()
+        Response completeResponse = given()
                 .basePath(BASE_URL)
                 .when()
                 .post(String.format("%s/complete", createdExam.id()));
@@ -330,7 +330,7 @@ public class ExamLifecycleTest {
                 .get(Long.toString(createdExam.id()));
 
         // Assert
-        assertThat(startResponse.statusCode())
+        assertThat(completeResponse.statusCode())
                 .isEqualTo(RestResponse.StatusCode.OK);
 
         assertThat(response.statusCode())

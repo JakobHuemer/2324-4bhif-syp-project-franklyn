@@ -19,6 +19,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -121,14 +122,10 @@ public class ExamineeCommandSocket {
         return Uni.createFrom()
                 .item(connections.get(participationId.toString()))
                 .onItem().ifNull()
-                .failWith(() -> {
-                    return new IllegalArgumentException(String.format("%s is not connected", participationId));
-                })
+                .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
                 .onItem().transform(connId -> openConnections.findByConnectionId(connId).orElse(null))
                 .onItem().ifNull()
-                .failWith(() -> {
-                    return new IllegalArgumentException(String.format("%s is not connected", participationId));
-                })
+                .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
                 .onItem()
                 .transformToUni(conn ->
                             conn.sendText(new RequestScreenshotCommand(new RequestScreenshotPayload(type)))
@@ -138,10 +135,11 @@ public class ExamineeCommandSocket {
 
     public Uni<Void> broadcastDisconnect(List<UUID> participationIds) {
         return Multi.createFrom().iterable(participationIds)
-                .onItem().transform(uuid -> connections.get(uuid.toString()))
-                .onItem().transform(connId -> openConnections.findByConnectionId(connId).orElse(null))
-                .onItem().transform(conn -> conn != null ? conn.sendText(new DisconnectClientCommand()) : Uni.createFrom().voidItem())
+                .onItem().transform(uuid -> Optional.ofNullable(connections.get(uuid.toString())))
+                .onItem().transform(connId -> connId.isPresent() ? openConnections.findByConnectionId(connId.get()) : Optional.<WebSocketConnection>empty())
+                .onItem().transform(conn -> conn.isPresent() ? conn.get().sendText(new DisconnectClientCommand()) : Uni.createFrom().voidItem())
                 .onItem().transformToUniAndConcatenate(u -> u)
-                .toUni();
+                .toUni()
+                .replaceWithVoid();
     }
 }
