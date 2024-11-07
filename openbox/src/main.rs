@@ -17,6 +17,8 @@ enum Message {
 
     Ev(openbox::ws::Event),
     Connect(String),
+
+    FocusNext,
 }
 
 #[derive(PartialEq)]
@@ -80,18 +82,29 @@ impl<'a> Openbox<'a> {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        match &self.connection {
-            ConnectionState::Reconnecting(pin) => openbox::ws::subscribe(
-                self.pin.clone(),
+        use iced::keyboard;
+        use openbox::ws;
+
+        let hotkeys = keyboard::on_key_press(|key, _mod| match key {
+            keyboard::Key::Named(keyboard::key::Named::Tab) => Some(Message::FocusNext),
+            _ => None,
+        });
+
+        let ws = match &self.connection {
+            ConnectionState::Reconnecting(pin) => ws::subscribe(
+                pin.clone(), 
                 self.firstname.clone(),
                 self.lastname.clone(),
                 self.server_address.to_string(),
                 self.old_image.clone(),
             )
             .map(Message::Ev),
+            ConnectionState::Idle => Subscription::none(),
+            ConnectionState::Connected => Subscription::none(),
             ConnectionState::Disconnected => Subscription::none(),
-            ConnectionState::Idle | ConnectionState::Connected => Subscription::none(),
-        }
+        };
+
+        Subscription::batch([hotkeys, ws])
     }
 
     fn view(&self) -> Element<Message> {
@@ -106,15 +119,20 @@ impl<'a> Openbox<'a> {
             let pin_input = text_input("pin", &self.pin)
                 .on_input(Message::PinChanged)
                 .width(300)
-                .padding(10);
+                .padding(10)
+                .id(iced::widget::text_input::Id::new("pin"));
+
             let firstname_input = text_input("firstname", &self.firstname)
                 .on_input(Message::FirstnameChanged)
                 .width(300)
-                .padding(10);
+                .padding(10)
+                .id(iced::widget::text_input::Id::new("firstname"));
+
             let lastname_input = text_input("lastname", &self.lastname)
                 .on_input(Message::LastnameChanged)
                 .width(300)
-                .padding(10);
+                .padding(10)
+                .id(iced::widget::text_input::Id::new("lastname"));
 
             let mut button = button(
                 text("connect")
