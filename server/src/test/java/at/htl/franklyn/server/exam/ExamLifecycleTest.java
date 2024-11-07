@@ -223,6 +223,7 @@ public class ExamLifecycleTest {
                 .body(examineeDto)
                 .basePath(BASE_URL)
             .when()
+                .log().body()
                 .post(String.format("%s/%3d", JOIN_URL, createdExam.pin()));
 
         // Assert

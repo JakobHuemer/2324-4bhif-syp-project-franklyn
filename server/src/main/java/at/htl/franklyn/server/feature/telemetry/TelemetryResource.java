@@ -1,5 +1,6 @@
 package at.htl.franklyn.server.feature.telemetry;
 
+import at.htl.franklyn.server.common.ExceptionFilter;
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
@@ -33,9 +34,16 @@ public class TelemetryResource {
         return Uni.createFrom()
                 .item(sessionId)
                 .onItem().transform(UUID::fromString)
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> new WebApplicationException(
+                        "invalid sessionId / participationId", Response.Status.BAD_REQUEST
+                ))
                 .chain(session -> imageService.saveFrameOfSession(session, alphaFrame, FrameType.ALPHA))
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
+                    Log.warnf("Could not save frame of %s", sessionId, e);
+                    return new WebApplicationException(
+                            "Unable to save frame", Response.Status.BAD_REQUEST
+                    );
+                })
                 .onItem().transform(v -> Response.ok().build());
     }
 
@@ -49,9 +57,16 @@ public class TelemetryResource {
         return Uni.createFrom()
                 .item(sessionId)
                 .onItem().transform(UUID::fromString)
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> new WebApplicationException(
+                        "invalid sessionId / participationId", Response.Status.BAD_REQUEST
+                ))
                 .chain(session -> imageService.saveFrameOfSession(session, betaFrame, FrameType.BETA))
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
+                    Log.warnf("Could not save frame of %s", sessionId, e);
+                    return new WebApplicationException(
+                            "Unable to save frame", Response.Status.BAD_REQUEST
+                    );
+                })
                 .onItem().transform(v -> Response.ok().build());
     }
 
@@ -65,12 +80,31 @@ public class TelemetryResource {
     ) {
         return Uni.createFrom()
                 .item(userId)
-                .onItem().ifNull().fail()
+                .onItem().ifNull().failWith(
+                    new WebApplicationException(
+                        "Missing userId",
+                        Response.Status.BAD_REQUEST
+                    )
+                )
                 .replaceWith(examId)
-                .onItem().ifNull().fail()
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Missing examId",
+                                Response.Status.BAD_REQUEST
+                        )
+                )
                 .chain(ignored -> imageService.loadLatestFrameOfUser(userId, examId))
                 .onItem().transform(buf -> Response.ok(buf).build())
-                .onFailure(IllegalStateException.class).transform(NotFoundException::new)
-                .onFailure(e -> !(e instanceof NotFoundException)).transform(BadRequestException::new);
+                .onFailure(IllegalStateException.class).transform(e -> new WebApplicationException(
+                    "No available screenshot found",
+                    Response.Status.NOT_FOUND
+                ))
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
+                    Log.warnf("Could not load screenshot for user: %d | exam: %d", userId, examId);
+                    return new WebApplicationException(
+                            "Could not load screenshot for user",
+                            Response.Status.BAD_REQUEST
+                    );
+                });
     }
 }
