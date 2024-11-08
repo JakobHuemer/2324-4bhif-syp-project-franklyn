@@ -162,7 +162,7 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | `POST /exams/{id}/start`
 
-| 🟡
+| 🟢
 | `POST /exams/{id}/complete`
 
 | 🟢
@@ -171,7 +171,7 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | `GET /exams/{id}/examinees`
 
-| 🔴
+| 🟢
 | `GET /telemetry/by-user/{user-id}/{exam-id}/screen/download`
 
 | 🔴
@@ -209,6 +209,9 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | Request screenshot
 
 | 🟢
+| Request disconnect
+
+| 🟢
 | Heartbeat (Ping/Pong)
 |===
 
@@ -218,11 +221,14 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | Status
 | Command
 
-| 🟡
+| 🟢
 | Connect
 
-| 🟡
+| 🟢
 | Request screenshot
+
+| 🔴
+| Request disconnect
 
 | 🟢
 | Heartbeat (Ping/Pong)
