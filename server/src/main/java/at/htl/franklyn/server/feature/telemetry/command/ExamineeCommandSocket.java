@@ -14,10 +14,10 @@ import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.buffer.Buffer;
-import jakarta.enterprise.context.control.ActivateRequestContext;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,7 +67,7 @@ public class ExamineeCommandSocket {
         String participationId = connection.pathParam("participationId");
         Log.infof("%s has lost connection.", participationId);
         connections.remove(participationId);
-        return stateService.insertConnected(participationId, false);
+        return stateService.insertConnectedIfOngoing(participationId, false);
     }
 
     @OnError
@@ -75,14 +75,14 @@ public class ExamineeCommandSocket {
     public Uni<Void> onError(Exception e) {
         String participationId = connection.pathParam("participationId");
         Log.infof("%s has lost connection: %s", participationId, e);
-        return stateService.insertConnected(participationId, false);
+        return stateService.insertConnectedIfOngoing(participationId, false);
     }
 
     @OnPongMessage
     @WithTransaction
     public Uni<Void> onPongMessage(Buffer data) {
         String participationId = connection.pathParam("participationId");
-        return stateService.insertConnected(participationId, true);
+        return stateService.insertConnectedIfOngoing(participationId, true);
     }
 
     @Scheduled(every = "{websocket.ping.interval}")
@@ -110,7 +110,7 @@ public class ExamineeCommandSocket {
                     Log.infof("Disconnecting %s (Reason: Timed out)", pId);
 
                     return Uni.join().all(
-                            stateService.insertConnected(pId, false),
+                            stateService.insertConnectedIfOngoing(pId, false),
                             s != null && s.isOpen() ? s.close() : Uni.createFrom().voidItem()
                     ).andFailFast().replaceWithVoid();
                 })

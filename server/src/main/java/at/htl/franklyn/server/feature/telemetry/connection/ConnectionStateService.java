@@ -1,7 +1,11 @@
 package at.htl.franklyn.server.feature.telemetry.connection;
 
+import at.htl.franklyn.server.feature.exam.ExamState;
+import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -18,16 +22,27 @@ public class ConnectionStateService {
     @Inject
     ParticipationRepository participationRepository;
 
-    public Uni<Void> insertConnected(String participationId, boolean state) {
+    public Uni<Void> insertConnectedIfOngoing(String participationId, boolean state) {
+        Context ctx = Vertx.currentContext();
         return participationRepository
-                .findById(UUID.fromString(participationId))
+                .findByIdWithExam(UUID.fromString(participationId))
+                .onItem().ifNotNull().transform(participation ->
+                    participation.getExam().getState() == ExamState.ONGOING
+                            ? participation
+                            : null
+                )
                 .onItem().ifNotNull()
-                .transform(p -> new ConnectionState(
+                .transform(participation -> new ConnectionState(
                         LocalDateTime.now(ZoneOffset.UTC),
-                        p,
+                        participation,
                         state
                 ))
-                .chain(cs -> stateRepository.persist(cs))
+                .onItem().ifNotNull().transformToUni(cs -> stateRepository.persist(cs))
+                // Most of the time when calling .broadcast disconnect mutiny switches vertx-worker
+                // Hibernate however does not like this and give errors similar to
+                // "Detected use of the reactive Session from a different Thread than the one which was used to open the reactive Session"
+                // In order to counteract this, we pin the emission to the vertx thread hibernate wants
+                .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .replaceWithVoid();
     }
 
