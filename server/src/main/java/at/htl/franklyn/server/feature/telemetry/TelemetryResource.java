@@ -7,7 +7,6 @@ import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.unchecked.Unchecked;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -39,7 +38,7 @@ public class TelemetryResource {
                 ))
                 .chain(session -> imageService.saveFrameOfSession(session, alphaFrame, FrameType.ALPHA))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.warnf("Could not save frame of %s", sessionId, e);
+                    Log.warnf("Could not save frame of %s (Reason: %s)", sessionId, e.getMessage());
                     return new WebApplicationException(
                             "Unable to save frame", Response.Status.BAD_REQUEST
                     );
@@ -62,7 +61,7 @@ public class TelemetryResource {
                 ))
                 .chain(session -> imageService.saveFrameOfSession(session, betaFrame, FrameType.BETA))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.warnf("Could not save frame of %s", sessionId, e);
+                    Log.warnf("Could not save frame of %s (Reason: %s)", sessionId, e.getMessage());
                     return new WebApplicationException(
                             "Unable to save frame", Response.Status.BAD_REQUEST
                     );

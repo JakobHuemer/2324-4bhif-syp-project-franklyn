@@ -1,5 +1,7 @@
 package at.htl.franklyn.server.feature.telemetry.image;
 
+import at.htl.franklyn.server.feature.exam.ExamRepository;
+import at.htl.franklyn.server.feature.exam.ExamState;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
@@ -25,6 +27,7 @@ import java.util.UUID;
 @ApplicationScoped
 public class ImageService {
     private static final String IMG_FORMAT = "png";
+
     @ConfigProperty(name = "screenshots.path")
     String screenshotsPath;
 
@@ -54,9 +57,16 @@ public class ImageService {
         ).toAbsolutePath().toFile();
 
         return participationRepository
-                .findById(session)
-                .onItem()
-                .ifNull().fail()
+                // fail if participation with given session does not exist
+                .findByIdWithExam(session)
+                .onItem().ifNull().failWith(new RuntimeException("Session not found"))
+                // Fail if exam is not ongoing
+                .onItem().transform(participation ->
+                        participation.getExam().getState() == ExamState.ONGOING
+                                ? participation
+                                : null
+                )
+                .onItem().ifNull().failWith(new RuntimeException("Exam not ongoing"))
                 .chain(participation -> {
                     Image image = new Image(
                             LocalDateTime.now(ZoneOffset.UTC),
@@ -75,8 +85,7 @@ public class ImageService {
                 }))
                 .onItem()
                 .transform(Unchecked.function(v -> ImageIO.read(frame)))
-                .onItem()
-                .ifNull().fail()
+                .onItem().ifNull().failWith(new RuntimeException("Unable to read passed frame"))
                 .chain(newClientFrame -> {
                     // Beta frame needs processing before it can be saved
                     // Merge with last alpha frame then save

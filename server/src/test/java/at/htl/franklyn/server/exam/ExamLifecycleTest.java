@@ -238,6 +238,26 @@ public class ExamLifecycleTest {
 
     @Test
     @Order(6)
+    void test_simpleTryUploadAlphaTooEarly_ok() {
+        // Arrange
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(Objects.requireNonNull(classLoader.getResource("/alpha-frame.png")).getFile());
+
+        // Act
+        Response response = given()
+                .contentType(ContentType.MULTIPART)
+                .basePath("/telemetry")
+                .multiPart("image", file)
+                .when()
+                .post(String.format("/by-session/%s/screen/upload/alpha", userSession));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(7)
     void test_simpleStartExam_ok() {
         // Arrange
         // created Exam is taken from the post test with @Order(1)
@@ -270,9 +290,8 @@ public class ExamLifecycleTest {
                 .isEqualTo(ExamState.ONGOING);
     }
 
-    // TODO: Move somewhere else?
     @Test
-    @Order(7)
+    @Order(8)
     void test_simpleUploadAlpha_ok() {
         // Arrange
         ClassLoader classLoader = getClass().getClassLoader();
@@ -291,9 +310,8 @@ public class ExamLifecycleTest {
                 .isEqualTo(RestResponse.StatusCode.OK);
     }
 
-    // TODO: Move somewhere else?
     @Test
-    @Order(8)
+    @Order(9)
     void test_simpleUploadBeta_ok() {
         // Arrange
         ClassLoader classLoader = getClass().getClassLoader();
@@ -313,7 +331,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(9)
+    @Order(10)
     void test_simpleCompleteExam_ok() {
         // Arrange
         // created Exam is taken from the post test with @Order(1)
@@ -347,7 +365,27 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(10)
+    @Order(11)
+    void test_simpleTryUploadAlphaTooLate_ok() {
+        // Arrange
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(Objects.requireNonNull(classLoader.getResource("/alpha-frame.png")).getFile());
+
+        // Act
+        Response response = given()
+                .contentType(ContentType.MULTIPART)
+                .basePath("/telemetry")
+                .multiPart("image", file)
+                .when()
+                .post(String.format("/by-session/%s/screen/upload/alpha", userSession));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(12)
     void test_simpleDeleteTelemetryOfExam_ok() {
         // Arrange
 
@@ -363,7 +401,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(11)
+    @Order(13)
     void test_simpleDeleteExam_ok() {
         // Arrange
 

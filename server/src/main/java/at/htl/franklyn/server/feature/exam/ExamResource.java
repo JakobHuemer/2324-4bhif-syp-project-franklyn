@@ -68,7 +68,7 @@ public class ExamResource {
                 .onItem().transform(examInfoDto -> Response.ok(examInfoDto).build())
                 .onFailure(ExceptionFilter.NO_WEBAPP)
                 .transform(e -> {
-                    Log.errorf("Failed to fetch student count", e);
+                    Log.errorf("Failed to fetch student count (Reason: %s)", e.getMessage());
                     return new WebApplicationException("Internal server error", Response.Status.INTERNAL_SERVER_ERROR);
                 });
     }
@@ -81,7 +81,7 @@ public class ExamResource {
                 .onItem().transform(exams -> Response.ok(exams).build())
                 .onFailure(ExceptionFilter.NO_WEBAPP)
                 .transform(e -> {
-                    Log.errorf("Failed to fetch student count", e);
+                    Log.errorf("Failed to fetch student count (Reason: %s)", e.getMessage());
                     return new WebApplicationException("Internal server error", Response.Status.INTERNAL_SERVER_ERROR);
                 });
     }
@@ -101,12 +101,12 @@ public class ExamResource {
                 .onItem().transformToUni(e -> examService.deleteTelemetry(e).replaceWith(e))
                 .onFailure(ExceptionFilter.NO_WEBAPP)
                 .transform(e -> {
-                    Log.warnf("Could not delete Telemetry of exam %d.", id, e);
+                    Log.warnf("Could not delete Telemetry of exam %d. (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException("Unable to delete exam telemetry.", Response.Status.BAD_REQUEST);
                 })
                 .onItem().transformToUni(e -> examRepository.deleteById(id))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.warnf("Could not delete exam %d.", id, e);
+                    Log.warnf("Could not delete exam %d. (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException("Unable to delete exam.", Response.Status.BAD_REQUEST);
                 })
                 .onItem().transform(v -> Response.noContent().build());
@@ -127,7 +127,7 @@ public class ExamResource {
                 .onItem().transformToUni(ignored -> examService.getExamineesOfExam(id))
                 .onItem().transform(exam -> Response.ok(exam).build())
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.errorf("Could not delete exam %d.", id, e);
+                    Log.errorf("Could not delete exam %d. (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException("Unable to get exam.", Response.Status.INTERNAL_SERVER_ERROR);
                 });
     }
@@ -156,7 +156,7 @@ public class ExamResource {
                 .transformToUni(ignored -> examineeService
                         .getOrCreateExaminee(examineeDto.firstname(), examineeDto.lastname()))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.errorf("Could not get or create examinee %s.", examineeDto, e);
+                    Log.errorf("Could not get or create examinee %s. (Reason: %s)", examineeDto, e.getMessage());
                     return new WebApplicationException(
                             "Can not register for exam", Response.Status.INTERNAL_SERVER_ERROR
                     );
@@ -165,7 +165,7 @@ public class ExamResource {
                         .chain(exam -> participationService.getOrCreateParticipation(examinee, exam))
                 )
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.errorf("Could not get or create participation for %s.", examineeDto, e);
+                    Log.errorf("Could not get or create participation for %s. (Reason: %s)", examineeDto, e.getMessage());
                     return new WebApplicationException(
                             "Can not register for exam", Response.Status.INTERNAL_SERVER_ERROR
                     );
@@ -196,7 +196,7 @@ public class ExamResource {
                 )
                 .chain(e -> examService.startExam(e))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.errorf("Could not start exam %d", id, e);
+                    Log.errorf("Could not start exam %d (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException(
                             "Could not start exam", Response.Status.INTERNAL_SERVER_ERROR
                     );
@@ -217,7 +217,7 @@ public class ExamResource {
                 )
                 .chain(e -> examService.completeExam(e))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.errorf("Could not complete exam %d", id, e);
+                    Log.errorf("Could not complete exam %d (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException(
                             "Could not start exam", Response.Status.INTERNAL_SERVER_ERROR
                     );
@@ -240,7 +240,7 @@ public class ExamResource {
                 )
                 .chain(e -> examService.deleteTelemetry(e))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.errorf("Could not delete telemetry of exam %d", id, e);
+                    Log.errorf("Could not delete telemetry of exam %d (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException(
                             "Could not delete exam telemetry", Response.Status.INTERNAL_SERVER_ERROR
                     );
