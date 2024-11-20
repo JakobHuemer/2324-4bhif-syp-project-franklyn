@@ -37,6 +37,7 @@ pub enum State {
 #[derive(Debug, Clone)]
 pub enum Event {
     Nothing,
+    Disconnect,
     UpdateImage(RgbaImage),
 }
 
@@ -116,14 +117,14 @@ pub fn subscribe(
                     let _ = output.send(Event::Nothing).await;
                 }
                 State::Connected(ws) => {
-                    let new_image =
-                        handle_message(&server_address, &session_id, ws, current_image.as_ref())
-                            .await;
-
-                    if let Some(image) = new_image {
-                        current_image = Some(image);
-                    } else {
-                        let _ = output.send(Event::Nothing).await;
+                    match handle_message(&server_address, &session_id, ws, current_image.as_ref())
+                        .await 
+                    {
+                        Event::UpdateImage(img) => {
+                            current_image = Some(img.clone());
+                            let _ = output.send(Event::UpdateImage(img)).await;
+                        }
+                        event => _ = output.send(event).await,
                     }
                 }
             }
@@ -139,13 +140,12 @@ pub async fn handle_message(
     session_id: &str,
     ws: &mut FragmentCollector<TokioIo<Upgraded>>,
     cur_img: Option<&RgbaImage>,
-) -> Option<RgbaImage> {
+) -> Event {
     let msg = match ws.read_frame().await {
         Ok(msg) => msg,
-        Err(e) => {
-            eprintln!("{e:?}");
+        Err(_e) => {
             let _ = ws.write_frame(Frame::close_raw(vec![].into())).await;
-            return None;
+            return Event::Nothing;
         }
     };
 
@@ -156,15 +156,14 @@ pub async fn handle_message(
         }
         _ => panic!("TODO: figure out if we get other payloads"),
     }) else {
-        panic!("ERROR: invalid payload");
+        return Event::Nothing;
     };
 
     let (file_part, image, option) = match payload {
-        WsMessage::Disconnect => return None,
+        WsMessage::Disconnect => return Event::Disconnect,
         WsMessage::CaptureScreen { frame_type } => match frame_type.unwrap() {
             FrameType::Alpha => screen::take_screenshot(true, cur_img),
-            FrameType::Beta => todo!(),
-            FrameType::Unspecified => screen::take_screenshot(false, cur_img),
+            FrameType::Beta | FrameType::Unspecified => screen::take_screenshot(false, cur_img),
         },
     };
 
@@ -173,12 +172,13 @@ pub async fn handle_message(
         server_address, session_id, option,
     );
 
-    reqwest::Client::new()
+    if let Err(e) = reqwest::Client::new()
         .post(path)
         .multipart(Form::new().part("image", file_part))
         .send()
-        .await
-        .unwrap();
+        .await {
+            eprintln!("{:?}", e);
+    }
 
-    Some(image)
+    Event::UpdateImage(image)
 }

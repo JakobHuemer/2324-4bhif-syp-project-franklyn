@@ -69,6 +69,9 @@ impl<'a> Openbox<'a> {
                 self.lastname = lastname;
                 Task::none()
             }
+            Message::Ev(Event::Disconnect) => {
+                iced::exit()
+            }
             Message::Ev(Event::UpdateImage(new_image)) => {
                 self.old_image = Some(new_image);
                 Task::none()
