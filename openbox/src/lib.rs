@@ -22,7 +22,6 @@ type Ws = FragmentCollector<TokioIo<Upgraded>>;
 
 #[derive(Debug, Clone)]
 pub struct Data {
-    pub code: u32,
     pub lastname: String,
     pub firstname: String,
     
@@ -144,13 +143,12 @@ pub async fn connect_ws(user: &String) -> Result<Ws> {
     Ok(FragmentCollector::new(ws))
 }
 
-pub fn get_credentials<'a>(code: &'a str, firstname: &'a str, lastname: &'a str) -> Option<(u32, String, String)> {
-    if firstname.is_empty() || lastname.is_empty() || code.len() != 3 {
+pub fn get_credentials<'a>(firstname: &'a str, lastname: &'a str) -> Option<(String, String)> {
+    if firstname.is_empty() || lastname.is_empty() {
         return None;
     }
 
     Some((
-        code.parse::<u32>().ok()?,
         firstname.to_string(),
         lastname.to_string(),
     ))
