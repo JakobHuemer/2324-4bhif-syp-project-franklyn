@@ -10,7 +10,7 @@ COPY . .
 
 RUN mvn -B -Dmaven.test.skip package
 
-FROM linuxserver/ffmpeg:7.1-cli-ls4
+FROM linuxserver/ffmpeg:7.1-cli-ls8
 
 # setup java
 ENV JAVA_HOME=/opt/java/openjdk
