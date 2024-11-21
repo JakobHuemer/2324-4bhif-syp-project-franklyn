@@ -32,9 +32,6 @@ public class ExamineeCommandSocket {
     ParticipationService participationService;
 
     @Inject
-    WebSocketConnection connection;
-
-    @Inject
     OpenConnections openConnections;
 
     @ConfigProperty(name = "websocket.client-timeout-seconds")
@@ -45,8 +42,7 @@ public class ExamineeCommandSocket {
 
     @OnOpen
     @WithSession
-    public Uni<Void> onOpen() {
-        String participationId = connection.pathParam("participationId");
+    public Uni<Void> onOpen(WebSocketConnection connection, @PathParam("participationId") String participationId) {
         return participationService.exists(participationId)
                 .onItem().invoke(exists -> {
                     if (exists) {
@@ -63,8 +59,7 @@ public class ExamineeCommandSocket {
 
     @OnClose
     @WithTransaction
-    public Uni<Void> onClose() {
-        String participationId = connection.pathParam("participationId");
+    public Uni<Void> onClose(@PathParam("participationId") String participationId) {
         Log.infof("%s has lost connection.", participationId);
         connections.remove(participationId);
         return stateService.insertConnectedIfOngoing(participationId, false);
@@ -72,15 +67,14 @@ public class ExamineeCommandSocket {
 
     @OnError
     @WithTransaction
-    public Uni<Void> onError(Exception e) {
-        String participationId = connection.pathParam("participationId");
+    public Uni<Void> onError(Exception e, @PathParam("participationId") String participationId) {
         Log.infof("%s has lost connection: %s", participationId, e);
         return stateService.insertConnectedIfOngoing(participationId, false);
     }
 
     @OnPongMessage
     @WithTransaction
-    public Uni<Void> onPongMessage(Buffer data) {
+    public Uni<Void> onPongMessage(WebSocketConnection connection, Buffer data) {
         String participationId = connection.pathParam("participationId");
         return stateService.insertConnectedIfOngoing(participationId, true);
     }
