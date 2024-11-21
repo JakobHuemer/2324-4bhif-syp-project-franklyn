@@ -197,7 +197,7 @@ public class ExamService {
                         exam.getActualStart(),
                         exam.getActualEnd(),
                         exam.getTitle(),
-                        exam.getPin(),
+                        String.format("%03d", exam.getPin()),
                         exam.getState(),
                         exam.getScreencaptureInterval(),
                         examineeCount

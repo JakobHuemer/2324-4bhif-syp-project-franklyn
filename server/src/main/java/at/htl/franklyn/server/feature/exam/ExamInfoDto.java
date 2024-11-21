@@ -18,7 +18,7 @@ public record ExamInfoDto(
         @JsonProperty("title")
         String title,
         @JsonProperty("pin")
-        int pin,
+        String pin,
         @JsonProperty("state")
         ExamState state,
         @JsonProperty("screencapture_interval_seconds")

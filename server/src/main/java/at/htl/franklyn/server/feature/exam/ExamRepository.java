@@ -59,7 +59,7 @@ public class ExamRepository implements PanacheRepository<Exam> {
                                     e.actualStart,
                                     e.actualEnd,
                                     e.title,
-                                    e.pin,
+                                    lpad(cast(e.pin as String), 3, '0'),
                                     e.state,
                                     e.screencaptureInterval,
                                     (select count(*) from Participation p where p.exam.id = e.id)

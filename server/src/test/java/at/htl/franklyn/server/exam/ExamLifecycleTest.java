@@ -72,8 +72,8 @@ public class ExamLifecycleTest {
                 .isNull();
         assertThat(exam.actualStart())
                 .isNull();
-        assertThat(exam.pin())
-                .isBetween(0, 1000);
+        assertThat(exam.pin().length())
+                .isEqualTo(3);
         assertThat(exam.plannedStart())
                 .isEqualTo(start);
         assertThat(exam.plannedEnd())
@@ -132,7 +132,7 @@ public class ExamLifecycleTest {
                 null,
                 null,
                 "test",
-                123,
+                "123",
                 ExamState.ONGOING,
                 5,
                 1
@@ -223,7 +223,7 @@ public class ExamLifecycleTest {
                 .basePath(BASE_URL)
             .when()
                 .log().body()
-                .post(String.format("%s/%3d", JOIN_URL, createdExam.pin()));
+                .post(String.format("%s/%s", JOIN_URL, createdExam.pin()));
 
         // Assert
         assertThat(response.statusCode())

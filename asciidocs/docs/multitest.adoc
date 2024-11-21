@@ -266,7 +266,7 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
   "actual_start": isodatetime | null,
   "actual_end": isodatetime | null,
   "title": string,
-  "pin": number,
+  "pin": string,
   "screencapture_interval_seconds": number,
   "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
   "registered_students_num": number
@@ -294,7 +294,7 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
   "actual_start": isodatetime | null,
   "actual_end": isodatetime | null,
   "title": string,
-  "pin": number,
+  "pin": string,
   "screencapture_interval_seconds": number,
   "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
   "registered_students_num": number
@@ -322,7 +322,7 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
       "actual_start": isodatetime | null,
       "actual_end": isodatetime | null,
       "title": string,
-      "pin": number,
+      "pin": string,
       "screencapture_interval_seconds": number,
       "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
       "registered_students_num": number
