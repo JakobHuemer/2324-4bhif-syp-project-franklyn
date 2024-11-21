@@ -89,3 +89,15 @@ Content-Type: application/json
 ### Delete exam
 DELETE http://localhost:8080/exams/{{id}}
 Content-Type: application/json
+
+### Get Jobstatus (Not found)
+GET http://localhost:8080/telemetry/jobs/video/2
+Content-Type: application/json
+
+### Get Jobstatus (Bad request)
+GET http://localhost:8080/telemetry/jobs/video/null
+Content-Type: application/json
+
+### Create video
+POST http://localhost:8080/telemetry/by-user/{{userId}}/{{id}}/video/generate
+Content-Type: application/json

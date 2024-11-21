@@ -2,25 +2,18 @@ package at.htl.franklyn.server.feature.exam;
 
 import at.htl.franklyn.server.common.Limits;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
-import at.htl.franklyn.server.feature.telemetry.TelemetryJobManager;
+import at.htl.franklyn.server.feature.telemetry.ScreenshotJobManager;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateRepository;
-import at.htl.franklyn.server.feature.telemetry.image.ImageRepository;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
-import io.quarkus.logging.Log;
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.hibernate.reactive.mutiny.Mutiny;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -33,7 +26,7 @@ public class ExamService {
     ExamRepository examRepository;
 
     @Inject
-    TelemetryJobManager telemetryJobManager;
+    ScreenshotJobManager screenshotJobManager;
 
     @Inject
     ParticipationRepository participationRepository;
@@ -107,7 +100,7 @@ public class ExamService {
                         ExamState.ONGOING,
                         LocalDateTime.now(ZoneOffset.UTC),
                         e.getId())
-                .chain(affectedRows -> telemetryJobManager.startTelemetryJob(e));
+                .chain(affectedRows -> screenshotJobManager.startScreenshotJob(e));
     }
 
     /**
@@ -127,7 +120,7 @@ public class ExamService {
                         ExamState.DONE,
                         LocalDateTime.now(ZoneOffset.UTC),
                         e.getId())
-                .chain(affectedRows -> telemetryJobManager.stopTelemetryJob(e))
+                .chain(affectedRows -> screenshotJobManager.stopScreenshotJob(e))
                 .chain(ignored -> participationRepository.getParticipationsOfExam(e))
                 .onItem().transform(participations -> participations.stream().map(Participation::getId).toList())
                 .chain(pIds -> commandSocket.broadcastDisconnect(pIds))
