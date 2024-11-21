@@ -1,12 +1,17 @@
+// TODO: most things are pretty hacky or not implemented at a standard I would like
+// it to be but time + stress forces it sometimes (maybe laziness as well)
+
 use iced::{
     alignment,
-    widget::{button, center, column, container, row, text, text_input},
+    widget::{button, center, column, container, focus_next, row, text, text_input},
     Center, Element, Subscription, Task, Theme,
 };
 use openbox::ws::Event;
 
 const _PROD_URL: &str = "franklyn3.htl-leonding.ac.at:8080";
 const _DEV_URL: &str = "localhost:8080";
+
+const IS_VALID_RANGE: std::ops::RangeInclusive<usize> = 2..=50usize;
 
 #[derive(Debug, Clone)]
 enum Message {
@@ -15,6 +20,7 @@ enum Message {
     LastnameChanged(String),
 
     Connect,
+    ConnectKb,
     FocusNext,
 
     Ev(openbox::ws::Event),
@@ -22,7 +28,6 @@ enum Message {
 
 struct Openbox<'a> {
     pin: String,
-
     firstname: String,
     lastname: String,
 
@@ -45,13 +50,23 @@ impl<'a> Openbox<'a> {
         )
     }
 
+    fn is_input_valid(&self) -> bool {
+        self.pin.len() == 3
+            && self.pin.parse::<u16>().is_ok()
+            && IS_VALID_RANGE.contains(&self.firstname.len())
+            && IS_VALID_RANGE.contains(&self.lastname.len())
+    }
+
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::PinChanged(pin) => self.pin = pin,
             Message::FirstnameChanged(firstname) => self.firstname = firstname,
             Message::LastnameChanged(lastname) => self.lastname = lastname,
+            Message::Connect | Message::ConnectKb if self.is_input_valid() => {
+                self.should_connect = true
+            }
+            Message::FocusNext => return focus_next(),
             Message::Ev(Event::Disconnect) => return iced::exit(),
-            Message::Connect => self.should_connect = true, 
             _ => (),
         }
 
@@ -62,8 +77,9 @@ impl<'a> Openbox<'a> {
         use iced::keyboard;
         use openbox::ws;
 
-        let hotkeys = keyboard::on_key_press(|key, _mod| match key {
+        let hotkeys = keyboard::on_key_press(|key, _| match key {
             keyboard::Key::Named(keyboard::key::Named::Tab) => Some(Message::FocusNext),
+            keyboard::Key::Named(keyboard::key::Named::Enter) => Some(Message::ConnectKb),
             _ => None,
         });
 
@@ -75,7 +91,9 @@ impl<'a> Openbox<'a> {
                 self.lastname.clone(),
             )
             .map(Message::Ev)
-        } else { Subscription::none() };
+        } else {
+            Subscription::none()
+        };
 
         Subscription::batch([hotkeys, ws])
     }
@@ -92,20 +110,17 @@ impl<'a> Openbox<'a> {
             let pin_input = text_input("pin", &self.pin)
                 .on_input(Message::PinChanged)
                 .width(300)
-                .padding(10)
-                .id(iced::widget::text_input::Id::new("pin"));
+                .padding(10);
 
             let firstname_input = text_input("firstname", &self.firstname)
                 .on_input(Message::FirstnameChanged)
                 .width(300)
-                .padding(10)
-                .id(iced::widget::text_input::Id::new("firstname"));
+                .padding(10);
 
             let lastname_input = text_input("lastname", &self.lastname)
                 .on_input(Message::LastnameChanged)
                 .width(300)
-                .padding(10)
-                .id(iced::widget::text_input::Id::new("lastname"));
+                .padding(10);
 
             let mut button = button(
                 text("connect")
@@ -116,13 +131,7 @@ impl<'a> Openbox<'a> {
             .width(300)
             .padding([0, 20]);
 
-            let is_valid_range = 2..=50;
-
-            if self.pin.parse::<u16>().is_ok()
-                && self.pin.len() == 3
-                && is_valid_range.contains(&self.firstname.len())
-                && is_valid_range.contains(&self.lastname.len())
-            {
+            if self.is_input_valid() {
                 button = button.on_press(Message::Connect);
             }
 

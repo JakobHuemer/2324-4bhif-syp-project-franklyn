@@ -7,14 +7,14 @@ use hyper::header::{CONNECTION, UPGRADE};
 use hyper::upgrade::Upgraded;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
-use iced::{stream, Subscription, futures::channel::mpsc};
+use iced::{futures::channel::mpsc, stream, Subscription};
 use image::RgbaImage;
 use reqwest::multipart::Form;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::future::Future;
-use tokio::task;
 use tokio::net::TcpStream;
+use tokio::task;
 
 use crate::screen;
 
@@ -46,7 +46,9 @@ pub enum Event {
 #[serde(tag = "type", content = "payload")]
 pub enum WsMessage {
     #[serde(rename = "CAPTURE_SCREEN")]
-    CaptureScreen { frame_type: Option<FrameType> },
+    CaptureScreen {
+        frame_type: Option<FrameType>,
+    },
     #[serde(rename = "DISCONNECT")]
     Disconnect,
 
@@ -102,7 +104,6 @@ pub fn subscribe(
     firstname: String,
     lastname: String,
 ) -> Subscription<Event> {
-
     let connection_cloj = stream::channel(100, move |mut output| async move {
         let mut state = State::Disconnected;
 
@@ -112,25 +113,21 @@ pub fn subscribe(
 
         loop {
             match &mut state {
-                State::Disconnected => {
-                    match connect(&pin, &server, &firstname, &lastname).await {
-                        Ok((ws, session)) => {
-                            sender.send(WsMessage::SetId(session)).await.unwrap();
-                            state = State::Connected(ws);
-                        }
-                        Err(e) => {
-                            eprintln!("Disconnected with error: {e:?}");
-                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                        }
+                State::Disconnected => match connect(&pin, &server, &firstname, &lastname).await {
+                    Ok((ws, session)) => {
+                        sender.send(WsMessage::SetId(session)).await.unwrap();
+                        state = State::Connected(ws);
                     }
-                }
-                State::Connected(ws) => {
-                    match handle_message(ws).await {
-                        Event::Received(ws_msg) => sender.send(ws_msg).await.unwrap(),
-                        Event::Reconnect => state = State::Disconnected,
-                        Event::Disconnect => _ = output.send(Event::Disconnect).await,
+                    Err(e) => {
+                        eprintln!("Disconnected with error: {e:?}");
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     }
-                }
+                },
+                State::Connected(ws) => match handle_message(ws).await {
+                    Event::Received(ws_msg) => sender.send(ws_msg).await.unwrap(),
+                    Event::Reconnect => state = State::Disconnected,
+                    Event::Disconnect => _ = output.send(Event::Disconnect).await,
+                },
             }
         }
     });
@@ -154,8 +151,7 @@ pub async fn handle_message(ws: &mut FragmentCollector<TokioIo<Upgraded>>) -> Ev
             let msg = serde_json::from_str::<WsMessage>(&raw);
 
             match msg {
-                Ok(WsMessage::Disconnect) 
-                | Err(_) => Event::Disconnect,
+                Ok(WsMessage::Disconnect) | Err(_) => Event::Disconnect,
                 Ok(msg) => Event::Received(msg),
             }
         }
@@ -191,8 +187,9 @@ async fn process_screenshots(server: String, mut receiver: mpsc::Receiver<WsMess
             .post(path)
             .multipart(Form::new().part("image", file_part))
             .send()
-            .await {
-                eprintln!("{:?}", e);
+            .await
+        {
+            eprintln!("{:?}", e);
         }
 
         cur_img = Some(image);
