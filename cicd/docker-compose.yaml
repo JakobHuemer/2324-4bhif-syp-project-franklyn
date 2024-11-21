@@ -31,6 +31,8 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
       POSTGRES_MULTIPLE_DATABASES: db,quartz
+      TZ: UTC
+      PGTZ: UTC
     ports:
       - 5432:5432
     volumes:
