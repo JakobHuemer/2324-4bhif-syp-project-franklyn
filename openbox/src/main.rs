@@ -3,7 +3,6 @@ use iced::{
     widget::{button, center, column, container, row, text, text_input},
     Center, Element, Subscription, Task, Theme,
 };
-use image::RgbaImage;
 use openbox::ws::Event;
 
 const _PROD_URL: &str = "franklyn3.htl-leonding.ac.at:8080";
@@ -15,28 +14,20 @@ enum Message {
     FirstnameChanged(String),
     LastnameChanged(String),
 
-    Ev(openbox::ws::Event),
-    Connect(String),
-
+    Connect,
     FocusNext,
-}
 
-#[derive(PartialEq)]
-enum ConnectionState {
-    Idle,
-    Connected,
-    Reconnecting(String),
-    Disconnected,
+    Ev(openbox::ws::Event),
 }
 
 struct Openbox<'a> {
     pin: String,
+
     firstname: String,
     lastname: String,
 
-    connection: ConnectionState,
     server_address: &'a str,
-    old_image: Option<RgbaImage>,
+    should_connect: bool,
 }
 
 impl<'a> Openbox<'a> {
@@ -47,9 +38,8 @@ impl<'a> Openbox<'a> {
                 firstname: String::new(),
                 lastname: String::new(),
 
-                connection: ConnectionState::Idle,
                 server_address: _DEV_URL,
-                old_image: None,
+                should_connect: false,
             },
             Task::none(),
         )
@@ -57,31 +47,15 @@ impl<'a> Openbox<'a> {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::PinChanged(pin) => {
-                self.pin = pin;
-                Task::none()
-            }
-            Message::FirstnameChanged(firstname) => {
-                self.firstname = firstname;
-                Task::none()
-            }
-            Message::LastnameChanged(lastname) => {
-                self.lastname = lastname;
-                Task::none()
-            }
-            Message::Ev(Event::Disconnect) => {
-                iced::exit()
-            }
-            Message::Ev(Event::UpdateImage(new_image)) => {
-                self.old_image = Some(new_image);
-                Task::none()
-            }
-            Message::Connect(pin) => {
-                self.connection = ConnectionState::Reconnecting(pin);
-                Task::none()
-            }
-            _ => Task::none(),
+            Message::PinChanged(pin) => self.pin = pin,
+            Message::FirstnameChanged(firstname) => self.firstname = firstname,
+            Message::LastnameChanged(lastname) => self.lastname = lastname,
+            Message::Ev(Event::Disconnect) => return iced::exit(),
+            Message::Connect => self.should_connect = true, 
+            _ => (),
         }
+
+        Task::none()
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -93,19 +67,15 @@ impl<'a> Openbox<'a> {
             _ => None,
         });
 
-        let ws = match &self.connection {
-            ConnectionState::Reconnecting(pin) => ws::subscribe(
-                pin.clone(), 
+        let ws = if self.should_connect {
+            ws::subscribe(
+                self.pin.clone(),
+                self.server_address.to_string(),
                 self.firstname.clone(),
                 self.lastname.clone(),
-                self.server_address.to_string(),
-                self.old_image.clone(),
             )
-            .map(Message::Ev),
-            ConnectionState::Idle => Subscription::none(),
-            ConnectionState::Connected => Subscription::none(),
-            ConnectionState::Disconnected => Subscription::none(),
-        };
+            .map(Message::Ev)
+        } else { Subscription::none() };
 
         Subscription::batch([hotkeys, ws])
     }
@@ -118,7 +88,7 @@ impl<'a> Openbox<'a> {
         ]
         .align_y(Center);
 
-        center(if self.connection == ConnectionState::Idle {
+        center(if !self.should_connect {
             let pin_input = text_input("pin", &self.pin)
                 .on_input(Message::PinChanged)
                 .width(300)
@@ -146,12 +116,14 @@ impl<'a> Openbox<'a> {
             .width(300)
             .padding([0, 20]);
 
+            let is_valid_range = 2..=50;
+
             if self.pin.parse::<u16>().is_ok()
                 && self.pin.len() == 3
-                && !self.firstname.is_empty()
-                && !self.lastname.is_empty()
+                && is_valid_range.contains(&self.firstname.len())
+                && is_valid_range.contains(&self.lastname.len())
             {
-                button = button.on_press(Message::Connect(self.pin.clone()));
+                button = button.on_press(Message::Connect);
             }
 
             column![
