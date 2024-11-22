@@ -22,6 +22,14 @@ image::youtrack-diagram-last-commit.png[]
 
 == Erwartungen
 
+Das Programm soll Daten aus YouTrack abrufen und uns dabei unterstützen, die Dokumentation um folgende generierte Diagramme zu erweitern:
+
+* Sprint Tree View
+* Epic Tree View
+* Gantt Diagram View
+* Export diagrams
+
+
 == Was hat nicht funktioniert?
 
 
