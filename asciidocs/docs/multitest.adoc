@@ -174,13 +174,13 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | `GET /telemetry/by-user/{user-id}/{exam-id}/screen/download`
 
-| 🔴
+| 🟡
 | `POST /telemetry/by-user/{user-id}/{exam-id}/video/generate`
 
 | 🔴
 | `POST /telemetry/by-exam/{exam-id}/video/generate-all`
 
-| 🔴
+| 🟡
 | `GET /telemetry/jobs/video/{job-id}`
 
 | 🔴
@@ -227,7 +227,7 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | Request screenshot
 
-| 🔴
+| 🟢
 | Request disconnect
 
 | 🟢

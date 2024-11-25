@@ -36,11 +36,19 @@ endif::[]
 ** create, getById, getAll, delete, start, complete, getExaminees, join
 * Telemetry (Screenshots, ConnectionState)
 ** uploadAlphaFrame, uploadBetaFrame, heartbeat, downloadLatestFrame
-* TODO: Video generierung
+* WIP: Video generierung
 * Openbox
 ** Anpassung an neue backend API
 ** Alpha/Beta frames
 ** rewrite + dependency update
+
+[.font-xx-large]
+=== Implementierungsstatus
+[cols="a,a"]
+|===
+| image::mt-new-status.png[]
+| image::mt-old-status.png[]
+|===
 
 === Live Demo
 
