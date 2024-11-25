@@ -1,5 +1,10 @@
 @if (exam) {
-  <div class="text-bg-light w-100 card p-2 overflow-hidden" (click)="setExamToCurExam()">
+  <div
+    [ngClass]="setExamClassHoverOrCur()"
+    (mouseenter)="isHovered = true"
+    (mouseleave)="isHovered = false"
+    class="text-bg-light w-100 card p-2 overflow-hidden"
+    (click)="setExamToCurExam()">
     <label class="text-center">
       {{exam.title}}
       <br>

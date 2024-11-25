@@ -1,22 +1,34 @@
 import {Component, inject, Input} from '@angular/core';
 import {Exam} from "../../../model/entity/Exam";
 import {ExamService} from "../../../services/exam.service";
+import {NgClass} from "@angular/common";
 
 @Component({
   selector: 'app-exam',
   standalone: true,
-  imports: [],
+  imports: [
+    NgClass
+  ],
   templateUrl: './exam.component.html',
   styleUrl: './exam.component.css'
 })
 export class ExamComponent {
   private examSvc = inject(ExamService);
+  protected isHovered = false;
 
   @Input() exam: Exam | undefined;
 
   protected setExamToCurExam() {
     if (this.exam) {
       this.examSvc.setCurExam(this.exam);
+    }
+  }
+
+  protected isCurExam(): boolean {
+    if (this.exam) {
+      return this.examSvc.isCurExam(this.exam.id);
+    } else {
+      return false;
     }
   }
 
@@ -34,5 +46,13 @@ export class ExamComponent {
       return "";
 
     return this.exam.plannedStart.getHours() + ":" + this.exam.plannedStart.getMinutes();
+  }
+
+  setExamClassHoverOrCur(): string[] {
+    if (this.isHovered || this.isCurExam()) {
+      return ['text-bg-dark', 'bg-secondary'];
+    } else {
+      return ['text-bg-light'];
+    }
   }
 }

@@ -23,10 +23,6 @@ export class ExamService {
     this.webApi.getExamsFromServer();
   }
 
-  reloadSpecificExam(exam: Exam): void {
-    this.webApi.getExamByIdFromServer(exam.id);
-  }
-
   get(predicate?: ((item: Exam) => boolean) | undefined): Exam[] {
     if (predicate) return this.get().filter(predicate);
     return this.store.value.examData.exams;
@@ -53,5 +49,10 @@ export class ExamService {
 
   createNewExam(exam: CreateExam): Promise<Observable<Exam>> {
     return this.webApi.createNewExam(exam);
+  }
+
+  isCurExam(id: number) {
+    let curExam: Exam | undefined = this.store.value.examData.curExam;
+    return !!(curExam && curExam.id === id);
   }
 }

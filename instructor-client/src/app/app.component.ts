@@ -1,4 +1,4 @@
-import {Component, inject, OnInit} from '@angular/core';
+import {Component, inject} from '@angular/core';
 import {CommonModule, Location} from '@angular/common';
 import {RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 import {environment} from "../../env/environment";
@@ -16,7 +16,7 @@ import {FormsModule} from "@angular/forms";
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent implements OnInit{
+export class AppComponent {
   protected store = inject(StoreService).store;
   protected examineeSvc = inject(ExamineeService);
   protected webApi = inject(WebApiService);
@@ -25,9 +25,7 @@ export class AppComponent implements OnInit{
 
   protected readonly environment = environment;
 
-  ngOnInit() {
-    this.webApi.getIntervalSpeed();
-  }
+
 
   resetExaminees(): void {
     this.examineeSvc.resetExaminees();
@@ -35,10 +33,6 @@ export class AppComponent implements OnInit{
 
   resetTextIsWantedText(): boolean {
     return this.store.value.resetText !== environment.wantedResetText
-  }
-
-  screenshotCaptureIntervalUpdate(): void {
-    this.webApi.updateScreenshotCaptureInterval(this.store.value.timer.screenshotCaptureInterval);
   }
 
   setResetText(val: string): void {
@@ -56,19 +50,6 @@ export class AppComponent implements OnInit{
   setPatrolSpeed(val: number): void {
     set((model) => {
       model.timer.patrolSpeed = val;
-    });
-  }
-
-  setNextClientTime(val: number): void {
-    set((model) => {
-      model.timer.nextClientTime = val;
-    });
-    this.screenshotCaptureIntervalUpdate();
-  }
-
-  setScreenshotCaptureInterval(val: number): void {
-    set((model) => {
-      model.timer.screenshotCaptureInterval = val;
     });
   }
 

@@ -15,47 +15,12 @@ export class WebApiService {
   private httpClient = inject(HttpClient);
   private headers: HttpHeaders = new HttpHeaders().set('Accept', 'application/json');
 
-  public async getExamineesFromServer(examId: number): Promise<void> {
-      this.httpClient.get<Examinee[]>(
-        `${environment.serverBaseUrl}/exams/${examId}/examinees`,
-        {headers: this.headers})
-        .subscribe({
-        "next": (examinees) => set((model) => {
-          model.examineeData.examinees = examinees;
-        }),
-        "error": (err) => console.error(err),
-      });
-  }
-
   public async resetServer(): Promise<void> {
     this.httpClient.post(
       `${environment.serverBaseUrl}/state/reset`,
       {}
     ).subscribe({
       error: err => console.error(err),
-    });
-  }
-
-  public async updateScreenshotCaptureInterval(updateInterval: number): Promise<void> {
-    this.httpClient.post(
-      `${environment.serverBaseUrl}/screenshot/updateInterval`,
-      {newInterval: updateInterval}
-    ).subscribe({
-      error: err => console.error(err),
-    });
-  }
-
-  public async getIntervalSpeed(): Promise<void> {
-    const intervalSpeed: number = await lastValueFrom(
-      this.httpClient
-        .get<number>(
-          `${environment.serverBaseUrl}/screenshot/intervalSpeed`,
-      {headers: this.headers}
-        )
-    );
-
-    set((model) => {
-      model.timer.screenshotCaptureInterval = intervalSpeed;
     });
   }
 
@@ -72,6 +37,24 @@ export class WebApiService {
       model.serverMetrics = serverMetrics;
     });
   }
+
+  //region Examinee-WebApi calls
+
+  public async getExamineesFromServer(examId: number): Promise<void> {
+    this.httpClient.get<Examinee[]>(
+      `${environment.serverBaseUrl}/exams/${examId}/examinees`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (examinees) => set((model) => {
+          model.examineeData.examinees = examinees;
+        }),
+        "error": (err) => console.error(err),
+      });
+  }
+
+  //endregion
+
+  //region Exam-WebApi calls
 
   public async getExamsFromServer(): Promise<void> {
     this.httpClient.get<ExamDto[]>(
@@ -121,25 +104,6 @@ export class WebApiService {
       });
   }
 
-  public async getExamByIdFromServer(id: number): Promise<void> {
-    this.httpClient.get<Exam>(
-      `${environment.serverBaseUrl}/exams/${id}`,
-      {headers: this.headers})
-      .subscribe({
-        "next": (exam) => set((model) => {
-          let index: number = model.examData.exams
-            .findIndex((e) => e.id === id);
-
-          if (index >= 0 && !Number.isNaN(index)) {
-            model.examData.exams[index] = exam;
-          }
-
-          model.examData.exams = this.sortExams(model.examData.exams);
-        }),
-        "error": (err) => console.error(err),
-      });
-  }
-
   public async createNewExam(exam: CreateExam): Promise<Observable<Exam>> {
     return this.httpClient.post<Exam>(
       `${environment.serverBaseUrl}/exams`,
@@ -171,4 +135,6 @@ export class WebApiService {
       return (a.plannedStart < b.plannedStart) ? 1 : -1
     })
   };
+
+  //endregion
 }
