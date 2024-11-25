@@ -31,12 +31,23 @@ endif::[]
 [.font-xx-large]
 === Änderungen
 
-* Franklyn 3 "Eintestversion" mit dem Rust-Client läuft jetzt wieder in der Schule. (Cvijić und Schnalzenberger)
-* openbox rust alpha/beta frames (Cvijić)
-* GitHub actions windows build (Cvijić)
-* Downloads der neuen Openbox sind jetzt auch wieder über die Franklyn 3 Website möglich (Cvijić)
-** https://franklyn3.htl-leonding.ac.at/[Franklyn3]
-* Mehrtestfähigkeit - *Work in progress*
+* Passwortschutz bei `franklyn3` instructor client
+* Exam Verwaltung
+* Telemetry (Screenshots, ConnectionState)
+* WIP: Video generierung
+* Openbox
+** Anpassung an neue backend API
+** Alpha/Beta frames
+** rewrite + dependency update
+* WIP: Anpassung Instructor-Client an Mehrtestfähigkeit
+
+[.font-xx-large]
+=== Implementierungsstatus
+[cols="a,a"]
+|===
+| image::mt-new-status.png[]
+| image::mt-old-status.png[]
+|===
 
 === Live Demo
 

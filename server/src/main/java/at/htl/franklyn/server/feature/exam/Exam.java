@@ -18,23 +18,19 @@ public class Exam {
     @NotNull(message = "Start timestamp can not be null!")
     @FutureOrPresent(message = "Start for a new exam can not be in the past")
     @Column(name = "E_PLANNED_START", nullable = false)
-    @JsonProperty("planned_start")
     private LocalDateTime plannedStart;
 
     @NotNull(message = "End timestamp can not be null!")
     @FutureOrPresent(message = "End for a new exam can not be in the past")
     @Column(name = "E_PLANNED_END", nullable = false)
-    @JsonProperty("planned_end")
     private LocalDateTime plannedEnd;
 
     @PastOrPresent(message = "Actual start time can not be in the future")
     @Column(name = "E_ACTUAL_START", nullable = true)
-    @JsonProperty("actual_start")
     private LocalDateTime actualStart;
 
     @PastOrPresent(message = "Actual end time can not be in the future")
     @Column(name = "E_ACTUAL_END", nullable = true)
-    @JsonProperty("actual_end")
     private LocalDateTime actualEnd;
 
     @NotNull(message = "Title of exam can not be null")
@@ -69,7 +65,6 @@ public class Exam {
             message = "Screencapture interval can not be more than " + Limits.EXAM_MAX_CAPTURE_INTERVAL_SECONDS,
             value = Limits.EXAM_MAX_CAPTURE_INTERVAL_SECONDS
     )
-    @JsonProperty("screencapture_interval_seconds")
     private Long screencaptureInterval;
 
     public Exam() {

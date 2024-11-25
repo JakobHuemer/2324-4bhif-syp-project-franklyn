@@ -4,7 +4,7 @@ use reqwest::multipart::Part;
 
 pub fn take_screenshot(
     expect_alpha: bool,
-    cur: Option<&RgbaImage>,
+    cur: Option<RgbaImage>,
 ) -> (Part, RgbaImage, &'static str) {
     let image = xcap::Monitor::all()
         .unwrap()
@@ -35,7 +35,7 @@ fn image_to_file_part(image: &RgbaImage) -> Part {
         .unwrap()
 }
 
-fn transform_screenshot(cur_img: Option<&RgbaImage>, img: RgbaImage) -> (RgbaImage, &'static str) {
+fn transform_screenshot(cur_img: Option<RgbaImage>, img: RgbaImage) -> (RgbaImage, &'static str) {
     let Some(cur_img) = cur_img else {
         return (img, "alpha");
     };

@@ -2,20 +2,18 @@ package at.htl.franklyn.server.feature.exam;
 
 import at.htl.franklyn.server.common.Limits;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
-import at.htl.franklyn.server.feature.telemetry.TelemetryJobManager;
+import at.htl.franklyn.server.feature.telemetry.ScreenshotJobManager;
+import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateRepository;
-import at.htl.franklyn.server.feature.telemetry.image.ImageRepository;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
+import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
-import io.quarkus.logging.Log;
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.hibernate.reactive.mutiny.Mutiny;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -28,7 +26,7 @@ public class ExamService {
     ExamRepository examRepository;
 
     @Inject
-    TelemetryJobManager telemetryJobManager;
+    ScreenshotJobManager screenshotJobManager;
 
     @Inject
     ParticipationRepository participationRepository;
@@ -38,6 +36,9 @@ public class ExamService {
 
     @Inject
     ImageService imageService;
+
+    @Inject
+    ExamineeCommandSocket commandSocket;
 
     /**
      * Creates a new Exam from a Dto.
@@ -99,7 +100,7 @@ public class ExamService {
                         ExamState.ONGOING,
                         LocalDateTime.now(ZoneOffset.UTC),
                         e.getId())
-                .chain(affectedRows -> telemetryJobManager.startTelemetryJob(e));
+                .chain(affectedRows -> screenshotJobManager.startScreenshotJob(e));
     }
 
     /**
@@ -113,13 +114,21 @@ public class ExamService {
             return Uni.createFrom().failure(new IllegalStateException("Invalid exam state for completeExam"));
         }
 
+        Context ctx = Vertx.currentContext();
         return examRepository
                 .update("state = ?1, actualEnd = ?2 where id = ?3",
                         ExamState.DONE,
                         LocalDateTime.now(ZoneOffset.UTC),
                         e.getId())
-                .chain(affectedRows -> telemetryJobManager.stopTelemetryJob(e));
-        // TODO: disconnect openbox clients
+                .chain(affectedRows -> screenshotJobManager.stopScreenshotJob(e))
+                .chain(ignored -> participationRepository.getParticipationsOfExam(e))
+                .onItem().transform(participations -> participations.stream().map(Participation::getId).toList())
+                .chain(pIds -> commandSocket.broadcastDisconnect(pIds))
+                // Most of the time when calling .broadcast disconnect mutiny switches vertx-worker
+                // Hibernate however does not like this and give errors similar to
+                // "Detected use of the reactive Session from a different Thread than the one which was used to open the reactive Session"
+                // In order to counteract this, we pin the emission to the vertx thread hibernate wants
+                .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
     }
 
     /**
@@ -170,6 +179,22 @@ public class ExamService {
         return examRepository
                 .find("from Exam e where e.actualEnd is null and pin = ?1", pin)
                 .firstResult();
+    }
+
+    public Uni<ExamInfoDto> transformToDto(Exam exam) {
+        return participationRepository.getParticipationCountOfExam(exam.getId())
+                .onItem().transform(examineeCount -> new ExamInfoDto(
+                        exam.getId(),
+                        exam.getPlannedStart(),
+                        exam.getPlannedEnd(),
+                        exam.getActualStart(),
+                        exam.getActualEnd(),
+                        exam.getTitle(),
+                        String.format("%03d", exam.getPin()),
+                        exam.getState(),
+                        exam.getScreencaptureInterval(),
+                        examineeCount
+                ));
     }
 
     /**

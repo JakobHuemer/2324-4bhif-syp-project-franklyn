@@ -1,5 +1,6 @@
 package at.htl.franklyn.server.feature.telemetry.command;
 
+import at.htl.franklyn.server.feature.telemetry.command.disconnect.DisconnectClientCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotPayload;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateService;
@@ -13,10 +14,12 @@ import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.buffer.Buffer;
-import jakarta.enterprise.context.control.ActivateRequestContext;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,9 +32,6 @@ public class ExamineeCommandSocket {
     ParticipationService participationService;
 
     @Inject
-    WebSocketConnection connection;
-
-    @Inject
     OpenConnections openConnections;
 
     @ConfigProperty(name = "websocket.client-timeout-seconds")
@@ -42,8 +42,7 @@ public class ExamineeCommandSocket {
 
     @OnOpen
     @WithSession
-    public Uni<Void> onOpen() {
-        String participationId = connection.pathParam("participationId");
+    public Uni<Void> onOpen(WebSocketConnection connection, @PathParam("participationId") String participationId) {
         return participationService.exists(participationId)
                 .onItem().invoke(exists -> {
                     if (exists) {
@@ -60,26 +59,24 @@ public class ExamineeCommandSocket {
 
     @OnClose
     @WithTransaction
-    public Uni<Void> onClose() {
-        String participationId = connection.pathParam("participationId");
+    public Uni<Void> onClose(@PathParam("participationId") String participationId) {
         Log.infof("%s has lost connection.", participationId);
         connections.remove(participationId);
-        return stateService.insertConnected(participationId, false);
+        return stateService.insertConnectedIfOngoing(participationId, false);
     }
 
     @OnError
     @WithTransaction
-    public Uni<Void> onError(Exception e) {
-        String participationId = connection.pathParam("participationId");
+    public Uni<Void> onError(Exception e, @PathParam("participationId") String participationId) {
         Log.infof("%s has lost connection: %s", participationId, e);
-        return stateService.insertConnected(participationId, false);
+        return stateService.insertConnectedIfOngoing(participationId, false);
     }
 
     @OnPongMessage
     @WithTransaction
-    public Uni<Void> onPongMessage(Buffer data) {
+    public Uni<Void> onPongMessage(WebSocketConnection connection, Buffer data) {
         String participationId = connection.pathParam("participationId");
-        return stateService.insertConnected(participationId, true);
+        return stateService.insertConnectedIfOngoing(participationId, true);
     }
 
     @Scheduled(every = "{websocket.ping.interval}")
@@ -107,7 +104,7 @@ public class ExamineeCommandSocket {
                     Log.infof("Disconnecting %s (Reason: Timed out)", pId);
 
                     return Uni.join().all(
-                            stateService.insertConnected(pId, false),
+                            stateService.insertConnectedIfOngoing(pId, false),
                             s != null && s.isOpen() ? s.close() : Uni.createFrom().voidItem()
                     ).andFailFast().replaceWithVoid();
                 })
@@ -119,18 +116,24 @@ public class ExamineeCommandSocket {
         return Uni.createFrom()
                 .item(connections.get(participationId.toString()))
                 .onItem().ifNull()
-                .failWith(() -> {
-                    return new IllegalArgumentException(String.format("%s is not connected", participationId));
-                })
+                .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
                 .onItem().transform(connId -> openConnections.findByConnectionId(connId).orElse(null))
                 .onItem().ifNull()
-                .failWith(() -> {
-                    return new IllegalArgumentException(String.format("%s is not connected", participationId));
-                })
+                .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
                 .onItem()
                 .transformToUni(conn ->
                             conn.sendText(new RequestScreenshotCommand(new RequestScreenshotPayload(type)))
                             .onFailure().invoke(e -> Log.error("Send failed:", e))
                 );
+    }
+
+    public Uni<Void> broadcastDisconnect(List<UUID> participationIds) {
+        return Multi.createFrom().iterable(participationIds)
+                .onItem().transform(uuid -> Optional.ofNullable(connections.get(uuid.toString())))
+                .onItem().transform(connId -> connId.isPresent() ? openConnections.findByConnectionId(connId.get()) : Optional.<WebSocketConnection>empty())
+                .onItem().transform(conn -> conn.isPresent() ? conn.get().sendText(new DisconnectClientCommand()) : Uni.createFrom().voidItem())
+                .onItem().transformToUniAndConcatenate(u -> u)
+                .toUni()
+                .replaceWithVoid();
     }
 }

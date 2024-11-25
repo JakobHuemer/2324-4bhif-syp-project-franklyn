@@ -1,16 +1,21 @@
 package at.htl.franklyn.server.feature.telemetry;
 
+import at.htl.franklyn.server.common.ExceptionFilter;
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobDto;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobRepository;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobService;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.unchecked.Unchecked;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.jboss.resteasy.reactive.PartType;
 import org.jboss.resteasy.reactive.RestForm;
 
@@ -21,6 +26,12 @@ import java.util.UUID;
 public class TelemetryResource {
     @Inject
     ImageService imageService;
+
+    @Inject
+    VideoJobRepository videoJobRepository;
+
+    @Inject
+    VideoJobService videoJobService;
 
     @POST
     @Path("/by-session/{sessionId}/screen/upload/alpha")
@@ -33,9 +44,16 @@ public class TelemetryResource {
         return Uni.createFrom()
                 .item(sessionId)
                 .onItem().transform(UUID::fromString)
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> new WebApplicationException(
+                        "invalid sessionId / participationId", Response.Status.BAD_REQUEST
+                ))
                 .chain(session -> imageService.saveFrameOfSession(session, alphaFrame, FrameType.ALPHA))
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
+                    Log.warnf("Could not save frame of %s (Reason: %s)", sessionId, e.getMessage());
+                    return new WebApplicationException(
+                            "Unable to save frame", Response.Status.BAD_REQUEST
+                    );
+                })
                 .onItem().transform(v -> Response.ok().build());
     }
 
@@ -49,9 +67,16 @@ public class TelemetryResource {
         return Uni.createFrom()
                 .item(sessionId)
                 .onItem().transform(UUID::fromString)
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> new WebApplicationException(
+                        "invalid sessionId / participationId", Response.Status.BAD_REQUEST
+                ))
                 .chain(session -> imageService.saveFrameOfSession(session, betaFrame, FrameType.BETA))
-                .onFailure().transform(BadRequestException::new)
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
+                    Log.warnf("Could not save frame of %s (Reason: %s)", sessionId, e.getMessage());
+                    return new WebApplicationException(
+                            "Unable to save frame", Response.Status.BAD_REQUEST
+                    );
+                })
                 .onItem().transform(v -> Response.ok().build());
     }
 
@@ -65,12 +90,95 @@ public class TelemetryResource {
     ) {
         return Uni.createFrom()
                 .item(userId)
-                .onItem().ifNull().fail()
+                .onItem().ifNull().failWith(
+                    new WebApplicationException(
+                        "Missing userId",
+                        Response.Status.BAD_REQUEST
+                    )
+                )
                 .replaceWith(examId)
-                .onItem().ifNull().fail()
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Missing examId",
+                                Response.Status.BAD_REQUEST
+                        )
+                )
                 .chain(ignored -> imageService.loadLatestFrameOfUser(userId, examId))
                 .onItem().transform(buf -> Response.ok(buf).build())
-                .onFailure(IllegalStateException.class).transform(NotFoundException::new)
-                .onFailure(e -> !(e instanceof NotFoundException)).transform(BadRequestException::new);
+                .onFailure(IllegalStateException.class).transform(e -> new WebApplicationException(
+                    "No available screenshot found",
+                    Response.Status.NOT_FOUND
+                ))
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
+                    Log.warnf("Could not load screenshot for user: %d | exam: %d", userId, examId);
+                    return new WebApplicationException(
+                            "Could not load screenshot for user",
+                            Response.Status.BAD_REQUEST
+                    );
+                });
+    }
+
+    @GET
+    @Path("/jobs/video/{job-id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @WithSession
+    public Uni<Response> getJobStatus(
+            @PathParam("job-id") Long jobId
+    ) {
+        return Uni.createFrom()
+                .item(jobId)
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Missing jobId",
+                                Response.Status.BAD_REQUEST
+                        )
+                )
+                .chain(id -> videoJobRepository.findById(id))
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Job does not exist",
+                                Response.Status.NOT_FOUND
+                        )
+                )
+                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
+                .onItem().transform(dto -> Response.ok(dto).build());
+    }
+
+    @POST
+    @Path("/by-user/{user-id}/{exam-id}/video/generate")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<Response> generateVideoForUser(
+            @PathParam("user-id") Long userId,
+            @PathParam("exam-id") Long examId,
+            @Context UriInfo uriInfo
+    ) {
+        return Uni.createFrom()
+                .item(userId)
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Missing userId",
+                                Response.Status.BAD_REQUEST
+                        )
+                )
+                .replaceWith(examId)
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Missing examId",
+                                Response.Status.BAD_REQUEST
+                        )
+                )
+                .chain(ignored -> videoJobService.startVideoJob(userId, examId))
+                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
+                .onItem().transform(job -> {
+                    String location = uriInfo.getBaseUriBuilder()
+                            .path(TelemetryResource.class)
+                            .path("jobs/video/{job-id}")
+                            .build(job.id())
+                            .toString();
+
+                    return Response.accepted(new VideoJobDto(job.id(), job.state()))
+                            .header("Location", location)
+                            .build();
+                });
     }
 }

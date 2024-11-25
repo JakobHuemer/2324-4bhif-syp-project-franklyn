@@ -156,40 +156,40 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | `GET /exams`
 
-| 🟡
+| 🟢
 | `DELETE /exams/{id}`
 
-| 🟡
+| 🟢
 | `POST /exams/{id}/start`
 
-| 🟡
+| 🟢
 | `POST /exams/{id}/complete`
 
-| 🟡
+| 🟢
 | `DELETE /exams/{id}/telementry`
 
 | 🟢
 | `GET /exams/{id}/examinees`
 
-| 🔴
+| 🟢
 | `GET /telemetry/by-user/{user-id}/{exam-id}/screen/download`
 
-| 🔴
+| 🟡
 | `POST /telemetry/by-user/{user-id}/{exam-id}/video/generate`
 
 | 🔴
 | `POST /telemetry/by-exam/{exam-id}/video/generate-all`
 
-| 🔴
+| 🟡
 | `GET /telemetry/jobs/video/{job-id}`
 
 | 🔴
 | `GET /telemetry/jobs/video/{job-id}/download`
 
-| 🟡
+| 🟢
 | `POST /telemetry/by-session/{session-id}/screen/upload/alpha`
 
-| 🟡
+| 🟢
 | `POST /telemetry/by-session/{session-id}/screen/upload/beta`
 
 | 🟢
@@ -209,6 +209,9 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | Request screenshot
 
 | 🟢
+| Request disconnect
+
+| 🟢
 | Heartbeat (Ping/Pong)
 |===
 
@@ -218,11 +221,14 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | Status
 | Command
 
-| 🟡
+| 🟢
 | Connect
 
-| 🟡
+| 🟢
 | Request screenshot
+
+| 🟢
+| Request disconnect
 
 | 🟢
 | Heartbeat (Ping/Pong)
@@ -247,7 +253,7 @@ The manage Exams interface of franklyn-server is a `REST` interface under the pa
     "screencapture_interval_seconds": number
 }
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/dto/ExamDto.java[ExamDto]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamDto.java[ExamDto]
 * *Response format*: `JSON`
 * *Response structure*:
 +
@@ -260,12 +266,13 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
   "actual_start": isodatetime | null,
   "actual_end": isodatetime | null,
   "title": string,
-  "pin": number,
+  "pin": string,
   "screencapture_interval_seconds": number,
-  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED"
+  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
+  "registered_students_num": number
 }
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/Exam.java[Exam]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamInfoDto.java[ExamInfoDto]
 * *Additional Notes*: The `Location` header returns the full rest api path to the newly created exam
 
 ====== Get exam by ID
@@ -287,12 +294,13 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
   "actual_start": isodatetime | null,
   "actual_end": isodatetime | null,
   "title": string,
-  "pin": number,
+  "pin": string,
   "screencapture_interval_seconds": number,
-  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED"
+  "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
+  "registered_students_num": number
 }
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/Exam.java[Exam]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamInfoDto.java[ExamInfoDto]
 * *Additional Notes*: N/A
 
 ====== Get all exams
@@ -314,14 +322,15 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
       "actual_start": isodatetime | null,
       "actual_end": isodatetime | null,
       "title": string,
-      "pin": number,
+      "pin": string,
       "screencapture_interval_seconds": number,
-      "state": "CREATED" | "ONGOING" | "DONE" | "DELETED"
+      "state": "CREATED" | "ONGOING" | "DONE" | "DELETED",
+      "registered_students_num": number
     },
     ...
 ]
 ----
-See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/Exam.java[Exam]
+See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/exam/ExamInfoDto.java[ExamInfoDto]
 * *Additional Notes*: N/A
 
 ====== Delete exam by id
@@ -385,7 +394,7 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
     ...
 ]
 ----
-See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/dto/ExamineeDto.java[ExamineeDto]
+See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/examinee/ExamineeDto.java[ExamineeDto]
 * *Additional Notes*: N/A
 
 ===== Manage Recordings
@@ -425,7 +434,7 @@ The manage Recordings interface is a `REST` resource of franklyn-server used for
   "status": "ONGOING" | "DONE" | "DELETED",
 }
 ----
-* *Additional Notes*: A call to the video generation job will always return a job with status "ONGOING". The returned status code will be 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
+* *Additional Notes*: A valid call to the video generation job will always return a job with status "ONGOING". The returned status code will be 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
 
 ====== Start bulk video creation job
 * *Path*: `/telemetry/by-exam/{exam-id}/video/generate-all`
@@ -482,11 +491,10 @@ A command sent to the student-client generally looks like the following:
 [source, json]
 ----
 {
-  "type": "CAPTURE_SCREEN",
+  "type": "CAPTURE_SCREEN" | "DISCONNECT",
   "payload": object | null
 }
 ----
-NOTE: Currently, there is only one command type `CAPTURE_SCREEN`, however in the future there may be more and the datatype will look similar to: `"CMD1" | "CMD2" | "CMD3" | ...`
 
 ====== Request screenshot
 * *Description*: Requests a screencapture from the student-client (openbox)
@@ -503,6 +511,20 @@ NOTE: Currently, there is only one command type `CAPTURE_SCREEN`, however in the
 ----
 * *Expected Response*: `POST` request to the telemetry endpoint for the given frametype. I.e. `/telemetry/by-session/{session-id}/screen/upload/alpha` for alpha frames and `/telemetry/by-session/{session-id}/screen/upload/beta` for beta frames
 * *Additional Notes*: If `frame_type` is set to unspecified, it is up to the student-client (openbox) to choose which frame is appropriate for the current situation. If a specific frame type is specified the client MUST follow this command.
+
+====== Disconnect
+* *Description*: Requests the student-client (openbox) to disconnect from the server, effectively stopping any telemetry capture at the end of the exam.
+* *Command structure*:
++
+[source, json]
+----
+{
+  "type": "DISCONNECT",
+  "payload": null
+}
+----
+* *Expected Response*: Nothing. Studentclient (openbox) should disconnect
+* *Additional Notes*: For client implementations: Displaying a popup or another attention catching GUI Element to the user is encouraged.
 
 ====== Heartbeat (Ping/Pong)
 Besides requesting commands, the server periodically sends small `PING` packets and expects `PONG` responses. This is an exception to the rule, that the server does not accept its responses over the websocket tunnel. Since `PING`/`PONG` is implemented on a protocol level for `Websockets`, simplifying implementations for breaking "rules" is a tradeoff made here.
@@ -547,7 +569,7 @@ The participate interface is a `REST` interface used by the student-client to es
   "lastname": string
 }
 ----
-See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/entity/dto/ExamineeDto.java[ExamineeDto]
+See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/examinee/ExamineeDto.java[ExamineeDto]
 * *Response format*: `Location header`
 * *Response structure*: Location header containing the full url student-clients have to connect to, to receive commands (`Command Interface`) +
 e.g. `http://localhost:8080/connect/a353a68b-26f2-4803-8abf-80d4bbbc7f55`

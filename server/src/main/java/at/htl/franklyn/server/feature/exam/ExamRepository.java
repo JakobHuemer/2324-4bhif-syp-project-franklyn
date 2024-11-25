@@ -7,6 +7,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.hibernate.reactive.mutiny.Mutiny;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,6 +46,39 @@ public class ExamRepository implements PanacheRepository<Exam> {
                     """, ExamineeDto.class)
                 .setParameter(1, id)
                 .getResultList()
+        );
+    }
+
+    public Uni<List<ExamInfoDto>> listAllWithExamineeCounts() {
+        return sf.withSession(session ->
+                session.createQuery(
+                                """
+                                select new at.htl.franklyn.server.feature.exam.ExamInfoDto(
+                                    e.id,
+                                    e.plannedStart,
+                                    e.plannedEnd,
+                                    e.actualStart,
+                                    e.actualEnd,
+                                    e.title,
+                                    lpad(cast(e.pin as String), 3, '0'),
+                                    e.state,
+                                    e.screencaptureInterval,
+                                    (select count(*) from Participation p where p.exam.id = e.id)
+                                ) from Exam e
+                                """, ExamInfoDto.class)
+                        .getResultList()
+        );
+    }
+
+    public Uni<List<Exam>> findExamsOngoingFor(int days) {
+        return list(
+                """
+                select e
+                from Exam e
+                where (CURRENT_TIMESTAMP - e.actualStart) >= ?1
+                    and e.state = ?2
+                    and e.actualEnd is null
+                """, Duration.ofDays(days), ExamState.ONGOING
         );
     }
 }

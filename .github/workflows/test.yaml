@@ -1,0 +1,31 @@
+name: Build Openbox
+
+on:
+  push:
+    paths:
+      - 'server/**'
+  workflow_dispatch:
+
+jobs:
+  build-test-server:
+    name: Build and test franklyn server
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Setup java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+          cache-dependency-path: 'server/pom.xml'
+      - name: Start database
+        working-directory: cicd/
+        run: |
+          docker compose up -d franklyn-db
+      - name: Build and test franklyn server
+        working-directory: server/
+        run: |
+          mvn -B clean test
+

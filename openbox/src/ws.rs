@@ -1,25 +1,20 @@
-use std::collections::HashMap;
-use std::future::Future;
-
-use iced::{stream, Subscription};
-
-use futures::SinkExt;
-use tokio::net::TcpStream;
-
 use anyhow::Result;
 use bytes::Bytes;
-
+use fastwebsockets::{handshake, FragmentCollector, Frame, Payload};
+use futures::{SinkExt, StreamExt};
 use http_body_util::Empty;
 use hyper::header::{CONNECTION, UPGRADE};
 use hyper::upgrade::Upgraded;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
-
+use iced::{futures::channel::mpsc, stream, Subscription};
 use image::RgbaImage;
-use reqwest::multipart::{Form, Part};
-
-use fastwebsockets::{handshake, FragmentCollector, Frame, OpCode, Payload};
-use log::info;
+use reqwest::multipart::Form;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::future::Future;
+use tokio::net::TcpStream;
+use tokio::task;
 
 use crate::screen;
 
@@ -36,48 +31,49 @@ where
 }
 
 pub enum State {
-    Disconnected,
     Connected(FragmentCollector<TokioIo<Upgraded>>),
+    Disconnected,
 }
 
 #[derive(Debug, Clone)]
 pub enum Event {
-    Nothing,
-    UpdateImage(RgbaImage),
+    Reconnect,
+    Disconnect,
+    Received(WsMessage),
 }
 
-#[derive(Debug)]
-enum CaptureType {
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", content = "payload")]
+pub enum WsMessage {
+    #[serde(rename = "CAPTURE_SCREEN")]
+    CaptureScreen {
+        frame_type: Option<FrameType>,
+    },
+    #[serde(rename = "DISCONNECT")]
+    Disconnect,
+
+    // used for process_screenshots to update session_id
+    SetId(String),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FrameType {
     Alpha,
     Beta,
     Unspecified,
 }
 
-impl CaptureType {
-    fn from_blob(blob: &[u8]) -> Option<Self> {
-        if blob.len() < 54 {
-            return None;
-        }
-
-        Some(match &blob[50..54] {
-            b"ALPH" => Self::Alpha,
-            b"BETA" => Self::Beta,
-            b"UNSP" => Self::Unspecified,
-            _ => return None,
-        })
-    }
-}
-
 pub async fn connect(
-    server_address: &str,
     pin: &str,
+    server: &str,
     firstname: &str,
     lastname: &str,
 ) -> Result<(FragmentCollector<TokioIo<Upgraded>>, String)> {
-    let stream = TcpStream::connect(&server_address).await?;
+    let stream = TcpStream::connect(&server).await?;
 
     let res = reqwest::Client::new()
-        .post(format!("http://{server_address}/exams/join/{pin}"))
+        .post(format!("http://{server}/exams/join/{pin}"))
         .json(&HashMap::<&str, &str>::from_iter([
             ("firstname", firstname),
             ("lastname", lastname),
@@ -91,7 +87,7 @@ pub async fn connect(
     let req = Request::builder()
         .method("GET")
         .uri(location)
-        .header("Host", server_address)
+        .header("Host", server)
         .header(UPGRADE, "websocket")
         .header(CONNECTION, "upgrade")
         .header("Sec-WebSocket-Key", handshake::generate_key())
@@ -104,39 +100,34 @@ pub async fn connect(
 
 pub fn subscribe(
     pin: String,
+    server: String,
     firstname: String,
     lastname: String,
-    server_address: String,
-    mut current_image: Option<RgbaImage>,
 ) -> Subscription<Event> {
     let connection_cloj = stream::channel(100, move |mut output| async move {
         let mut state = State::Disconnected;
-        let mut session_id = String::new();
+
+        let (mut sender, receiver) = mpsc::channel(5);
+        let s = server.clone();
+        task::spawn(async move { process_screenshots(s, receiver).await });
 
         loop {
             match &mut state {
-                State::Disconnected => {
-                    match connect(&server_address, &pin, &firstname, &lastname).await {
-                        Ok((ws, session)) => (state, session_id) = (State::Connected(ws), session),
-                        Err(e) => {
-                            eprintln!("Disconnected with error: {e:?}");
-                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                        }
+                State::Disconnected => match connect(&pin, &server, &firstname, &lastname).await {
+                    Ok((ws, session)) => {
+                        sender.send(WsMessage::SetId(session)).await.unwrap();
+                        state = State::Connected(ws);
                     }
-
-                    let _ = output.send(Event::Nothing).await;
-                }
-                State::Connected(ws) => {
-                    let new_image =
-                        handle_message(&server_address, &session_id, ws, current_image.as_ref())
-                            .await;
-
-                    if let Some(image) = new_image {
-                        current_image = Some(image);
-                    } else {
-                        let _ = output.send(Event::Nothing).await;
+                    Err(e) => {
+                        eprintln!("Disconnected with error: {e:?}");
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     }
-                }
+                },
+                State::Connected(ws) => match handle_message(ws).await {
+                    Event::Received(ws_msg) => sender.send(ws_msg).await.unwrap(),
+                    Event::Reconnect => state = State::Disconnected,
+                    Event::Disconnect => _ = output.send(Event::Disconnect).await,
+                },
             }
         }
     });
@@ -145,44 +136,62 @@ pub fn subscribe(
     Subscription::run_with_id(std::any::TypeId::of::<Connect>(), connection_cloj)
 }
 
-pub async fn handle_message(
-    server_address: &str,
-    session_id: &str,
-    ws: &mut FragmentCollector<TokioIo<Upgraded>>,
-    cur_img: Option<&RgbaImage>,
-) -> Option<RgbaImage> {
+pub async fn handle_message(ws: &mut FragmentCollector<TokioIo<Upgraded>>) -> Event {
     let msg = match ws.read_frame().await {
         Ok(msg) => msg,
-        Err(e) => {
-            eprintln!("{e:?}");
+        Err(_e) => {
             let _ = ws.write_frame(Frame::close_raw(vec![].into())).await;
-            return None;
+            return Event::Reconnect;
         }
     };
 
-    let payload = match msg.payload {
-        Payload::Bytes(buf) => CaptureType::from_blob(&buf[..])?,
-        _ => panic!("TODO: figure out if we get other payloads"),
-    };
+    match msg.payload {
+        Payload::Bytes(buf) => {
+            let raw = buf.iter().map(|&b| b as char).collect::<String>();
+            let msg = serde_json::from_str::<WsMessage>(&raw);
 
-    let (file_part, image, option) = match payload {
-        CaptureType::Alpha => screen::take_screenshot(true, cur_img),
-        CaptureType::Beta => todo!(),
-        CaptureType::Unspecified => screen::take_screenshot(false, cur_img),
-        p => panic!("ERROR: invalid payload {p:?}"),
-    };
+            match msg {
+                Ok(WsMessage::Disconnect) | Err(_) => Event::Disconnect,
+                Ok(msg) => Event::Received(msg),
+            }
+        }
+        _ => return Event::Disconnect,
+    }
+}
 
-    let path = format!(
-        "http://{}/telemetry/by-session/{}/screen/upload/{}",
-        server_address, session_id, option,
-    );
+async fn process_screenshots(server: String, mut receiver: mpsc::Receiver<WsMessage>) {
+    let mut session = String::new();
+    let mut cur_img = None::<RgbaImage>;
 
-    let res = reqwest::Client::new()
-        .post(path)
-        .multipart(Form::new().part("image", file_part))
-        .send()
-        .await
-        .unwrap();
+    loop {
+        let msg = receiver.select_next_some().await;
 
-    Some(image)
+        let (file_part, image, option) = match msg {
+            WsMessage::SetId(id) => {
+                session = id;
+                continue;
+            }
+            WsMessage::CaptureScreen { frame_type } => match frame_type.unwrap() {
+                FrameType::Alpha => screen::take_screenshot(true, cur_img),
+                FrameType::Beta | FrameType::Unspecified => screen::take_screenshot(false, cur_img),
+            },
+            _ => unreachable!(),
+        };
+
+        let path = format!(
+            "http://{}/telemetry/by-session/{}/screen/upload/{}",
+            server, session, option,
+        );
+
+        if let Err(e) = reqwest::Client::new()
+            .post(path)
+            .multipart(Form::new().part("image", file_part))
+            .send()
+            .await
+        {
+            eprintln!("{:?}", e);
+        }
+
+        cur_img = Some(image);
+    }
 }
