@@ -69,7 +69,7 @@ public class ImageService {
                 .onItem().ifNull().failWith(new RuntimeException("Exam not ongoing"))
                 .chain(participation -> {
                     Image image = new Image(
-                            LocalDateTime.now(ZoneOffset.UTC),
+                            LocalDateTime.now(),
                             participation,
                             imageFile.getAbsolutePath(),
                             type

@@ -13,6 +13,8 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -80,17 +82,19 @@ public class ExamineeCommandSocket {
     }
 
     @Scheduled(every = "{websocket.ping.interval}")
+    @WithTransaction
     public Uni<Void> broadcastPing() {
         final Buffer magic = Buffer.buffer(new byte[]{4, 9, 1});
-        return Multi.createFrom().iterable(
-                        openConnections.stream().map(c -> c.sendPing(magic)).toList()
-                )
-                .onItem().transformToUniAndConcatenate(u -> u)
-                .toUni();
+        Context ctx = Vertx.currentContext();
+        return cleanupDeadExaminees()
+                .chain(ignored -> Multi.createFrom().iterable(
+                                        openConnections.stream().map(c -> c.sendPing(magic)).toList()
+                                )
+                                .onItem().transformToUniAndConcatenate(u -> u)
+                                .toUni())
+                .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
     }
 
-    @Scheduled(every = "{websocket.cleanup.interval}")
-    @WithTransaction
     public Uni<Void> cleanupDeadExaminees() {
         return stateService.getTimedoutParticipants(clientTimeoutSeconds)
                 .onItem().transformToMulti(p -> Multi.createFrom().iterable(p))

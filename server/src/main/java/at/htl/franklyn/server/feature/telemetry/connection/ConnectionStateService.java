@@ -33,7 +33,7 @@ public class ConnectionStateService {
                 )
                 .onItem().ifNotNull()
                 .transform(participation -> new ConnectionState(
-                        LocalDateTime.now(ZoneOffset.UTC),
+                        LocalDateTime.now(),
                         participation,
                         state
                 ))
