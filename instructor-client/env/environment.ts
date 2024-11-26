@@ -4,7 +4,7 @@ export const environment = {
   maxNextClientScheduleTime: 30,
   patrolSpeed: 3,
   minPatrolSpeed: 1,
-  maxPatrolSpeed: 30,
+  maxPatrolSpeed: 10,
   serverBaseUrl: "http://localhost:8080",
   imageWidth: 1920,
   imageHeight: 1080,

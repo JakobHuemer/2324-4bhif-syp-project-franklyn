@@ -105,9 +105,26 @@ export class WebApiService {
   }
 
   public async createNewExam(exam: CreateExam): Promise<Observable<Exam>> {
+    let newExam: CreateExam = {
+      title: exam.title,
+      start: exam.start,
+      end: exam.end,
+      screencapture_interval_seconds: exam.screencapture_interval_seconds
+    };
+
+    const timeZoneOffsetMinutes = (-1) * exam.start
+      .getTimezoneOffset();
+
+    newExam.start = new Date(
+      exam.start.getTime() + timeZoneOffsetMinutes * 60000
+    );
+    newExam.end = new Date(
+      exam.end.getTime() + timeZoneOffsetMinutes * 60000
+    );
+
     return this.httpClient.post<Exam>(
       `${environment.serverBaseUrl}/exams`,
-      exam
+      newExam
     );
   }
 
