@@ -61,11 +61,11 @@ export class ScheduleService {
     this.stopExamineeScheduleInterval();
 
     if (this.store.value.timer.clientScheduleTimerId === undefined) {
-      this.store.value.timer.clientScheduleTimerId = setInterval(() => {
+      this.store.value.timer.clientScheduleTimerId =  setInterval(() => {
         this.examineeRepo.updateScreenshots();
         if (this.store.value.examData.curExam)
           this.webApi.getExamineesFromServer(this.store.value.examData.curExam.id);
-      }, this.store.value.timer.nextClientTimeMilliseconds);
+      }, this.store.value.timer.nextClientTimeMilliseconds) as unknown as number;
     }
   }
 
@@ -76,7 +76,7 @@ export class ScheduleService {
       set((model) => {
         model.timer.patrolScheduleTimer = setInterval(() => {
           this.examineeRepo.newPatrolExaminee();
-        }, this.store.value.timer.patrolSpeedMilliseconds);
+        }, this.store.value.timer.patrolSpeedMilliseconds) as unknown as number;
       });
     }
   }
