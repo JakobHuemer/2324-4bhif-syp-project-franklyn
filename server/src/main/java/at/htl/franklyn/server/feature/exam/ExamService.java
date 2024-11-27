@@ -15,7 +15,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -98,7 +97,7 @@ public class ExamService {
         return examRepository
                 .update("state = ?1, actualStart = ?2 where id = ?3",
                         ExamState.ONGOING,
-                        LocalDateTime.now(ZoneOffset.UTC),
+                        LocalDateTime.now(),
                         e.getId())
                 .chain(affectedRows -> screenshotJobManager.startScreenshotJob(e));
     }
@@ -118,7 +117,7 @@ public class ExamService {
         return examRepository
                 .update("state = ?1, actualEnd = ?2 where id = ?3",
                         ExamState.DONE,
-                        LocalDateTime.now(ZoneOffset.UTC),
+                        LocalDateTime.now(),
                         e.getId())
                 .chain(affectedRows -> screenshotJobManager.stopScreenshotJob(e))
                 .chain(ignored -> participationRepository.getParticipationsOfExam(e))
