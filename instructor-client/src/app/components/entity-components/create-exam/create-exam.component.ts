@@ -278,9 +278,11 @@ export class CreateExamComponent implements AfterViewInit{
   private setBaseDateForDate(date: Date, baseDate: Date): Date {
     let newDate: Date = new Date(date);
 
-    newDate.setFullYear(baseDate.getFullYear());
-    newDate.setMonth(baseDate.getMonth());
-    newDate.setDate(baseDate.getDate());
+    newDate.setFullYear(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate()
+    );
 
     return newDate;
   }
@@ -293,6 +295,9 @@ export class CreateExamComponent implements AfterViewInit{
 
     // switch if end time is not valid since
     // we just assume that the first selected one is a start time
+    this.isEndTimeAfterStartTime = this.store.value.createExam
+      .end > this.store.value.createExam.start;
+
     if (!this.isEndTimeAfterStartTime) {
       const bucket = endDate;
       endDate = startDate;

@@ -17,22 +17,22 @@ export class SchoolUnitService {
   }
 
   public checkIfSelected(): void {
-    let timeFromId = this.getSchoolUnitByTime(
+    let startTimeId = this.getSchoolUnitByTime(
       this.store.value.createExam.start
     );
-    let timeToId = this.getSchoolUnitByTime(
+    let endTimeId = this.getSchoolUnitByTime(
       this.store.value.createExam.end
     );
 
     let schoolUnits: SchoolUnit[] = this.getSchoolUnitsSelection(
-      timeFromId,
-      timeToId,
+      startTimeId,
+      endTimeId,
       this.store.value.schoolUnits
     );
 
     let eveningSchoolUnits: SchoolUnit[] = this.getSchoolUnitsSelection(
-      timeFromId,
-      timeToId,
+      startTimeId,
+      endTimeId,
       this.store.value.eveningSchoolUnits
     );
 
@@ -85,11 +85,13 @@ export class SchoolUnitService {
   private mapEnvironmentToSchoolUnits(): void {
     let schoolUnits = environment
       .schoolUnits
-      .map(su => this.getUnitByItem(su));
+      .map(su => this.getUnitByItem(su))
+      .sort((a, b) => a.id - b.id);
 
     let eveningSchoolUnits = environment
       .eveningSchoolUnits
-      .map(su => this.getUnitByItem(su, true));
+      .map(su => this.getUnitByItem(su, true))
+      .sort((a, b) => a.id - b.id);
 
     set(model => {
       model.schoolUnits = schoolUnits;
