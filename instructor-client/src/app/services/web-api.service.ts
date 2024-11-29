@@ -79,12 +79,30 @@ export class WebApiService {
                   amountOfExaminees: eDto.registered_students_num
                 }
 
+                const timeZoneOffsetMinutes = (-1) * exam.plannedStart
+                  .getTimezoneOffset();
+
+                exam.plannedStart = new Date(
+                  exam.plannedStart.getTime()
+                  + timeZoneOffsetMinutes * 60000
+                );
+                exam.plannedEnd = new Date(
+                  exam.plannedEnd.getTime()
+                  + timeZoneOffsetMinutes * 60000
+                );
+
                 if (eDto.actual_start !== null) {
-                  exam.actualStart = new Date(eDto.actual_start);
+                  exam.actualStart = new Date(
+                    new Date(eDto.actual_start).getTime()
+                    + timeZoneOffsetMinutes * 60000
+                  );
                 }
 
                 if (eDto.actual_end !== null) {
-                  exam.actualEnd = new Date(eDto.actual_end);
+                  exam.actualEnd = new Date(
+                    new Date(eDto.actual_end).getTime()
+                    + timeZoneOffsetMinutes * 60000
+                  );
                 }
 
                 return exam;
@@ -111,16 +129,6 @@ export class WebApiService {
       end: exam.end,
       screencapture_interval_seconds: exam.screencapture_interval_seconds
     };
-
-    const timeZoneOffsetMinutes = (-1) * exam.start
-      .getTimezoneOffset();
-
-    newExam.start = new Date(
-      exam.start.getTime() + timeZoneOffsetMinutes * 60000
-    );
-    newExam.end = new Date(
-      exam.end.getTime() + timeZoneOffsetMinutes * 60000
-    );
 
     return this.httpClient.post<Exam>(
       `${environment.serverBaseUrl}/exams`,
