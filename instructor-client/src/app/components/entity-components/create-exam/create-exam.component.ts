@@ -45,9 +45,9 @@ export class CreateExamComponent implements AfterViewInit{
   protected createdExamValue: string = "";
   protected textColourForCreateExamResponse: string = "";
 
-  @ViewChild("startTime") startTimeInput!: ElementRef;
-  @ViewChild("endTime") endTimeInput!: ElementRef;
-  @ViewChild("date") dateInput!: ElementRef;
+  @ViewChild("startTime") startTimeInput!: ElementRef | undefined;
+  @ViewChild("endTime") endTimeInput!: ElementRef | undefined;
+  @ViewChild("date") dateInput!: ElementRef | undefined;
 
   ngAfterViewInit() {
     this.initialiseTimeInputs();
@@ -63,19 +63,26 @@ export class CreateExamComponent implements AfterViewInit{
   }
 
   private initialiseTimeInputs() {
-    this.startTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.start
-    );
 
-    this.endTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.end
-    );
+    if (this.startTimeInput) {
+      this.startTimeInput.nativeElement.value = this.dateToTimeString(
+        this.store.value.createExam.start
+      );
+    }
 
-    this.dateInput.nativeElement.value = this.store.value
-      .createExam
-      .start
-      .toISOString()
-      .split('T')[0];
+    if (this.endTimeInput) {
+      this.endTimeInput.nativeElement.value = this.dateToTimeString(
+        this.store.value.createExam.end
+      );
+    }
+
+    if (this.dateInput) {
+      this.dateInput.nativeElement.value = this.store.value
+        .createExam
+        .start
+        .toISOString()
+        .split('T')[0];
+    }
   }
 
   protected pad(num: number, size: number) {
@@ -210,9 +217,11 @@ export class CreateExamComponent implements AfterViewInit{
       model.createExam.start = date;
     });
 
-    this.startTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.start
-    );
+    if (this.startTimeInput) {
+      this.startTimeInput.nativeElement.value = this.dateToTimeString(
+        this.store.value.createExam.start
+      );
+    }
     this.schoolUnitSvc.checkIfSelected();
     this.checkAllFieldsIfValid();
   }
@@ -225,9 +234,11 @@ export class CreateExamComponent implements AfterViewInit{
       model.createExam.end = date;
     });
 
-    this.endTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.end
-    );
+    if (this.endTimeInput) {
+      this.endTimeInput.nativeElement.value = this.dateToTimeString(
+        this.store.value.createExam.end
+      );
+    }
     this.schoolUnitSvc.checkIfSelected();
     this.checkAllFieldsIfValid();
   }
@@ -248,12 +259,17 @@ export class CreateExamComponent implements AfterViewInit{
       model.createExam.end = endDate;
     });
 
-    this.startTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.start
-    );
-    this.endTimeInput.nativeElement.value = this.dateToTimeString(
-      this.store.value.createExam.end
-    );
+    if (this.startTimeInput) {
+      this.startTimeInput.nativeElement.value = this.dateToTimeString(
+        this.store.value.createExam.start
+      );
+    }
+
+    if (this.endTimeInput) {
+      this.endTimeInput.nativeElement.value = this.dateToTimeString(
+        this.store.value.createExam.end
+      );
+    }
 
     this.schoolUnitSvc.checkIfSelected();
     this.checkAllFieldsIfValid();
