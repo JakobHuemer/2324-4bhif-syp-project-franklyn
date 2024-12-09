@@ -9,9 +9,11 @@ import {ExamData} from "./entity/ExamData";
 import {CreateExam} from "./entity/CreateExam";
 import {environment} from "../../../env/environment";
 import {SchoolUnit} from "./entity/SchoolUnit";
+import {Exam} from "./entity/Exam";
 
 export interface Model {
   readonly cacheBuster: CacheBuster,
+  readonly curExam: Exam | undefined,
   readonly examineeData: ExamineeData,
   readonly examData: ExamData,
   readonly patrol: Patrol,
@@ -28,6 +30,7 @@ const initialState: Model = {
   cacheBuster: {
     cachebustNum: 0
   },
+  curExam: undefined,
   examineeData: {
     examinees: []
   },

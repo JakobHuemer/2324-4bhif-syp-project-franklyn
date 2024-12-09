@@ -2,13 +2,21 @@
   <table class="screen-height container-fluid">
     <tr>
       <td class="bg-light align-top pt-3 left-bar-width">
-        <div class="overflow-scroll screen-height">
-          <h6 class="fw-bold text-center">Examinees</h6>
-          <app-examinee-list></app-examinee-list>
-        </div>
+        @if(store.value.curExam){
+          <div class="overflow-scroll screen-height">
+            <h5 class="fw-bold text-center">{{store.value.curExam.title}}</h5>
+            <p class="text-center">Schüleranzahl: {{store.value.curExam.amountOfExaminees}}</p>
+            <h6 class="fw-bold text-center">Examinees</h6>
+            <app-examinee-list></app-examinee-list>
+          </div>
+        }
       </td>
-      <td class="selector-width w-auto align-top pt-2 px-3">
-        <app-patrol-page-examinee [examinee]="store.value.patrol.patrolExaminee" [showImage]="true"></app-patrol-page-examinee>
+      <td class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-center">
+        @if (store.value.curExam) {
+          <app-patrol-page-examinee [examinee]="store.value.patrol.patrolExaminee" [showImage]="true"></app-patrol-page-examinee>
+        } @else {
+          <h1 class="text-center text-danger fw-bold">No exam selected</h1>
+        }
       </td>
     </tr>
   </table>

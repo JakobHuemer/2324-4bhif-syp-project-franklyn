@@ -4,14 +4,17 @@ import {Exam} from "../../../model/entity/Exam";
 import {ExamState} from "../../../model/entity/Exam-State";
 import {RouterLink, RouterLinkActive} from "@angular/router";
 import {set} from "../../../model";
+import {FormsModule, ReactiveFormsModule} from "@angular/forms";
 
 @Component({
   selector: 'app-exam-dashboard',
   standalone: true,
-  imports: [
-    RouterLink,
-    RouterLinkActive
-  ],
+    imports: [
+        RouterLink,
+        RouterLinkActive,
+        FormsModule,
+        ReactiveFormsModule
+    ],
   templateUrl: './exam-dashboard.component.html',
   styleUrl: './exam-dashboard.component.css'
 })
@@ -41,4 +44,12 @@ export class ExamDashboardComponent {
   }
 
   protected readonly ExamState = ExamState;
+
+  protected setCurExam() {
+    if (this.exam) {
+      set(model => {
+        model.curExam = this.exam;
+      });
+    }
+  }
 }
