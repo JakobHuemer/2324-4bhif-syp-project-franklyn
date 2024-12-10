@@ -5,11 +5,10 @@ import {Examinee} from "../../../model";
 import {environment} from "../../../../../env/environment";
 
 @Component({
-  selector: 'app-patrol-page-examinee',
-  standalone: true,
-  imports: [],
-  templateUrl: './patrol-page-examinee.component.html',
-  styleUrl: './patrol-page-examinee.component.css'
+    selector: 'app-patrol-page-examinee',
+    imports: [],
+    templateUrl: './patrol-page-examinee.component.html',
+    styleUrl: './patrol-page-examinee.component.css'
 })
 export class PatrolPageExamineeComponent {
   protected examineeSvc = inject(ExamineeService);

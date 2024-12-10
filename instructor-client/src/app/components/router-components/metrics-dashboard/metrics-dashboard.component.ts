@@ -9,13 +9,12 @@ import {set, store} from "../../../model";
 import {environment} from "../../../../../env/environment";
 
 @Component({
-  selector: 'app-metrics-dashboard',
-  standalone: true,
-  imports: [
-    BaseChartDirective
-  ],
-  templateUrl: './metrics-dashboard.component.html',
-  styleUrl: './metrics-dashboard.component.css'
+    selector: 'app-metrics-dashboard',
+    imports: [
+        BaseChartDirective
+    ],
+    templateUrl: './metrics-dashboard.component.html',
+    styleUrl: './metrics-dashboard.component.css'
 })
 export class MetricsDashboardComponent implements OnInit, OnDestroy{
   @ViewChildren(BaseChartDirective) charts: QueryList<BaseChartDirective> | undefined;

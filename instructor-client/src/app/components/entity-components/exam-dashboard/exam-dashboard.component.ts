@@ -7,16 +7,15 @@ import {set} from "../../../model";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
 
 @Component({
-  selector: 'app-exam-dashboard',
-  standalone: true,
+    selector: 'app-exam-dashboard',
     imports: [
         RouterLink,
         RouterLinkActive,
         FormsModule,
         ReactiveFormsModule
     ],
-  templateUrl: './exam-dashboard.component.html',
-  styleUrl: './exam-dashboard.component.css'
+    templateUrl: './exam-dashboard.component.html',
+    styleUrl: './exam-dashboard.component.css'
 })
 export class ExamDashboardComponent {
   protected examSvc = inject(ExamService);

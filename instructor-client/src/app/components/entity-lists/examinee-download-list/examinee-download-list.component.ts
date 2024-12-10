@@ -6,14 +6,13 @@ import {AsyncPipe} from "@angular/common";
 import {DownloadExamineeComponent} from "../../entity-components/download-examinee/download-examinee.component";
 
 @Component({
-  selector: 'app-examinee-download-list',
-  standalone: true,
-  imports: [
-    DownloadExamineeComponent,
-    AsyncPipe
-  ],
-  templateUrl: './examinee-download-list.component.html',
-  styleUrl: './examinee-download-list.component.css'
+    selector: 'app-examinee-download-list',
+    imports: [
+        DownloadExamineeComponent,
+        AsyncPipe
+    ],
+    templateUrl: './examinee-download-list.component.html',
+    styleUrl: './examinee-download-list.component.css'
 })
 export class ExamineeDownloadListComponent {
   protected examinees = inject(StoreService)

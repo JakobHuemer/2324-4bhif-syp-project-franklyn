@@ -11,14 +11,13 @@ import {SchoolUnit} from "../../../model/entity/SchoolUnit";
 import {SchoolUnitService} from "../../../services/school-unit.service";
 
 @Component({
-  selector: 'app-create-exam',
-  standalone: true,
-  imports: [
-    NgClass,
-    FormsModule
-  ],
-  templateUrl: './create-exam.component.html',
-  styleUrl: './create-exam.component.css'
+    selector: 'app-create-exam',
+    imports: [
+        NgClass,
+        FormsModule
+    ],
+    templateUrl: './create-exam.component.html',
+    styleUrl: './create-exam.component.css'
 })
 export class CreateExamComponent implements AfterViewInit{
   protected store = inject(StoreService).store;

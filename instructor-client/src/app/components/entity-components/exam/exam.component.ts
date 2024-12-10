@@ -4,13 +4,12 @@ import {ExamService} from "../../../services/exam.service";
 import {NgClass} from "@angular/common";
 
 @Component({
-  selector: 'app-exam',
-  standalone: true,
-  imports: [
-    NgClass
-  ],
-  templateUrl: './exam.component.html',
-  styleUrl: './exam.component.css'
+    selector: 'app-exam',
+    imports: [
+        NgClass
+    ],
+    templateUrl: './exam.component.html',
+    styleUrl: './exam.component.css'
 })
 export class ExamComponent {
   private examSvc = inject(ExamService);

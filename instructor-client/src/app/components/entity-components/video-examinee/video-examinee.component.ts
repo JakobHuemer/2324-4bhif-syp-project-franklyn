@@ -5,14 +5,13 @@ import {environment} from "../../../../../env/environment";
 import {RouterLink, RouterLinkActive} from "@angular/router";
 
 @Component({
-  selector: 'app-video-examinee',
-  standalone: true,
+    selector: 'app-video-examinee',
     imports: [
         RouterLink,
         RouterLinkActive
     ],
-  templateUrl: './video-examinee.component.html',
-  styleUrl: './video-examinee.component.css'
+    templateUrl: './video-examinee.component.html',
+    styleUrl: './video-examinee.component.css'
 })
 export class VideoExamineeComponent {
   private store = inject(StoreService).store;

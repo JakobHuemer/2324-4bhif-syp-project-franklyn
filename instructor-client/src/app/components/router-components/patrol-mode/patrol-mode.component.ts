@@ -5,15 +5,14 @@ import {FormsModule} from "@angular/forms";
 import {PatrolPageExamineeComponent} from "../../entity-components/patrol-page-examinee/patrol-page-examinee.component";
 
 @Component({
-  selector: 'app-patrol-mode',
-  standalone: true,
+    selector: 'app-patrol-mode',
     imports: [
         ExamineeListComponent,
         PatrolPageExamineeComponent,
         FormsModule
     ],
-  templateUrl: './patrol-mode.component.html',
-  styleUrl: './patrol-mode.component.css'
+    templateUrl: './patrol-mode.component.html',
+    styleUrl: './patrol-mode.component.css'
 })
 export class PatrolModeComponent {
   protected store = inject(StoreService).store;

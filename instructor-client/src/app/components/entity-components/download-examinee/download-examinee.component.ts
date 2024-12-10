@@ -5,11 +5,10 @@ import {Examinee, set} from "../../../model";
 import {environment} from "../../../../../env/environment";
 
 @Component({
-  selector: 'app-download-examinee',
-  standalone: true,
-  imports: [],
-  templateUrl: './download-examinee.component.html',
-  styleUrl: './download-examinee.component.css'
+    selector: 'app-download-examinee',
+    imports: [],
+    templateUrl: './download-examinee.component.html',
+    styleUrl: './download-examinee.component.css'
 })
 export class DownloadExamineeComponent {
   protected examineeRepo = inject(ExamineeService);

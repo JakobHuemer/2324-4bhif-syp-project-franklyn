@@ -10,11 +10,10 @@ import {ScheduleService} from "./services/schedule.service";
 import {FormsModule} from "@angular/forms";
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, FormsModule],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
+    selector: 'app-root',
+    imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, FormsModule],
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.css'
 })
 export class AppComponent {
   protected store = inject(StoreService).store;
