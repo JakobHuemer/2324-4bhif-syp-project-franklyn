@@ -157,10 +157,10 @@ export class CreateExamComponent implements AfterViewInit{
     }
   }
 
-  protected setPatrolSpeed(val: string): void {
-    let patrolSpeed = Number(val);
+  protected setScreencaptureInterval(val: string): void {
+    let screencaptureInterval = Number(val);
     set((model) => {
-      model.timer.patrolSpeed = patrolSpeed;
+      model.createExam.screencapture_interval_seconds = screencaptureInterval;
     });
   }
 
@@ -335,6 +335,7 @@ export class CreateExamComponent implements AfterViewInit{
     // save exam
     let exam: CreateExam = this.store.value.createExam;
 
+    console.log(exam);
     (await this.examSvc.createNewExam(exam)).subscribe({
       next: (exam) => {
         this.createdExamInfo = "Der Test wurde erfolgreich gespeichert:";

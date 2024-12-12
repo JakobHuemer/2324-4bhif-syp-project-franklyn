@@ -13,9 +13,9 @@ import {Exam} from "./entity/Exam";
 
 export interface Model {
   readonly cacheBuster: CacheBuster,
-  readonly curExam: Exam | undefined,
+  readonly curExamId: number | undefined,
   readonly examineeData: ExamineeData,
-  readonly examData: ExamData,
+  readonly examDashboardData: ExamData,
   readonly patrol: Patrol,
   readonly serverMetrics: ServerMetrics,
   readonly timer: Timer,
@@ -30,13 +30,13 @@ const initialState: Model = {
   cacheBuster: {
     cachebustNum: 0
   },
-  curExam: undefined,
+  curExamId: undefined,
   examineeData: {
     examinees: []
   },
-  examData: {
+  examDashboardData: {
     exams: [],
-    curExam: undefined
+    curExamId: undefined
   },
   patrol: {
     isPatrolModeOn: false,

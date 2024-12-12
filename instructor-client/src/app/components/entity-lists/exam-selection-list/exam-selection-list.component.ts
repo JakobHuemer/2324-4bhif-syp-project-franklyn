@@ -17,7 +17,7 @@ export class ExamSelectionListComponent {
   protected exams = inject(StoreService)
     .store
     .pipe(
-      map(model => model.examData.exams),
+      map(model => model.examDashboardData.exams),
       distinctUntilChanged()
     );
 }

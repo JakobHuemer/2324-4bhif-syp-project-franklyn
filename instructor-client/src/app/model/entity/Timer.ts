@@ -81,7 +81,7 @@ export class Timer {
     return this.patrolScheduleTimerProp;
   }
 
-  get clientScheduleTimerId() {
+  get updateDataScheduleTimerId() {
     return this.clientScheduleTimerIdProp;
   }
 
@@ -97,7 +97,7 @@ export class Timer {
     this.patrolScheduleTimerProp = val;
   }
 
-  set clientScheduleTimerId(val) {
+  set updateDataScheduleTimerId(val) {
     this.clientScheduleTimerIdProp = val;
   }
 

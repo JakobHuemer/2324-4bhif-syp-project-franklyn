@@ -6,6 +6,8 @@ import {StoreService} from "./store.service";
 import {Location} from "@angular/common";
 import {CreateExam} from "../model/entity/CreateExam";
 import {Observable} from "rxjs";
+import {ExamineeService} from "./examinee.service";
+import {ExamState} from "../model/entity/Exam-State";
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +16,7 @@ export class ExamService {
   private store = inject(StoreService).store;
   private location = inject(Location);
   private webApi = inject(WebApiService);
+  private examineeSvc = inject(ExamineeService);
 
   constructor() {
     this.reloadAllExams();
@@ -25,10 +28,10 @@ export class ExamService {
 
   get(predicate?: ((item: Exam) => boolean) | undefined): Exam[] {
     if (predicate) return this.get().filter(predicate);
-    return this.store.value.examData.exams;
+    return this.store.value.examDashboardData.exams;
   }
 
-  setCurExam(exam: Exam) {
+  setCurDashboardExam(exam: Exam) {
     let exams = this.get((e) =>
       e.id === exam.id
     );
@@ -39,7 +42,7 @@ export class ExamService {
       newCurExam = exams[0];
 
     set((model) => {
-      model.examData.curExam = newCurExam;
+      model.examDashboardData.curExamId = newCurExam?.id;
     });
   }
 
@@ -51,8 +54,36 @@ export class ExamService {
     return this.webApi.createNewExam(exam);
   }
 
-  isCurExam(id: number) {
-    let curExam: Exam | undefined = this.store.value.examData.curExam;
-    return !!(curExam && curExam.id === id);
+  isCurDashboardExam(id: number) {
+    return (this.store.value.examDashboardData.curExamId === id);
+  }
+
+  setCurExam(exam: Exam): void {
+    this.stopCurExam();
+
+    set((model) => {
+      model.curExamId = exam?.id;
+    });
+
+    if (exam.state !== ExamState.ONGOING) {
+      this.webApi.startExamByIdFromServer(exam);
+    }
+
+    this.examineeSvc.updateScreenshots();
+    if (this.store.value.examDashboardData.curExamId)
+      this.webApi.getExamineesFromServer(
+        this.store.value.examDashboardData.curExamId
+      );
+  }
+
+  stopCurExam(): void {
+    if (this.store.value.curExamId) {
+      this.webApi.completeExamByIdFromServer(this.store.value.curExamId);
+      this.examineeSvc.resetExaminees();
+
+      set((model) => {
+        model.curExamId = undefined;
+      })
+    }
   }
 }

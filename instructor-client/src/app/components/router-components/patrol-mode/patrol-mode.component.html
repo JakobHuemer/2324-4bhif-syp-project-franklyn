@@ -1,21 +1,32 @@
 <div>
   <table class="screen-height container-fluid">
-    <tr>
+    <tr class="screen-height">
       <td class="bg-light align-top pt-3 left-bar-width">
-        @if(store.value.curExam){
-          <div class="overflow-scroll screen-height">
-            <h5 class="fw-bold text-center">{{store.value.curExam.title}}</h5>
-            <p class="text-center">Schüleranzahl: {{store.value.curExam.amountOfExaminees}}</p>
+        @if(curExam | async){
+          <div class="overflow-scroll height-examinee-list">
+            <h5 class="fw-bold text-center">{{(curExam | async)!.title}}</h5>
+            <p class="text-center">
+              Pin: {{(curExam | async)!.pin}}
+              <br>
+              Schüleranzahl: {{(curExam | async)!.amountOfExaminees}}
+            </p>
             <h6 class="fw-bold text-center">Examinees</h6>
             <app-examinee-list></app-examinee-list>
           </div>
         }
       </td>
-      <td class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-center">
-        @if (store.value.curExam) {
-          <app-patrol-page-examinee [examinee]="store.value.patrol.patrolExaminee" [showImage]="true"></app-patrol-page-examinee>
+      <td>
+        @if (curExam | async) {
+          <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-start w-100">
+            <app-patrol-page-examinee
+              [examId]="(curExam | async)!.id"
+              [examinee]="store.value.patrol.patrolExaminee"
+              [showImage]="true"/>
+          </div>
         } @else {
-          <h1 class="text-center text-danger fw-bold">No exam selected</h1>
+          <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-center">
+            <h1 class="text-center text-danger fw-bold">No exam selected</h1>
+          </div>
         }
       </td>
     </tr>
@@ -28,7 +39,6 @@
     <label>
       Patrol-mode: <label [class]="getPatrolModeOnStateClass()">{{getPatrolModeOnState()}}</label>
     </label>
-
   </div>
 
   <div class="text-center align-self-center">
@@ -38,14 +48,25 @@
   </div>
 
   <div class="text-center align-self-center">
+
     <label>
-      Get-Client interval: {{store.value.timer.nextClientTime}} sec
+      Screenshot capture interval:
+      @if (curExam | async) {
+        {{(curExam | async)!.screencaptureIntervalSeconds}} sec
+      } @else {
+        0 sec
+      }
     </label>
   </div>
 
   <div class="text-center align-self-center">
-    <label>
-      Screenshot capture interval: {{store.value.timer.screenshotCaptureInterval}} sec
-    </label>
+    <button
+      type="button"
+      class="btn btn-danger"
+      [class.active]="location.path() === 'create-test'"
+      routerLink="create-test"
+      (click)="stopCurExam()">
+      Test erstellen
+    </button>
   </div>
 </div>

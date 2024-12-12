@@ -13,8 +13,8 @@ export class ExamineeService {
   private webApi = inject(WebApiService);
 
   constructor() {
-    if (this.store.value.examData.curExam)
-      this.webApi.getExamineesFromServer(this.store.value.examData.curExam.id);
+    if (this.store.value.examDashboardData.curExamId)
+      this.webApi.getExamineesFromServer(this.store.value.examDashboardData.curExamId);
   }
 
   resetExaminees(): void {

@@ -14,11 +14,12 @@ export class PatrolPageExamineeComponent {
   protected examineeSvc = inject(ExamineeService);
   protected store = inject(StoreService).store;
 
+  @Input() examId: number | undefined;
   @Input() examinee: Examinee | undefined;
   @Input() showImage: boolean = false;
 
   getScreenshotAddress() {
-    return `${environment.serverBaseUrl}/screenshot/${this.examinee!.firstname}-${this.examinee!.lastname}/${environment.imageWidth}/${environment.imageHeight}?cachebust=${this.store.value.cacheBuster.cachebustNum}`; //TODO: get new screenshot-address
+    return `${environment.serverBaseUrl}/telemetry/by-user/${this.examinee!.id}/${this.examId}/screen/download?cachebust=${this.store.value.cacheBuster.cachebustNum}`;
   }
 
   getActivity(): string {

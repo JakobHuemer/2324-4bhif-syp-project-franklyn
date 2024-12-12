@@ -54,10 +54,10 @@ export class AppComponent {
 
   public changeRoute() {
     if (this.location.path() === "patrol-mode") {
-      this.scheduleSvc.startExamineeScheduleInterval();
+      this.scheduleSvc.startUpdateDataScheduleInterval();
       this.scheduleSvc.startPatrolInterval();
     } else {
-      this.scheduleSvc.stopExamineeScheduleInterval();
+      this.scheduleSvc.stopUpdateDataScheduleInterval();
       this.scheduleSvc.stopPatrolInterval();
     }
 

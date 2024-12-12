@@ -52,7 +52,7 @@
         class="form-label">
         {{environment.minPatrolSpeed}}
       </label>
-      <input #patrolSpeed
+      <input #screencaptureInterval
              type="range"
              class="form-range w-auto"
              [min]="environment.minPatrolSpeed"
@@ -60,7 +60,7 @@
              id="patrol-speed-range"
              name="patrol-speed-range"
              [value]="store.value.timer.patrolSpeed"
-             (input)="setPatrolSpeed(patrolSpeed.value)">
+             (input)="setScreencaptureInterval(screencaptureInterval.value)">
       <label for="patrol-speed-range">{{environment.maxPatrolSpeed}}</label>
     </div>
   </div>

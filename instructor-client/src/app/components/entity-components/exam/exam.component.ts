@@ -19,13 +19,13 @@ export class ExamComponent {
 
   protected setExamToCurExam() {
     if (this.exam) {
-      this.examSvc.setCurExam(this.exam);
+      this.examSvc.setCurDashboardExam(this.exam);
     }
   }
 
   protected isCurExam(): boolean {
     if (this.exam) {
-      return this.examSvc.isCurExam(this.exam.id);
+      return this.examSvc.isCurDashboardExam(this.exam.id);
     } else {
       return false;
     }

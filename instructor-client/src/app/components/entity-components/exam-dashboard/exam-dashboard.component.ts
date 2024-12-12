@@ -5,6 +5,7 @@ import {ExamState} from "../../../model/entity/Exam-State";
 import {RouterLink, RouterLinkActive} from "@angular/router";
 import {set} from "../../../model";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
+import {StoreService} from "../../../services/store.service";
 
 @Component({
     selector: 'app-exam-dashboard',
@@ -46,9 +47,7 @@ export class ExamDashboardComponent {
 
   protected setCurExam() {
     if (this.exam) {
-      set(model => {
-        model.curExam = this.exam;
-      });
+      this.examSvc.setCurExam(this.exam);
     }
   }
 }

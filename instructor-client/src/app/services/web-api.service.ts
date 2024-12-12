@@ -7,6 +7,7 @@ import {set} from "../model";
 import {Exam} from "../model/entity/Exam";
 import {ExamDto} from "../model/entity/dto/ExamDto";
 import {CreateExam} from "../model/entity/CreateExam";
+import {ExamineeDto} from "../model/entity/dto/ExamineeDto";
 
 @Injectable({
   providedIn: 'root'
@@ -15,7 +16,7 @@ export class WebApiService {
   private httpClient = inject(HttpClient);
   private headers: HttpHeaders = new HttpHeaders().set('Accept', 'application/json');
 
-  public async resetServer(): Promise<void> {
+  public resetServer(): void {
     this.httpClient.post(
       `${environment.serverBaseUrl}/state/reset`,
       {}
@@ -40,13 +41,23 @@ export class WebApiService {
 
   //region Examinee-WebApi calls
 
-  public async getExamineesFromServer(examId: number): Promise<void> {
-    this.httpClient.get<Examinee[]>(
+  public getExamineesFromServer(examId: number): void {
+    this.httpClient.get<ExamineeDto[]>(
       `${environment.serverBaseUrl}/exams/${examId}/examinees`,
       {headers: this.headers})
       .subscribe({
         "next": (examinees) => set((model) => {
-          model.examineeData.examinees = examinees;
+          model.examineeData.examinees = examinees.map(
+            (eDto) => {
+              let examinee: Examinee = {
+                id: eDto.id,
+                firstname: eDto.firstname,
+                lastname: eDto.lastname,
+                isConnected: eDto.is_connected
+              };
+
+              return examinee;
+            });
         }),
         "error": (err) => console.error(err),
       });
@@ -56,14 +67,14 @@ export class WebApiService {
 
   //region Exam-WebApi calls
 
-  public async getExamsFromServer(): Promise<void> {
+  public getExamsFromServer(): void {
     this.httpClient.get<ExamDto[]>(
       `${environment.serverBaseUrl}/exams`,
       {headers: this.headers})
       .subscribe({
         "next": (exams) => {
           set((model) => {
-            model.examData.exams = exams.map(
+            model.examDashboardData.exams = exams.map(
               eDto => {
                 let exam: Exam = {
                   id: eDto.id,
@@ -109,12 +120,12 @@ export class WebApiService {
               }
             );
 
-            model.examData.exams = this.sortExams(
-              model.examData.exams
+            model.examDashboardData.exams = this.sortExams(
+              model.examDashboardData.exams
             );
 
-            if (model.examData.exams.length >= 1) {
-              model.examData.curExam = model.examData.exams[0];
+            if (model.examDashboardData.exams.length >= 1 && !model.examDashboardData.curExamId) {
+              model.examDashboardData.curExamId = model.examDashboardData.exams[0].id;
             }
           });
         },
@@ -127,7 +138,7 @@ export class WebApiService {
       title: exam.title,
       start: exam.start,
       end: exam.end,
-      screencapture_interval_seconds: exam.screencapture_interval_seconds
+      "screencapture_interval_seconds": exam.screencapture_interval_seconds
     };
 
     return this.httpClient.post<Exam>(
@@ -136,9 +147,39 @@ export class WebApiService {
     );
   }
 
-  public async deleteExamByIdFromServer(id: number): Promise<void> {
+  public deleteExamByIdFromServer(id: number): void {
     this.httpClient.delete(
       `${environment.serverBaseUrl}/exams/${id}`,
+      {headers: this.headers})
+      .subscribe({
+        next: (response) => {
+          console.log(response); // as tooltip
+          this.getExamsFromServer();
+        },
+        error: (error) => {
+          console.log(error); // as tooltip
+        }
+      });
+  }
+
+  public startExamByIdFromServer(exam: Exam): void {
+    this.httpClient.post(
+      `${environment.serverBaseUrl}/exams/${exam.id}/start`,
+      {headers: this.headers})
+      .subscribe({
+        next: (response) => {
+          console.log(response); // as tooltip
+          this.getExamsFromServer();
+        },
+        error: (error) => {
+          console.log(error); // as tooltip
+        }
+      });
+  }
+
+  public completeExamByIdFromServer(id: number): void {
+    this.httpClient.post(
+      `${environment.serverBaseUrl}/exams/${id}/complete`,
       {headers: this.headers})
       .subscribe({
         next: (response) => {

@@ -6,8 +6,6 @@ export const environment = {
   minPatrolSpeed: 1,
   maxPatrolSpeed: 10,
   serverBaseUrl: "http://localhost:8080",
-  imageWidth: 1920,
-  imageHeight: 1080,
   wantedResetText: "franklyn",
   reloadDashboardInterval: 5,
   metricsDashboardValueOkay: "#03c303",
