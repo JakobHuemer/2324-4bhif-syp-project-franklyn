@@ -32,9 +32,9 @@
 
   <div class="mb-3 position-relative w-25">
     <label
-      for="patrol-speed-range"
+      for="screencapture-interval-range"
       class="form-label">
-      Patrol speed: {{this.store.value.timer.patrolSpeed}} sec
+      Screencapture Interval: {{this.store.value.createExam.screencapture_interval_seconds}} sec
       <span
         class="position-absolute end-0"
         data-bs-toggle="tooltip"
@@ -48,20 +48,20 @@
     </label>
     <div>
       <label
-        for="patrol-speed-range"
+        for="screencapture-interval-range"
         class="form-label">
-        {{environment.minPatrolSpeed}}
+        {{environment.minScreencaptureInterval}}
       </label>
       <input #screencaptureInterval
              type="range"
              class="form-range w-auto"
-             [min]="environment.minPatrolSpeed"
-             [max]="environment.maxPatrolSpeed"
-             id="patrol-speed-range"
-             name="patrol-speed-range"
-             [value]="store.value.timer.patrolSpeed"
+             [min]="environment.minScreencaptureInterval"
+             [max]="environment.maxScreencaptureInterval"
+             id="screencapture-interval-range"
+             name="screencapture-interval-range"
+             [value]="store.value.createExam.screencapture_interval_seconds"
              (input)="setScreencaptureInterval(screencaptureInterval.value)">
-      <label for="patrol-speed-range">{{environment.maxPatrolSpeed}}</label>
+      <label for="screencapture-interval-range">{{environment.maxScreencaptureInterval}}</label>
     </div>
   </div>
 
