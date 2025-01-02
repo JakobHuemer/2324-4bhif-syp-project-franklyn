@@ -221,7 +221,7 @@ public class TelemetryResource {
     @Path("/by-exam/{exam-id}/video/generate-all")
     @Produces(MediaType.APPLICATION_JSON)
     @WithTransaction
-    public Uni<Response> generateVideoForUser(
+    public Uni<Response> generateVideosForExam(
             @PathParam("exam-id") Long examId,
             @Context UriInfo uriInfo
     ) {

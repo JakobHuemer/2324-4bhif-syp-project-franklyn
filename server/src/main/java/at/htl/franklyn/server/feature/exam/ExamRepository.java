@@ -1,8 +1,6 @@
 package at.htl.franklyn.server.feature.exam;
 
-import at.htl.franklyn.server.feature.examinee.Examinee;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
-import com.arjuna.ats.internal.jdbc.drivers.modifiers.list;
 import io.quarkus.hibernate.reactive.panache.PanacheRepository;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;

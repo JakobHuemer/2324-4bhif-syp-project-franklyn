@@ -7,7 +7,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @ApplicationScoped
 public class ConnectionStateRepository implements PanacheRepository<ConnectionState> {

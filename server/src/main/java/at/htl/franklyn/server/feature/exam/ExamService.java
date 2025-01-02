@@ -9,12 +9,9 @@ import at.htl.franklyn.server.feature.telemetry.image.ImageService;
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import io.smallrye.mutiny.Uni;
-import io.vertx.core.Context;
-import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;

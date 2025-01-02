@@ -1,6 +1,5 @@
 package at.htl.franklyn.server.feature.telemetry.image;
 
-import at.htl.franklyn.server.feature.exam.ExamRepository;
 import at.htl.franklyn.server.feature.exam.ExamState;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
@@ -21,7 +20,6 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.UUID;
 
 @ApplicationScoped

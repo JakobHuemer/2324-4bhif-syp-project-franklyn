@@ -10,7 +10,6 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.smallrye.mutiny.unchecked.Unchecked;
 import io.smallrye.mutiny.vertx.core.ContextAwareScheduler;
-import io.vertx.core.file.OpenOptions;
 import io.vertx.mutiny.core.Context;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.core.buffer.Buffer;
@@ -18,7 +17,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
@@ -77,7 +79,7 @@ public class VideoGenerationWorker {
                         return videoJobRepository.completeJob(job.getId(), path)
                                 .emitOn(scheduler);
                     })
-                    .onFailure().call(failure -> {
+                    .onFailure().recoverWithUni(failure -> {
                         Log.infof("Video job %d failed! Reason: %s", job.getId(), failure.getMessage());
                         return videoJobRepository.failJob(job.getId())
                                 .emitOn(scheduler);

@@ -1,6 +1,5 @@
 package at.htl.franklyn.server.feature.exam;
 
-import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.quarkus.scheduler.Scheduled;
