@@ -177,7 +177,7 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | `POST /telemetry/by-user/{user-id}/{exam-id}/video/generate`
 
-| 🔴
+| 🟢
 | `POST /telemetry/by-exam/{exam-id}/video/generate-all`
 
 | 🟢
