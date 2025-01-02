@@ -431,10 +431,10 @@ The manage Recordings interface is a `REST` resource of franklyn-server used for
 ----
 {
   "job_id": number,
-  "status": "ONGOING" | "DONE" | "DELETED",
+  "status": "SCHEDULED", "ONGOING" | "DONE" | "DELETED",
 }
 ----
-* *Additional Notes*: A valid call to the video generation job will always return a job with status "ONGOING". The returned status code will be 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
+* *Additional Notes*: A valid call to the video generation job will always return a status code of 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
 
 ====== Start bulk video creation job
 * *Path*: `/telemetry/by-exam/{exam-id}/video/generate-all`
@@ -452,7 +452,7 @@ The manage Recordings interface is a `REST` resource of franklyn-server used for
   "status": "ONGOING" | "DONE" | "DELETED",
 }
 ----
-* *Additional Notes*: A call to the video generation job will always return a job with status "ONGOING". The returned status code will be 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
+* *Additional Notes*: A valid call to the video generation job will always return a status code of 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
 
 ====== Get video creation job status
 * *Path*: `/telemetry/jobs/video/{job-id}`

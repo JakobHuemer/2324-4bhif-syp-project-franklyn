@@ -32,17 +32,16 @@ public class ExamRepository implements PanacheRepository<Exam> {
                     select new at.htl.franklyn.server.feature.examinee.ExamineeDto(
                         e.firstname,
                         e.lastname,
-                        cs.isConnected,
+                        COALESCE(cs.isConnected, false),
                         e.id
                     )
                     from Participation p join Examinee e on (p.examinee.id = e.id)
-                        join ConnectionState cs on (p.id = cs.participation.id)
-                    where p.exam.id = ?1
-                        and cs.pingTimestamp = (
+                        left join ConnectionState cs on (p.id = cs.participation.id and cs.pingTimestamp = (
                             select max(c.pingTimestamp)
                                 from ConnectionState c
                                 where c.participation.id = p.id
-                        )
+                        ))
+                    where p.exam.id = ?1
                     """, ExamineeDto.class)
                 .setParameter(1, id)
                 .getResultList()

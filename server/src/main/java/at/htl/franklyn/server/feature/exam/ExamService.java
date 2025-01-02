@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 @ApplicationScoped
 public class ExamService {
@@ -121,8 +122,11 @@ public class ExamService {
                         e.getId())
                 .chain(affectedRows -> screenshotJobManager.stopScreenshotJob(e))
                 .chain(ignored -> participationRepository.getParticipationsOfExam(e))
-                .onItem().transform(participations -> participations.stream().map(Participation::getId).toList())
-                .chain(pIds -> commandSocket.broadcastDisconnect(pIds))
+                .call(participations -> {
+                    List<UUID> pIds = participations.stream().map(Participation::getId).toList();
+                    return commandSocket.broadcastDisconnect(pIds);
+                })
+                .chain(participations -> connectionStateRepository.disconnectMany(participations))
                 // Most of the time when calling .broadcast disconnect mutiny switches vertx-worker
                 // Hibernate however does not like this and give errors similar to
                 // "Detected use of the reactive Session from a different Thread than the one which was used to open the reactive Session"
