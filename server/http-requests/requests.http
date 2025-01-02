@@ -116,3 +116,7 @@ Content-Type: application/json
 ### Download job artifact
 GET {{baseUrl}}/telemetry/jobs/video/{{jobId}}/download
 Content-Type: application/json
+
+### Get server Metrics
+GET {{baseUrl}}/metrics
+Content-Type: application/json

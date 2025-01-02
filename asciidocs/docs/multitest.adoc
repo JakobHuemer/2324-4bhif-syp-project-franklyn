@@ -174,16 +174,16 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 | 🟢
 | `GET /telemetry/by-user/{user-id}/{exam-id}/screen/download`
 
-| 🟡
+| 🟢
 | `POST /telemetry/by-user/{user-id}/{exam-id}/video/generate`
 
 | 🔴
 | `POST /telemetry/by-exam/{exam-id}/video/generate-all`
 
-| 🟡
+| 🟢
 | `GET /telemetry/jobs/video/{job-id}`
 
-| 🔴
+| 🟢
 | `GET /telemetry/jobs/video/{job-id}/download`
 
 | 🟢
@@ -194,6 +194,9 @@ The interfaces below mostly use `JSON` for transferring data. The `JSON` format 
 
 | 🟢
 | `POST /exams/join/{pin}`
+
+| 🟢
+| `GET /metrics/`
 |===
 
 ====== Command Socket (Server)
@@ -574,6 +577,30 @@ See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/
 * *Response structure*: Location header containing the full url student-clients have to connect to, to receive commands (`Command Interface`) +
 e.g. `http://localhost:8080/connect/a353a68b-26f2-4803-8abf-80d4bbbc7f55`
 * *Additional Notes*: This method idempotent, in the sense that it may be called multiple times and always returns the same connection string. This avoids duplicate student entries if a student-client is fully restarted.
+
+===== Server Metrics
+====== Join Exam
+* *Path*: `/metrics`
+* *Method*: `GET`
+* *Description*: Provides information about the server system itself. Including: CPU usage, total disk space available, remaining disk space, size of screenshots and videos, used and available memory
+* *Request format*: N/A
+* *Request structure*: N/A
+* *Response format*: `JSON`
+* *Response structure*:
++
+[source, json]
+----
+{
+  "cpu_usage_percent": number,
+  "total_disk_space_in_bytes": number,
+  "remaining_disk_space_in_bytes": number,
+  "saved_screenshots_size_in_bytes": number,
+  "saved_videos_size_in_bytes": number,
+  "max_available_memory_in_bytes": number,
+  "total_used_memory_in_bytes": number
+}
+----
+* *Additional Notes*: N/A
 
 === Processes
 *TODO*: Sequence diagrams for common processes of franklyn
