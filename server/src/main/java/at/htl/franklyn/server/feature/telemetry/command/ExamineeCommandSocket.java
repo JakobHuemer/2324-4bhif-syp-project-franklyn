@@ -13,12 +13,14 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -132,12 +134,31 @@ public class ExamineeCommandSocket {
     }
 
     public Uni<Void> broadcastDisconnect(List<UUID> participationIds) {
-        return Multi.createFrom().iterable(participationIds)
-                .onItem().transform(uuid -> Optional.ofNullable(connections.get(uuid.toString())))
-                .onItem().transform(connId -> connId.isPresent() ? openConnections.findByConnectionId(connId.get()) : Optional.<WebSocketConnection>empty())
-                .onItem().transform(conn -> conn.isPresent() ? conn.get().sendText(new DisconnectClientCommand()) : Uni.createFrom().voidItem())
-                .onItem().transformToUniAndConcatenate(u -> u)
-                .toUni()
+        Context ctx = Vertx.currentContext();
+        var participants = participationIds.stream()
+                .map(id -> {
+                    String connectionId = connections.get(id.toString());
+                    if (connectionId != null) {
+                        var connection = openConnections.findByConnectionId(connectionId);
+                        if (connection.isPresent()) {
+                            return connection.get().sendText(new DisconnectClientCommand())
+                                    .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
+                        }
+                    }
+                    return Uni.createFrom().voidItem();
+                })
+                .toList();
+
+        if (participants.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+
+        return Uni.join()
+                .all(participants)
+                .usingConcurrencyOf(1)
+                .andCollectFailures()
+                .onFailure().recoverWithNull()
+                .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .replaceWithVoid();
     }
 }

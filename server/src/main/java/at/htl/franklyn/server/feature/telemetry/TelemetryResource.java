@@ -152,7 +152,7 @@ public class TelemetryResource {
     }
 
     @GET
-    @Path("/telemetry/jobs/video/{job-id}/download")
+    @Path("/jobs/video/{job-id}/download")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @WithSession
     public Uni<Response> downloadVideo(@PathParam("job-id") Long jobId) {
@@ -181,6 +181,7 @@ public class TelemetryResource {
     @POST
     @Path("/by-user/{user-id}/{exam-id}/video/generate")
     @Produces(MediaType.APPLICATION_JSON)
+    @WithTransaction
     public Uni<Response> generateVideoForUser(
             @PathParam("user-id") Long userId,
             @PathParam("exam-id") Long examId,
@@ -201,7 +202,7 @@ public class TelemetryResource {
                                 Response.Status.BAD_REQUEST
                         )
                 )
-                .chain(ignored -> videoJobService.startVideoJob(userId, examId))
+                .chain(ignored -> videoJobService.queueVideoJob(userId, examId))
                 .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
                 .onItem().transform(job -> {
                     String location = uriInfo.getBaseUriBuilder()

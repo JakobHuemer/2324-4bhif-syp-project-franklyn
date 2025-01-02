@@ -431,7 +431,7 @@ The manage Recordings interface is a `REST` resource of franklyn-server used for
 ----
 {
   "job_id": number,
-  "status": "SCHEDULED", "ONGOING" | "DONE" | "DELETED",
+  "status": "QUEUED", "ONGOING" | "DONE" | "Failed" | "DELETED",
 }
 ----
 * *Additional Notes*: A valid call to the video generation job will always return a status code of 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
@@ -449,7 +449,7 @@ The manage Recordings interface is a `REST` resource of franklyn-server used for
 ----
 {
   "job_id": number,
-  "status": "ONGOING" | "DONE" | "DELETED",
+  "status": "QUEUED", "ONGOING" | "DONE" | "Failed" | "DELETED",
 }
 ----
 * *Additional Notes*: A valid call to the video generation job will always return a status code of 202 (`ACCEPTED`) and the `Location header` will contain a full url to the job status endpoint for the newly created job
@@ -467,7 +467,7 @@ The manage Recordings interface is a `REST` resource of franklyn-server used for
 ----
 {
   "job_id": number,
-  "status": "ONGOING" | "DONE" | "DELETED",
+  "status": "QUEUED", "ONGOING" | "DONE" | "Failed" | "DELETED",
 }
 ----
 * *Additional Notes*: N/A

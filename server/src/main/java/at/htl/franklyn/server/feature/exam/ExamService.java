@@ -14,6 +14,7 @@ import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -114,7 +115,6 @@ public class ExamService {
             return Uni.createFrom().failure(new IllegalStateException("Invalid exam state for completeExam"));
         }
 
-        Context ctx = Vertx.currentContext();
         return examRepository
                 .update("state = ?1, actualEnd = ?2 where id = ?3",
                         ExamState.DONE,
@@ -126,12 +126,8 @@ public class ExamService {
                     List<UUID> pIds = participations.stream().map(Participation::getId).toList();
                     return commandSocket.broadcastDisconnect(pIds);
                 })
-                .chain(participations -> connectionStateRepository.disconnectMany(participations))
-                // Most of the time when calling .broadcast disconnect mutiny switches vertx-worker
-                // Hibernate however does not like this and give errors similar to
-                // "Detected use of the reactive Session from a different Thread than the one which was used to open the reactive Session"
-                // In order to counteract this, we pin the emission to the vertx thread hibernate wants
-                .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
+                .call(participations -> connectionStateRepository.disconnectMany(participations))
+                .replaceWithVoid();
     }
 
     /**

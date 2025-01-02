@@ -8,6 +8,9 @@ import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.smallrye.mutiny.vertx.core.ContextAwareScheduler;
+import io.vertx.core.Vertx;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -127,8 +130,8 @@ public class ExamResource {
                 .onItem().transformToUni(ignored -> examService.getExamineesOfExam(id))
                 .onItem().transform(exam -> Response.ok(exam).build())
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
-                    Log.errorf("Could not delete exam %d. (Reason: %s)", id, e.getMessage());
-                    return new WebApplicationException("Unable to get exam.", Response.Status.INTERNAL_SERVER_ERROR);
+                    Log.errorf("Could not get examinees of exam %d. (Reason: %s)", id, e.getMessage());
+                    return new WebApplicationException("Unable to get examinees", Response.Status.INTERNAL_SERVER_ERROR);
                 });
     }
 
@@ -205,9 +208,14 @@ public class ExamResource {
     }
 
     @POST
-    @WithTransaction
     @Path("/{id}/complete")
+    @WithTransaction
     public Uni<Response> completeExam(@PathParam("id") long id) {
+        // This is the default scheduled executor of Mutiny:
+        var delegate = Infrastructure.getDefaultWorkerPool();
+        // This makes sure we re-use the correct Vert.x duplicated context to please hibernate
+        var scheduler = ContextAwareScheduler.delegatingTo(delegate).withCurrentContext();
+
         return examRepository.findById(id)
                 .onItem().ifNull().failWith(
                         new WebApplicationException(
@@ -216,14 +224,17 @@ public class ExamResource {
                         )
                 )
                 .chain(e -> examService.completeExam(e))
+                /*
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
                     Log.errorf("Could not complete exam %d (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException(
                             "Could not start exam", Response.Status.INTERNAL_SERVER_ERROR
                     );
                 })
+                 */
                 .onItem()
-                .transform(x -> Response.ok().build());
+                .transform(x -> Response.ok().build())
+                .emitOn(scheduler);
     }
 
     @DELETE
