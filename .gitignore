@@ -4,4 +4,4 @@ target/
 Cargo.lock
 keys/
 server/old
-video/
+server/video/
