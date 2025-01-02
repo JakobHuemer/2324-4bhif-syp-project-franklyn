@@ -109,6 +109,15 @@ client.global.set("jobId", response.body.id);
 console.log(client.global.get("jobId"));
 %}
 
+### Start batch creation job
+POST {{baseUrl}}/telemetry/by-exam/{{id}}/video/generate-all
+Content-Type: application/json
+
+> {%
+    client.global.set("jobId", response.body.id);
+    console.log(client.global.get("jobId"));
+%}
+
 ### Get Jobstatus
 GET {{baseUrl}}/telemetry/jobs/video/{{jobId}}
 Content-Type: application/json

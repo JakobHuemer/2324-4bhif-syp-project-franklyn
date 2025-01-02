@@ -216,4 +216,35 @@ public class TelemetryResource {
                             .build();
                 });
     }
+
+    @POST
+    @Path("/by-exam/{exam-id}/video/generate-all")
+    @Produces(MediaType.APPLICATION_JSON)
+    @WithTransaction
+    public Uni<Response> generateVideoForUser(
+            @PathParam("exam-id") Long examId,
+            @Context UriInfo uriInfo
+    ) {
+        return Uni.createFrom()
+                .item(examId)
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Missing examId",
+                                Response.Status.BAD_REQUEST
+                        )
+                )
+                .chain(ignored -> videoJobService.queueBatchVideoJob(examId))
+                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
+                .onItem().transform(job -> {
+                    String location = uriInfo.getBaseUriBuilder()
+                            .path(TelemetryResource.class)
+                            .path("jobs/video/{job-id}")
+                            .build(job.id())
+                            .toString();
+
+                    return Response.accepted(new VideoJobDto(job.id(), job.state()))
+                            .header("Location", location)
+                            .build();
+                });
+    }
 }

@@ -1,6 +1,8 @@
 package at.htl.franklyn.server.feature.exam;
 
+import at.htl.franklyn.server.feature.examinee.Examinee;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
+import com.arjuna.ats.internal.jdbc.drivers.modifiers.list;
 import io.quarkus.hibernate.reactive.panache.PanacheRepository;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -28,23 +30,23 @@ public class ExamRepository implements PanacheRepository<Exam> {
     public Uni<List<ExamineeDto>> getExamineesOfExamWithConnectionState(long id) {
         return sf.withSession(session ->
                 session.createQuery(
-                    """
-                    select new at.htl.franklyn.server.feature.examinee.ExamineeDto(
-                        e.firstname,
-                        e.lastname,
-                        COALESCE(cs.isConnected, false),
-                        e.id
-                    )
-                    from Participation p join Examinee e on (p.examinee.id = e.id)
-                        left join ConnectionState cs on (p.id = cs.participation.id and cs.pingTimestamp = (
-                            select max(c.pingTimestamp)
-                                from ConnectionState c
-                                where c.participation.id = p.id
-                        ))
-                    where p.exam.id = ?1
-                    """, ExamineeDto.class)
-                .setParameter(1, id)
-                .getResultList()
+                                """
+                                        select new at.htl.franklyn.server.feature.examinee.ExamineeDto(
+                                            e.firstname,
+                                            e.lastname,
+                                            COALESCE(cs.isConnected, false),
+                                            e.id
+                                        )
+                                        from Participation p join Examinee e on (p.examinee.id = e.id)
+                                            left join ConnectionState cs on (p.id = cs.participation.id and cs.pingTimestamp = (
+                                                select max(c.pingTimestamp)
+                                                    from ConnectionState c
+                                                    where c.participation.id = p.id
+                                            ))
+                                        where p.exam.id = ?1
+                                        """, ExamineeDto.class)
+                        .setParameter(1, id)
+                        .getResultList()
         );
     }
 
@@ -52,19 +54,19 @@ public class ExamRepository implements PanacheRepository<Exam> {
         return sf.withSession(session ->
                 session.createQuery(
                                 """
-                                select new at.htl.franklyn.server.feature.exam.ExamInfoDto(
-                                    e.id,
-                                    e.plannedStart,
-                                    e.plannedEnd,
-                                    e.actualStart,
-                                    e.actualEnd,
-                                    e.title,
-                                    lpad(cast(e.pin as String), 3, '0'),
-                                    e.state,
-                                    e.screencaptureInterval,
-                                    (select count(*) from Participation p where p.exam.id = e.id)
-                                ) from Exam e
-                                """, ExamInfoDto.class)
+                                        select new at.htl.franklyn.server.feature.exam.ExamInfoDto(
+                                            e.id,
+                                            e.plannedStart,
+                                            e.plannedEnd,
+                                            e.actualStart,
+                                            e.actualEnd,
+                                            e.title,
+                                            lpad(cast(e.pin as String), 3, '0'),
+                                            e.state,
+                                            e.screencaptureInterval,
+                                            (select count(*) from Participation p where p.exam.id = e.id)
+                                        ) from Exam e
+                                        """, ExamInfoDto.class)
                         .getResultList()
         );
     }
@@ -72,12 +74,12 @@ public class ExamRepository implements PanacheRepository<Exam> {
     public Uni<List<Exam>> findExamsOngoingFor(int days) {
         return list(
                 """
-                select e
-                from Exam e
-                where (CURRENT_TIMESTAMP - e.actualStart) >= ?1
-                    and e.state = ?2
-                    and e.actualEnd is null
-                """, Duration.ofDays(days), ExamState.ONGOING
+                        select e
+                        from Exam e
+                        where (CURRENT_TIMESTAMP - e.actualStart) >= ?1
+                            and e.state = ?2
+                            and e.actualEnd is null
+                        """, Duration.ofDays(days), ExamState.ONGOING
         );
     }
 }

@@ -1,5 +1,6 @@
 package at.htl.franklyn.server.feature.telemetry.video;
 
+import at.htl.franklyn.server.feature.exam.ExamRepository;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
@@ -16,6 +17,9 @@ public class VideoJobService {
     @Inject
     ParticipationRepository participationRepository;
 
+    @Inject
+    ExamRepository examRepository;
+
     public Uni<VideoJob> queueVideoJob(
             Long userId,
             Long examId
@@ -30,6 +34,26 @@ public class VideoJobService {
                                         VideoJobType.SINGLE,
                                         participation.getExam(),
                                         participation.getExaminee(),
+                                        null
+                                )
+                        )
+                );
+        // TODO: poke video job task?
+    }
+
+    public Uni<VideoJob> queueBatchVideoJob(
+            Long examId
+    ) {
+        return examRepository.findById(examId)
+                .onItem().ifNull().fail()
+                .chain(exam ->
+                        videoJobRepository.persistAndFlush(
+                                new VideoJob(
+                                        LocalDateTime.now(),
+                                        VideoJobState.QUEUED,
+                                        VideoJobType.BATCH,
+                                        exam,
+                                        null,
                                         null
                                 )
                         )
