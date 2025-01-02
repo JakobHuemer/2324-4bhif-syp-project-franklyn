@@ -6,10 +6,14 @@ import at.htl.franklyn.server.feature.telemetry.image.ImageService;
 import at.htl.franklyn.server.feature.telemetry.video.VideoJobDto;
 import at.htl.franklyn.server.feature.telemetry.video.VideoJobRepository;
 import at.htl.franklyn.server.feature.telemetry.video.VideoJobService;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobState;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.unchecked.Unchecked;
+import io.vertx.core.file.OpenOptions;
+import io.vertx.mutiny.core.Vertx;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
@@ -32,6 +36,9 @@ public class TelemetryResource {
 
     @Inject
     VideoJobService videoJobService;
+
+    @Inject
+    Vertx vertx;
 
     @POST
     @Path("/by-session/{sessionId}/screen/upload/alpha")
@@ -91,10 +98,10 @@ public class TelemetryResource {
         return Uni.createFrom()
                 .item(userId)
                 .onItem().ifNull().failWith(
-                    new WebApplicationException(
-                        "Missing userId",
-                        Response.Status.BAD_REQUEST
-                    )
+                        new WebApplicationException(
+                                "Missing userId",
+                                Response.Status.BAD_REQUEST
+                        )
                 )
                 .replaceWith(examId)
                 .onItem().ifNull().failWith(
@@ -106,8 +113,8 @@ public class TelemetryResource {
                 .chain(ignored -> imageService.loadLatestFrameOfUser(userId, examId))
                 .onItem().transform(buf -> Response.ok(buf).build())
                 .onFailure(IllegalStateException.class).transform(e -> new WebApplicationException(
-                    "No available screenshot found",
-                    Response.Status.NOT_FOUND
+                        "No available screenshot found",
+                        Response.Status.NOT_FOUND
                 ))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
                     Log.warnf("Could not load screenshot for user: %d | exam: %d", userId, examId);
@@ -142,6 +149,33 @@ public class TelemetryResource {
                 )
                 .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
                 .onItem().transform(dto -> Response.ok(dto).build());
+    }
+
+    @GET
+    @Path("/telemetry/jobs/video/{job-id}/download")
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @WithSession
+    public Uni<Response> downloadVideo(@PathParam("job-id") Long jobId) {
+        if (jobId == null) {
+            return Uni.createFrom().item(
+                    Response.status(Response.Status.BAD_REQUEST).entity("No Job Id provided").build()
+            );
+        }
+
+        return videoJobRepository.findById(jobId)
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                "Job does not exist",
+                                Response.Status.NOT_FOUND
+                        )
+                )
+                .onItem().transformToUni(Unchecked.function(job -> {
+                    if (job.getState() != VideoJobState.DONE) {
+                        throw new WebApplicationException("Job is not done", Response.Status.BAD_REQUEST);
+                    }
+                    return vertx.fileSystem().open(job.getArtifactPath(), new OpenOptions());
+                }))
+                .onItem().transform(file -> Response.ok(file).build());
     }
 
     @POST
