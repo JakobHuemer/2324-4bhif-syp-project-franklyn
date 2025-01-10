@@ -6,15 +6,15 @@ import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import io.quarkus.logging.Log;
 import io.quarkus.vertx.core.runtime.context.VertxContextSafetyToggle;
+import io.smallrye.common.vertx.VertxContext;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.Context;
 import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import io.smallrye.common.vertx.VertxContext;
 import org.hibernate.reactive.mutiny.Mutiny;
 import org.quartz.*;
-import io.vertx.core.Context;
 
 @ApplicationScoped
 public class ScreenshotJobManager {

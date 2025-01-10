@@ -15,11 +15,17 @@ public class MetricsService {
     private final MeterRegistry registry;
     private final MemoryMXBean memoryMXBean;
     private final File screenshotsFolder;
+    private final File videosFolder;
 
-    MetricsService(MeterRegistry registry, @ConfigProperty(name = "screenshots.path") String screenshotsDirPath) {
+    MetricsService(
+            MeterRegistry registry,
+            @ConfigProperty(name = "screenshots.path") String screenshotsDirPath,
+            @ConfigProperty(name = "video.path") String videosDirPath
+    ) {
         this.registry = registry;
         this.memoryMXBean = ManagementFactory.getMemoryMXBean();
         this.screenshotsFolder = new File(screenshotsDirPath);
+        this.videosFolder = new File(screenshotsDirPath);
 
         // Setup Micrometer Metrics
         new ProcessorMetrics().bindTo(registry);
@@ -40,6 +46,10 @@ public class MetricsService {
 
     public long getScreenshotsFolderSizeInBytes() {
         return getFolderSize(screenshotsFolder);
+    }
+
+    public long getVideosFolderSizeInBytes() {
+        return getFolderSize(videosFolder);
     }
 
     public long getTotalMemoryInBytes() {

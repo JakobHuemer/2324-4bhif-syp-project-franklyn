@@ -1,4 +1,4 @@
-name: Build Openbox
+name: Test Server
 
 on:
   push:

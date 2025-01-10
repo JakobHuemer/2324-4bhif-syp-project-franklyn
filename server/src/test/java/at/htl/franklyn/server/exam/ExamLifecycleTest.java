@@ -33,7 +33,7 @@ public class ExamLifecycleTest {
     private static String userSession;
 
     @Test
-    @Order(1)
+    @Order(0)
     void test_simpleCreateValidExam_ok() {
         // Arrange
         LocalDateTime start = LocalDateTime.now().plusYears(2);
@@ -89,7 +89,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(2)
+    @Order(100)
     void test_simpleGetExamById_ok() {
         // Arrange
         // created Exam is taken from the post test with @Order(1)
@@ -121,7 +121,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(3)
+    @Order(200)
     void test_simpleGetAllExams_ok() {
         // Arrange
         // created Exam is taken from the post test with @Order(1)
@@ -170,7 +170,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(4)
+    @Order(300)
     void test_simpleGetExamineesOfExam_ok() {
         // Arrange
         ExamineeDto expectedExaminee = new ExamineeDto(
@@ -206,7 +206,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(5)
+    @Order(400)
     void test_simpleJoinExamWithValidUser_ok() {
         // Arrange
         ExamineeDto examineeDto = new ExamineeDto(
@@ -233,11 +233,48 @@ public class ExamLifecycleTest {
                 .matches(".*connect/.*");
 
         String[] parts = response.header("Location").split("/");
+        // Location header has url to connect endpoint
+        // The last part of that url is the sessionId
         userSession = parts[parts.length - 1];
     }
 
     @Test
-    @Order(6)
+    @Order(401)
+    void test_getConnectionStateOfJoinedExaminee_ok() {
+        // Arrange
+        ExamineeDto expectedExaminee = new ExamineeDto(
+                "Test",
+                "User",
+                false,
+                51L
+        );
+
+        // Act
+        Response response = given()
+                .basePath(BASE_URL)
+                .when()
+                .get(String.format("%d/examinees", createdExam.id())); // import sql creates exam with id 1
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+
+        ExamineeDto[] examinees = response.then()
+                .log().body()
+                .extract().as(ExamineeDto[].class);
+
+        assertThat(examinees)
+                .hasSize(1);
+
+        ExamineeDto actualExaminee = examinees[0];
+
+        assertThat(actualExaminee)
+                .usingRecursiveComparison()
+                .isEqualTo(expectedExaminee);
+    }
+
+    @Test
+    @Order(500)
     void test_simpleTryUploadAlphaTooEarly_ok() {
         // Arrange
         ClassLoader classLoader = getClass().getClassLoader();
@@ -257,7 +294,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(7)
+    @Order(600)
     void test_simpleStartExam_ok() {
         // Arrange
         // created Exam is taken from the post test with @Order(1)
@@ -291,7 +328,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(8)
+    @Order(700)
     void test_simpleUploadAlpha_ok() {
         // Arrange
         ClassLoader classLoader = getClass().getClassLoader();
@@ -311,7 +348,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(9)
+    @Order(800)
     void test_simpleUploadBeta_ok() {
         // Arrange
         ClassLoader classLoader = getClass().getClassLoader();
@@ -331,7 +368,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(10)
+    @Order(900)
     void test_simpleCompleteExam_ok() {
         // Arrange
         // created Exam is taken from the post test with @Order(1)
@@ -365,7 +402,36 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(11)
+    @Order(1000)
+    void test_allExamineesDisconnectedAfterComplete_ok() {
+        // Arrange
+        // created Exam is taken from the post test with @Order(1)
+
+        // Act
+        Response examineesReponse = given()
+                .basePath(BASE_URL)
+                .when()
+                .get(String.format("%s/examinees", createdExam.id()));
+
+        // Assert
+        assertThat(examineesReponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+
+        ExamineeDto[] examinees = examineesReponse.then()
+                .log().body()
+                .extract().as(ExamineeDto[].class);
+
+        assertThat(examinees)
+                .hasSize(1);
+
+        for (ExamineeDto examinee : examinees) {
+            assertThat(examinee.isConnected())
+                    .isFalse();
+        }
+    }
+
+    @Test
+    @Order(1100)
     void test_simpleTryUploadAlphaTooLate_ok() {
         // Arrange
         ClassLoader classLoader = getClass().getClassLoader();
@@ -385,7 +451,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(12)
+    @Order(1200)
     void test_simpleDeleteTelemetryOfExam_ok() {
         // Arrange
 
@@ -401,7 +467,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(13)
+    @Order(1300)
     void test_simpleDeleteExam_ok() {
         // Arrange
 

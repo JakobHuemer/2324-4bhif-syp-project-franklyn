@@ -1,38 +1,60 @@
 package at.htl.franklyn.server.feature.telemetry.video;
 
-import at.htl.franklyn.server.feature.telemetry.image.Image;
-import at.htl.franklyn.server.feature.telemetry.image.ImageRepository;
+import at.htl.franklyn.server.feature.exam.ExamRepository;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
-import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.time.LocalDateTime;
+
 @ApplicationScoped
 public class VideoJobService {
-    @Inject
-    VideoGenerationJobManager videoGenerationJobManager;
-
     @Inject
     VideoJobRepository videoJobRepository;
 
     @Inject
     ParticipationRepository participationRepository;
 
-    public Uni<VideoJob> startVideoJob(
+    @Inject
+    ExamRepository examRepository;
+
+    public Uni<VideoJob> queueVideoJob(
             Long userId,
             Long examId
     ) {
-
-        Log.info("in VideoJobService.startVideoJob");
-
         return participationRepository.getByExamAndExaminee(userId, examId)
                 .onItem().ifNull().fail()
-                .chain(ignored -> videoJobRepository.persist(new VideoJob(VideoJobState.ONGOING, null)))
-                .chain(videoJob ->
-                        videoGenerationJobManager
-                                .startVideoGenerationJob(examId, userId, videoJob.getId())
-                                .replaceWith(videoJob)
+                .chain(participation ->
+                        videoJobRepository.persistAndFlush(
+                                new VideoJob(
+                                        LocalDateTime.now(),
+                                        VideoJobState.QUEUED,
+                                        VideoJobType.SINGLE,
+                                        participation.getExam(),
+                                        participation.getExaminee(),
+                                        null
+                                )
+                        )
+                );
+    }
+
+    public Uni<VideoJob> queueBatchVideoJob(
+            Long examId
+    ) {
+        return examRepository.findById(examId)
+                .onItem().ifNull().fail()
+                .chain(exam ->
+                        videoJobRepository.persistAndFlush(
+                                new VideoJob(
+                                        LocalDateTime.now(),
+                                        VideoJobState.QUEUED,
+                                        VideoJobType.BATCH,
+                                        exam,
+                                        null,
+                                        null
+                                )
+                        )
                 );
     }
 }

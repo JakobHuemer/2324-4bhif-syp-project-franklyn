@@ -34,7 +34,7 @@ endif::[]
 * Passwortschutz bei `franklyn3` instructor client
 * Exam Verwaltung
 * Telemetry (Screenshots, ConnectionState)
-* WIP: Video generierung
+* Warteschlangenbasierte Videogenerierung
 * Openbox
 ** Anpassung an neue backend API
 ** Alpha/Beta frames

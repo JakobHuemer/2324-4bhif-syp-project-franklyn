@@ -1,5 +1,7 @@
+@baseUrl = http://localhost:8080
+
 ### Create new Exam
-POST http://localhost:8080/exams
+POST {{baseUrl}}/exams
 Content-Type: application/json
 
 {
@@ -17,19 +19,19 @@ console.log(client.global.get("id"));
 %}
 
 ### Get Exam by id
-GET http://localhost:8080/exams/{{id}}
+GET {{baseUrl}}/exams/{{id}}
 Accept: application/json
 
 ### Get all exams
-GET http://localhost:8080/exams
+GET {{baseUrl}}/exams
 Accept: application/json
 
 ### Delete exam by id
-DELETE http://localhost:8080/exams/{{id}}
+DELETE {{baseUrl}}/exams/{{id}}
 Accept: application/json
 
 ### Get examinees of exam
-GET http://localhost:8080/exams/{{id}}/examinees
+GET {{baseUrl}}/exams/{{id}}/examinees
 Accept: application/json
 
 > {%
@@ -38,7 +40,7 @@ console.log(client.global.get("userId"))
  %}
 
 ### Join Exam
-POST http://localhost:8080/exams/join/{{pin}}
+POST {{baseUrl}}/exams/join/{{pin}}
 Content-Type: application/json
 
 {
@@ -52,15 +54,15 @@ Content-Type: application/json
 %}
 
 ### Start exam
-POST http://localhost:8080/exams/{{id}}/start
+POST {{baseUrl}}/exams/{{id}}/start
 Content-Type: application/json
 
 ### Complete exam
-POST http://localhost:8080/exams/{{id}}/complete
+POST {{baseUrl}}/exams/{{id}}/complete
 Content-Type: application/json
 
 ### Upload alpha
-POST http://localhost:8080/telemetry/by-session/{{session}}/screen/upload/alpha
+POST {{baseUrl}}/telemetry/by-session/{{session}}/screen/upload/alpha
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 
 --WebAppBoundary
@@ -70,7 +72,7 @@ Content-Disposition: form-data; name="image"; filename="alpha-frame.png"
 --WebAppBoundary--
 
 ### Upload beta
-POST http://localhost:8080/telemetry/by-session/{{session}}/screen/upload/beta
+POST {{baseUrl}}/telemetry/by-session/{{session}}/screen/upload/beta
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 
 --WebAppBoundary
@@ -80,24 +82,50 @@ Content-Disposition: form-data; name="image"; filename="beta-frame.png"
 --WebAppBoundary--
 
 ### Download latest frame
-GET http://localhost:8080/telemetry/by-user/{{userId}}/{{id}}/screen/download
+GET {{baseUrl}}/telemetry/by-user/{{userId}}/{{id}}/screen/download
 
 ### Delete exam telemetry
-DELETE http://localhost:8080/exams/{{id}}/telemetry
+DELETE {{baseUrl}}/exams/{{id}}/telemetry
 Content-Type: application/json
 
 ### Delete exam
-DELETE http://localhost:8080/exams/{{id}}
+DELETE {{baseUrl}}/exams/{{id}}
 Content-Type: application/json
 
 ### Get Jobstatus (Not found)
-GET http://localhost:8080/telemetry/jobs/video/2
+GET {{baseUrl}}/telemetry/jobs/video/2
 Content-Type: application/json
 
 ### Get Jobstatus (Bad request)
-GET http://localhost:8080/telemetry/jobs/video/null
+GET {{baseUrl}}/telemetry/jobs/video/null
 Content-Type: application/json
 
 ### Create video
-POST http://localhost:8080/telemetry/by-user/{{userId}}/{{id}}/video/generate
+POST {{baseUrl}}/telemetry/by-user/{{userId}}/{{id}}/video/generate
+Content-Type: application/json
+
+> {%
+client.global.set("jobId", response.body.id);
+console.log(client.global.get("jobId"));
+%}
+
+### Start batch creation job
+POST {{baseUrl}}/telemetry/by-exam/{{id}}/video/generate-all
+Content-Type: application/json
+
+> {%
+    client.global.set("jobId", response.body.id);
+    console.log(client.global.get("jobId"));
+%}
+
+### Get Jobstatus
+GET {{baseUrl}}/telemetry/jobs/video/{{jobId}}
+Content-Type: application/json
+
+### Download job artifact
+GET {{baseUrl}}/telemetry/jobs/video/{{jobId}}/download
+Content-Type: application/json
+
+### Get server Metrics
+GET {{baseUrl}}/metrics
 Content-Type: application/json

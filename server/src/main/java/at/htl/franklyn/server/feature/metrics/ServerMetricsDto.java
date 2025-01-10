@@ -15,6 +15,9 @@ public record ServerMetricsDto(
         @JsonProperty("saved_screenshots_size_in_bytes")
         double savedScreenshotsSizeInBytes,
 
+        @JsonProperty("saved_videos_size_in_bytes")
+        double savedVideosSizeInBytes,
+
         @JsonProperty("max_available_memory_in_bytes")
         double maxAvailableMemoryInBytes,
 
