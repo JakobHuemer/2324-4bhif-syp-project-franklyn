@@ -49,7 +49,7 @@ jobs:
           path: openbox/target/debian/openbox-x86_64-debian-linux-gnu.deb
 
   openbox_macos:
-    runs-on: macOS-12
+    runs-on: macOS-15
     steps:
     - uses: hecrj/setup-rust-action@v2
     - uses: actions/checkout@master
