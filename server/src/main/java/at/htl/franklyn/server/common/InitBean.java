@@ -18,6 +18,9 @@ public class InitBean {
     @ConfigProperty(name = "screenshots.path")
     String screenshotsPath;
 
+    @ConfigProperty(name = "video.path")
+    String videosPath;
+
     void startUp(@Observes StartupEvent startupEvent) {
         Log.infof("Running on port: %d", port);
 
@@ -26,6 +29,13 @@ public class InitBean {
             Files.createDirectories(Paths.get(screenshotsPath));
         } catch (IOException e) {
             Log.error("Could not create directory for screenshot storage: ", e);
+        }
+
+        // Create directory for video storage if it does not exist already
+        try {
+            Files.createDirectories(Paths.get(videosPath));
+        } catch (IOException e) {
+            Log.error("Could not create directory for video storage: ", e);
         }
     }
 }
