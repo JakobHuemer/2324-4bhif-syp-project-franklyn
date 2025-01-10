@@ -47,6 +47,7 @@ const initialState: Model = {
     totalDiskSpaceInBytes: 0,
     remainingDiskSpaceInBytes: 0,
     savedScreenshotsSizeInBytes: 0,
+    savedVideosSizeInBytes: 0,
     maxAvailableMemoryInBytes: 0,
     totalUsedMemoryInBytes: 0,
     diagramBackgroundColor: "#f0f0f0",

@@ -8,6 +8,8 @@ import {Exam} from "../model/entity/Exam";
 import {ExamDto} from "../model/entity/dto/ExamDto";
 import {CreateExam} from "../model/entity/CreateExam";
 import {ExamineeDto} from "../model/entity/dto/ExamineeDto";
+import {ServerMetricsDto} from "../model/entity/dto/ServerMetricsDto";
+import {StoreService} from "./store.service";
 
 @Injectable({
   providedIn: 'root'
@@ -15,6 +17,7 @@ import {ExamineeDto} from "../model/entity/dto/ExamineeDto";
 export class WebApiService {
   private httpClient = inject(HttpClient);
   private headers: HttpHeaders = new HttpHeaders().set('Accept', 'application/json');
+  private store = inject(StoreService).store;
 
   public resetServer(): void {
     this.httpClient.post(
@@ -26,13 +29,43 @@ export class WebApiService {
   }
 
   public async getServerMetrics(): Promise<void> {
-    const serverMetrics: ServerMetrics = await lastValueFrom(
+    const serverMetricsDto = await lastValueFrom(
       this.httpClient
-        .get<ServerMetrics>(
-        `${environment.serverBaseUrl}/state/system-metrics`,
+        .get<ServerMetricsDto>(
+        `${environment.serverBaseUrl}/metrics`,
         {headers: this.headers}
       )
     );
+
+    const serverMetrics: ServerMetrics = {
+      cpuUsagePercent: serverMetricsDto.cpu_usage_percent,
+      totalDiskSpaceInBytes: serverMetricsDto.total_disk_space_in_bytes,
+      remainingDiskSpaceInBytes: serverMetricsDto
+        .remaining_disk_space_in_bytes,
+      savedScreenshotsSizeInBytes: serverMetricsDto
+        .saved_screenshots_size_in_bytes,
+      savedVideosSizeInBytes: serverMetricsDto
+        .saved_videos_size_in_bytes,
+      maxAvailableMemoryInBytes: serverMetricsDto
+        .max_available_memory_in_bytes,
+      totalUsedMemoryInBytes: serverMetricsDto
+        .total_used_memory_in_bytes,
+      diagramBackgroundColor: this.store.value
+        .serverMetrics
+        .diagramBackgroundColor,
+      diagramTextColor: this.store.value
+        .serverMetrics
+        .diagramTextColor,
+      cpuUtilisationColor: this.store.value
+        .serverMetrics
+        .cpuUtilisationColor,
+      diskUsageColor: this.store.value
+        .serverMetrics
+        .diskUsageColor,
+      memoryUtilisationColor: this.store.value
+        .serverMetrics
+        .memoryUtilisationColor,
+    }
 
     set((model) => {
       model.serverMetrics = serverMetrics;
