@@ -21,7 +21,7 @@
         baseChart
         [data]="diskChartData"
         [type]="diskChartType"
-        [plugins]="[ doughnutLabel ]"
+        [plugins]="[ diskDoughnutLabel ]"
         [options]="diskChartOptions">
       </canvas>
     </div>
@@ -30,7 +30,7 @@
         baseChart
         [data]="memChartData"
         [type]="memChartType"
-        [plugins]="[ doughnutLabel ]"
+        [plugins]="[ memoryDoughnutLabel ]"
         [options]="memChartOptions">
       </canvas>
     </div>

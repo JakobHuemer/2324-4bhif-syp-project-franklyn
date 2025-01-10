@@ -59,9 +59,15 @@ export class WebApiService {
       cpuUtilisationColor: this.store.value
         .serverMetrics
         .cpuUtilisationColor,
-      diskUsageColor: this.store.value
+      diskUsageVideoColor: this.store.value
         .serverMetrics
-        .diskUsageColor,
+        .diskUsageVideoColor,
+      diskUsageOtherColor: this.store.value
+        .serverMetrics
+        .diskUsageOtherColor,
+      diskUsageScreenshotColor: this.store.value
+        .serverMetrics
+        .diskUsageScreenshotColor,
       memoryUtilisationColor: this.store.value
         .serverMetrics
         .memoryUtilisationColor,

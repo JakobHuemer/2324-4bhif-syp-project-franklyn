@@ -53,7 +53,9 @@ const initialState: Model = {
     diagramBackgroundColor: "#f0f0f0",
     diagramTextColor: "#36363a",
     cpuUtilisationColor: "#0d6efd",
-    diskUsageColor: "#0d6efd",
+    diskUsageScreenshotColor: "rgb(54, 162, 235)",
+    diskUsageVideoColor: "rgb(255, 99, 132)",
+    diskUsageOtherColor: "rgb(255, 205, 86)",
     memoryUtilisationColor: "#0d6efd"
   },
   timer: new Timer(),

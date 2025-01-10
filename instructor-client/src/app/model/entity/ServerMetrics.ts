@@ -9,6 +9,8 @@ export interface ServerMetrics {
   diagramBackgroundColor: string,
   diagramTextColor: string,
   cpuUtilisationColor: string,
-  diskUsageColor: string,
+  diskUsageScreenshotColor: string,
+  diskUsageVideoColor: string,
+  diskUsageOtherColor: string,
   memoryUtilisationColor: string,
 }
