@@ -25,11 +25,12 @@ public class MetricsService {
         this.registry = registry;
         this.memoryMXBean = ManagementFactory.getMemoryMXBean();
         this.screenshotsFolder = new File(screenshotsDirPath);
-        this.videosFolder = new File(screenshotsDirPath);
+        this.videosFolder = new File(videosDirPath);
 
         // Setup Micrometer Metrics
         new ProcessorMetrics().bindTo(registry);
         new DiskSpaceMetrics(new File(screenshotsDirPath)).bindTo(registry);
+        new DiskSpaceMetrics(new File(videosDirPath)).bindTo(registry);
     }
 
     public double getSystemCpuUsagePercentage() {
