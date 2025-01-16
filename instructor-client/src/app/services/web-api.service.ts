@@ -102,6 +102,28 @@ export class WebApiService {
       });
   }
 
+  public getVideoExamineesFromServer(examId: number): void {
+    this.httpClient.get<ExamineeDto[]>(
+      `${environment.serverBaseUrl}/exams/${examId}/examinees`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (examinees) => set((model) => {
+          model.videoExamineeData.examinees = examinees.map(
+            (eDto) => {
+              let examinee: Examinee = {
+                id: eDto.id,
+                firstname: eDto.firstname,
+                lastname: eDto.lastname,
+                isConnected: eDto.is_connected
+              };
+
+              return examinee;
+            });
+        }),
+        "error": (err) => console.error(err),
+      });
+  }
+
   //endregion
 
   //region Exam-WebApi calls
@@ -191,6 +213,14 @@ export class WebApiService {
               model.curExamId = undefined;
               model.examineeData.examinees = [];
               model.patrol.patrolExaminee = undefined;
+            }
+
+            if (model.examDashboardData.exams
+              .find(e => e.id === model.curVideoExamId)
+              === undefined) {
+              model.curVideoExamId = undefined;
+              model.videoExamineeData.examinees = [];
+              model.videoExaminee = undefined;
             }
 
             if (model.examDashboardData.exams.length >= 1 && !model.examDashboardData.curExamId) {

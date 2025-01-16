@@ -13,8 +13,11 @@ export class ExamineeService {
   private webApi = inject(WebApiService);
 
   constructor() {
-    if (this.store.value.examDashboardData.curExamId)
-      this.webApi.getExamineesFromServer(this.store.value.examDashboardData.curExamId);
+    if (this.store.value.curExamId)
+      this.webApi.getExamineesFromServer(this.store.value.curExamId);
+
+    if (this.store.value.curVideoExamId)
+      this.webApi.getExamineesFromServer(this.store.value.curVideoExamId);
   }
 
   resetExaminees(): void {
@@ -22,12 +25,18 @@ export class ExamineeService {
 
     set((model) => {
       model.examineeData.examinees = [];
+      model.videoExamineeData.examinees = [];
     })
   }
 
   get(predicate?: ((item: Examinee) => boolean) | undefined): Examinee[] {
     if (predicate) return this.get().filter(predicate);
     return this.store.value.examineeData.examinees;
+  }
+
+  getVideo(predicate?: ((item: Examinee) => boolean) | undefined): Examinee[] {
+    if (predicate) return this.getVideo().filter(predicate);
+    return this.store.value.videoExamineeData.examinees;
   }
 
   updateScreenshots() {

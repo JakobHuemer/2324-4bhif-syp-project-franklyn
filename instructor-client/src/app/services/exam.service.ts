@@ -45,10 +45,6 @@ export class ExamService {
     });
   }
 
-  deleteSpecificExam(exam: Exam): void {
-    this.webApi.deleteExamByIdFromServer(exam.id);
-  }
-
   createNewExam(exam: CreateExam): Promise<Observable<Exam>> {
     return this.webApi.createNewExam(exam);
   }
@@ -68,6 +64,19 @@ export class ExamService {
 
     this.examineeSvc.updateScreenshots();
     this.webApi.getExamineesFromServer(exam.id);
+    this.webApi.getExamsFromServer();
+  }
+
+  setCurVideoExam(exam: Exam): void {
+    set((model) => {
+      model.curVideoExamId = exam?.id;
+    });
+
+    if (exam.state === ExamState.CREATED) {
+      this.webApi.startExamByIdFromServer(exam);
+    }
+
+    this.webApi.getVideoExamineesFromServer(exam.id);
     this.webApi.getExamsFromServer();
   }
 

@@ -10,11 +10,15 @@ import {CreateExam} from "./entity/CreateExam";
 import {environment} from "../../../env/environment";
 import {SchoolUnit} from "./entity/SchoolUnit";
 import {Exam} from "./entity/Exam";
+import {Examinee} from "./entity/Examinee";
 
 export interface Model {
   readonly cacheBuster: CacheBuster,
   readonly curExamId: number | undefined,
   readonly examineeData: ExamineeData,
+  readonly curVideoExamId: number | undefined,
+  readonly videoExamineeData: ExamineeData,
+  readonly videoExaminee: Examinee | undefined,
   readonly examDashboardData: ExamData,
   readonly patrol: Patrol,
   readonly serverMetrics: ServerMetrics,
@@ -31,7 +35,11 @@ const initialState: Model = {
     cachebustNum: 0
   },
   curExamId: undefined,
+  curVideoExamId: undefined,
   examineeData: {
+    examinees: []
+  },
+  videoExamineeData: {
     examinees: []
   },
   examDashboardData: {
@@ -42,6 +50,7 @@ const initialState: Model = {
     isPatrolModeOn: false,
     patrolExaminee: undefined
   },
+  videoExaminee: undefined,
   serverMetrics: {
     cpuUsagePercent: 0,
     totalDiskSpaceInBytes: 0,
