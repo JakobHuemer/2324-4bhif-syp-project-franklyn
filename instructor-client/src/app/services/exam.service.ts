@@ -14,7 +14,6 @@ import {ExamState} from "../model/entity/Exam-State";
 })
 export class ExamService {
   private store = inject(StoreService).store;
-  private location = inject(Location);
   private webApi = inject(WebApiService);
   private examineeSvc = inject(ExamineeService);
 
@@ -59,31 +58,39 @@ export class ExamService {
   }
 
   setCurExam(exam: Exam): void {
-    this.stopCurExam();
-
     set((model) => {
       model.curExamId = exam?.id;
     });
 
-    if (exam.state !== ExamState.ONGOING) {
+    if (exam.state === ExamState.CREATED) {
       this.webApi.startExamByIdFromServer(exam);
     }
 
     this.examineeSvc.updateScreenshots();
-    if (this.store.value.examDashboardData.curExamId)
-      this.webApi.getExamineesFromServer(
-        this.store.value.examDashboardData.curExamId
-      );
+    this.webApi.getExamineesFromServer(exam.id);
+    this.webApi.getExamsFromServer();
   }
 
-  stopCurExam(): void {
-    if (this.store.value.curExamId) {
-      this.webApi.completeExamByIdFromServer(this.store.value.curExamId);
+  stopExam(examId: number | undefined): void {
+    let myExamId: number;
+
+    if (examId) {
+      myExamId = examId;
+    } else if (this.store.value.curExamId) {
+      myExamId = this.store.value.curExamId;
+    } else {
+      return;
+    }
+
+    if (myExamId === this.store.value.curExamId) {
       this.examineeSvc.resetExaminees();
 
       set((model) => {
         model.curExamId = undefined;
       })
     }
+
+    this.webApi.completeExamByIdFromServer(myExamId);
+    this.webApi.getExamsFromServer();
   }
 }

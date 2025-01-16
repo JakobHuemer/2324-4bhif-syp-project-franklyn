@@ -1,9 +1,9 @@
 export interface ServerMetrics {
   cpuUsagePercent: number,
-  totalDiskSpaceInBytes: number, //TODO use
+  totalDiskSpaceInBytes: number,
   remainingDiskSpaceInBytes: number,
   savedScreenshotsSizeInBytes: number,
-  savedVideosSizeInBytes: number, //TODO use
+  savedVideosSizeInBytes: number,
   maxAvailableMemoryInBytes: number,
   totalUsedMemoryInBytes: number,
   diagramBackgroundColor: string,

@@ -23,6 +23,10 @@ export class ExamineeDownloadListComponent {
     );
 
   getDownloadUrl(): string {
-    return `${environment.serverBaseUrl}/video/download`
+    return `${environment.serverBaseUrl}/hello`;
   }
+
+  /*getDownloadUrl(userId:number, examId:number): string {
+    return `${environment.serverBaseUrl}/telemetry/by-user/${userId}/${examId}/video/generate`;
+  }*/
 }

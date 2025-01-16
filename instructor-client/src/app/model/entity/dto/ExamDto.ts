@@ -1,10 +1,8 @@
-import {ExamState} from "../Exam-State";
-
 export interface ExamDto {
   id: number,
   title: string,
   pin: number,
-  state: ExamState,
+  state: string,
   planned_start: string,
   planned_end: string,
   actual_start: string | null,

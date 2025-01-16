@@ -7,6 +7,7 @@ import {distinctUntilChanged, map} from "rxjs";
 import {AsyncPipe, Location} from "@angular/common";
 import {ExamService} from "../../../services/exam.service";
 import {RouterLink} from "@angular/router";
+import {ExamState} from "../../../model/entity/Exam-State";
 
 @Component({
     selector: 'app-patrol-mode',
@@ -31,7 +32,7 @@ export class PatrolModeComponent {
       map(model =>
         model.examDashboardData.exams
           .filter(exam =>
-            exam.id === model.curExamId)
+            exam.id === model.curExamId && exam.state === ExamState.ONGOING)
           .at(0)),
       distinctUntilChanged()
     );
@@ -57,6 +58,6 @@ export class PatrolModeComponent {
   }
 
   stopCurExam() {
-    this.examSvc.stopCurExam();
+    this.examSvc.stopExam(this.store.value.curExamId);
   }
 }

@@ -197,7 +197,7 @@
               </div>
               <div>
                 <h6 class="card-subtitle mb-2 text-body-secondary">Status</h6>
-                <h5 class="card-title">{{exam.state.toString()}}</h5>
+                <h5 class="card-title">{{examStateToString(exam.state)}}</h5>
               </div>
             </div>
           </div>
@@ -212,16 +212,26 @@
          (click)="setCurExam()">
         Videos
       </a>
-      <!--<button
-        (click)=""
-        class="btn btn-success button-width">
-        Aktualisieren
-      </button>-->
-      <a routerLink="/patrol-mode"
-         class="btn btn-primary button-width"
-         (click)="setCurExam()">
-        Patrol Mode
-      </a>
+
+      @if (exam.state === ExamState.CREATED) {
+        <button
+          (click)="setCurExam()"
+          class="btn btn-success button-width">
+          Start
+        </button>
+      } @else if (exam.state === ExamState.ONGOING) {
+        <button
+          (click)="stopExam()"
+          class="btn btn-danger button-width">
+          Stop
+        </button>
+
+        <a routerLink="/patrol-mode"
+           class="btn btn-primary button-width"
+           (click)="setCurExam()">
+          Patrol Mode
+        </a>
+      }
     </div>
   </div>
 }

@@ -1,15 +1,15 @@
 import {inject, Injectable} from '@angular/core';
-import { HttpClient, HttpHeaders } from "@angular/common/http";
-import {Examinee, ServerMetrics} from "../model";
+import {HttpClient, HttpHeaders} from "@angular/common/http";
+import {Examinee, ServerMetrics, set} from "../model";
 import {environment} from "../../../env/environment";
 import {lastValueFrom, Observable} from "rxjs";
-import {set} from "../model";
 import {Exam} from "../model/entity/Exam";
 import {ExamDto} from "../model/entity/dto/ExamDto";
 import {CreateExam} from "../model/entity/CreateExam";
 import {ExamineeDto} from "../model/entity/dto/ExamineeDto";
 import {ServerMetricsDto} from "../model/entity/dto/ServerMetricsDto";
 import {StoreService} from "./store.service";
+import {ExamState} from "../model/entity/Exam-State";
 
 @Injectable({
   providedIn: 'root'
@@ -115,11 +115,26 @@ export class WebApiService {
           set((model) => {
             model.examDashboardData.exams = exams.map(
               eDto => {
+                let examState: ExamState = ExamState.CREATED
+
+                switch (eDto.state) {
+                  case "ONGOING":
+                    examState = ExamState.ONGOING;
+                    break;
+                  case "DONE":
+                    examState = ExamState.DONE;
+                    break;
+                  case "DELETED":
+                    examState = ExamState.DELETED;
+                    break;
+                }
+
+
                 let exam: Exam = {
                   id: eDto.id,
                   title: eDto.title,
                   pin: eDto.pin,
-                  state: eDto.state,
+                  state: examState,
                   plannedStart: new Date(eDto.planned_start),
                   plannedEnd: new Date(eDto.planned_end),
                   actualStart: undefined,
@@ -162,6 +177,21 @@ export class WebApiService {
             model.examDashboardData.exams = this.sortExams(
               model.examDashboardData.exams
             );
+
+            if (model.examDashboardData.exams
+              .find(e =>
+                e.id === model.examDashboardData.curExamId) === undefined
+            ) {
+              model.examDashboardData.curExamId = undefined;
+            }
+
+            if (model.examDashboardData.exams
+              .find(e => e.id === model.curExamId)
+              === undefined) {
+              model.curExamId = undefined;
+              model.examineeData.examinees = [];
+              model.patrol.patrolExaminee = undefined;
+            }
 
             if (model.examDashboardData.exams.length >= 1 && !model.examDashboardData.curExamId) {
               model.examDashboardData.curExamId = model.examDashboardData.exams[0].id;

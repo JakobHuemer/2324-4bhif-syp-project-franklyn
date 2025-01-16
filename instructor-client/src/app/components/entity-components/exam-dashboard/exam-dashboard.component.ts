@@ -1,11 +1,9 @@
-import {Component, inject, Input} from '@angular/core';
+import {Component, inject, Input, OnInit} from '@angular/core';
 import {ExamService} from "../../../services/exam.service";
 import {Exam} from "../../../model/entity/Exam";
 import {ExamState} from "../../../model/entity/Exam-State";
 import {RouterLink, RouterLinkActive} from "@angular/router";
-import {set} from "../../../model";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
-import {StoreService} from "../../../services/store.service";
 
 @Component({
     selector: 'app-exam-dashboard',
@@ -43,11 +41,30 @@ export class ExamDashboardComponent {
       this.pad(date.getMinutes(), 2);
   }
 
-  protected readonly ExamState = ExamState;
-
   protected setCurExam() {
     if (this.exam) {
       this.examSvc.setCurExam(this.exam);
     }
   }
+
+  protected stopExam(){
+    if (this.exam) {
+      this.examSvc.stopExam(this.exam.id);
+    }
+  }
+
+  protected examStateToString(state: ExamState): string {
+    switch (state) {
+      case ExamState.ONGOING:
+        return "ONGOING";
+      case ExamState.DONE:
+        return "DONE";
+      case ExamState.DELETED:
+        return "DELETED";
+      default:
+        return "CREATED";
+    }
+  }
+
+  protected readonly ExamState = ExamState;
 }
