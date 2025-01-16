@@ -73,7 +73,11 @@ export class SchoolUnitService {
     compareDate.setDate(times[0].start.getDate());
 
     for (let i = 0; i < times.length - 1; i++) {
-      if (compareDate.getTime() < times[i + 1].start.getTime()) {
+      let time = times[i + 1].start;
+      // fixes error, when start and end time are the same
+      time.setSeconds(1);
+
+      if (compareDate.getTime() < time.getTime()) {
         return times[i].id;
       }
     }
