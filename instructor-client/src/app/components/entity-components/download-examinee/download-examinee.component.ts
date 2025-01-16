@@ -12,7 +12,6 @@ import {environment} from "../../../../../env/environment";
 })
 export class DownloadExamineeComponent {
   protected examineeRepo = inject(ExamineeService);
-  private store = inject(StoreService).store;
 
   @Input() examinee: Examinee | undefined;
 
@@ -20,7 +19,7 @@ export class DownloadExamineeComponent {
     this.examineeRepo.newPatrolExaminee(this.examinee, true);
 
     set((model) => {
-      model.cacheBuster.cachebustNum++;
+      model.patrolModeModel.cacheBuster.cachebustNum++;
     })
   }
 

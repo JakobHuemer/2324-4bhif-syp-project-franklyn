@@ -1,15 +1,19 @@
 import {inject, Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders} from "@angular/common/http";
-import {Examinee, ServerMetrics, set} from "../model";
 import {environment} from "../../../env/environment";
 import {lastValueFrom, Observable} from "rxjs";
-import {Exam} from "../model/entity/Exam";
-import {ExamDto} from "../model/entity/dto/ExamDto";
-import {CreateExam} from "../model/entity/CreateExam";
-import {ExamineeDto} from "../model/entity/dto/ExamineeDto";
-import {ServerMetricsDto} from "../model/entity/dto/ServerMetricsDto";
-import {StoreService} from "./store.service";
-import {ExamState} from "../model/entity/Exam-State";
+import {StoreService} from './store.service';
+import {
+  set,
+  ServerMetricsDto,
+  ServerMetrics,
+  ExamineeDto,
+  Examinee,
+  ExamDto,
+  Exam,
+  ExamState,
+  CreateExam
+} from "../model";
 
 @Injectable({
   providedIn: 'root'
@@ -32,9 +36,9 @@ export class WebApiService {
     const serverMetricsDto = await lastValueFrom(
       this.httpClient
         .get<ServerMetricsDto>(
-        `${environment.serverBaseUrl}/metrics`,
-        {headers: this.headers}
-      )
+          `${environment.serverBaseUrl}/metrics`,
+          {headers: this.headers}
+        )
     );
 
     const serverMetrics: ServerMetrics = {
@@ -49,32 +53,11 @@ export class WebApiService {
       maxAvailableMemoryInBytes: serverMetricsDto
         .max_available_memory_in_bytes,
       totalUsedMemoryInBytes: serverMetricsDto
-        .total_used_memory_in_bytes,
-      diagramBackgroundColor: this.store.value
-        .serverMetrics
-        .diagramBackgroundColor,
-      diagramTextColor: this.store.value
-        .serverMetrics
-        .diagramTextColor,
-      cpuUtilisationColor: this.store.value
-        .serverMetrics
-        .cpuUtilisationColor,
-      diskUsageVideoColor: this.store.value
-        .serverMetrics
-        .diskUsageVideoColor,
-      diskUsageOtherColor: this.store.value
-        .serverMetrics
-        .diskUsageOtherColor,
-      diskUsageScreenshotColor: this.store.value
-        .serverMetrics
-        .diskUsageScreenshotColor,
-      memoryUtilisationColor: this.store.value
-        .serverMetrics
-        .memoryUtilisationColor,
+        .total_used_memory_in_bytes
     }
 
     set((model) => {
-      model.serverMetrics = serverMetrics;
+      model.metricsDashboardModel.serverMetrics = serverMetrics;
     });
   }
 
@@ -86,7 +69,7 @@ export class WebApiService {
       {headers: this.headers})
       .subscribe({
         "next": (examinees) => set((model) => {
-          model.examineeData.examinees = examinees.map(
+          model.patrolModeModel.examinees = examinees.map(
             (eDto) => {
               let examinee: Examinee = {
                 id: eDto.id,
@@ -108,7 +91,7 @@ export class WebApiService {
       {headers: this.headers})
       .subscribe({
         "next": (examinees) => set((model) => {
-          model.videoExamineeData.examinees = examinees.map(
+          model.videoViewerModel.examinees = examinees.map(
             (eDto) => {
               let examinee: Examinee = {
                 id: eDto.id,
@@ -135,7 +118,7 @@ export class WebApiService {
       .subscribe({
         "next": (exams) => {
           set((model) => {
-            model.examDashboardData.exams = exams.map(
+            model.examDashboardModel.exams = exams.map(
               eDto => {
                 let examState: ExamState = ExamState.CREATED
 
@@ -150,7 +133,6 @@ export class WebApiService {
                     examState = ExamState.DELETED;
                     break;
                 }
-
 
                 let exam: Exam = {
                   id: eDto.id,
@@ -196,35 +178,41 @@ export class WebApiService {
               }
             );
 
-            model.examDashboardData.exams = this.sortExams(
-              model.examDashboardData.exams
+            model.examDashboardModel.exams = this.sortExams(
+              model.examDashboardModel.exams
             );
 
-            if (model.examDashboardData.exams
+            if (model.examDashboardModel.exams
               .find(e =>
-                e.id === model.examDashboardData.curExamId) === undefined
+                e.id === model.examDashboardModel.curExamId) === undefined
             ) {
-              model.examDashboardData.curExamId = undefined;
+              model.examDashboardModel.curExamId = undefined;
             }
 
-            if (model.examDashboardData.exams
-              .find(e => e.id === model.curExamId)
+            if (model.examDashboardModel.exams
+                .find(e => e.id === model
+                  .patrolModeModel.curExamId)
               === undefined) {
-              model.curExamId = undefined;
-              model.examineeData.examinees = [];
-              model.patrol.patrolExaminee = undefined;
+              model.patrolModeModel.curExamId = undefined;
+              model.patrolModeModel.examinees = [];
+              model.patrolModeModel.patrol.patrolExaminee = undefined;
             }
 
-            if (model.examDashboardData.exams
-              .find(e => e.id === model.curVideoExamId)
+            if (model.examDashboardModel.exams
+                .find(e => e.id === model
+                  .videoViewerModel.curExamId)
               === undefined) {
-              model.curVideoExamId = undefined;
-              model.videoExamineeData.examinees = [];
-              model.videoExaminee = undefined;
+              model.videoViewerModel.curExamId = undefined;
+              model.videoViewerModel.examinees = [];
+              model.videoViewerModel.examinee = undefined;
             }
 
-            if (model.examDashboardData.exams.length >= 1 && !model.examDashboardData.curExamId) {
-              model.examDashboardData.curExamId = model.examDashboardData.exams[0].id;
+            if (model.examDashboardModel.exams.length >= 1 &&
+              !model.examDashboardModel.curExamId) {
+              model.examDashboardModel.curExamId = model
+                .examDashboardModel
+                .exams[0]
+                .id;
             }
           });
         },

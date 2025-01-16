@@ -1,4 +1,4 @@
-@if (!store.value.createdExam) {
+@if (!store.value.createTestModel.createdExam) {
   <h5 class="mb-3 fw-bold">Allgemeines</h5>
 
   <div class="mb-3">
@@ -9,7 +9,7 @@
            id="titleInput"
            placeholder="Titel eingeben"
            (keyup)="setIsValidTitle(title.value)"
-           [value]="store.value.createExam.title">
+           [value]="store.value.createTestModel.createExam.title">
     <p class="form-text text-danger" [hidden]="isValidTitle">
       Bitte gib einen Titel an!
     </p>
@@ -34,7 +34,10 @@
     <label
       for="screencapture-interval-range"
       class="form-label">
-      Screencapture Interval: {{this.store.value.createExam.screencapture_interval_seconds}} sec
+      Screencapture Interval: {{this.store.value
+      .createTestModel
+      .createExam
+      .screencapture_interval_seconds}} sec
       <span
         class="position-absolute end-0"
         data-bs-toggle="tooltip"
@@ -59,7 +62,9 @@
              [max]="environment.maxScreencaptureInterval"
              id="screencapture-interval-range"
              name="screencapture-interval-range"
-             [value]="store.value.createExam.screencapture_interval_seconds"
+             [value]="store.value.createTestModel
+             .createExam
+             .screencapture_interval_seconds"
              (input)="setScreencaptureInterval(screencaptureInterval.value)">
       <label for="screencapture-interval-range">{{environment.maxScreencaptureInterval}}</label>
     </div>
@@ -98,7 +103,9 @@
     <h6>Oder Einheiten auswählen:</h6>
     <table>
       <tr>
-        @for (i of store.value.schoolUnits; track i.id) {
+        @for (i of store.value
+          .createTestModel
+          .schoolUnits; track i.id) {
           <td>
             <button class="
             rounded-circle
@@ -125,7 +132,9 @@
       <h6>Abendschule:</h6>
       <table>
         <tr>
-          @for (i of store.value.eveningSchoolUnits; track i.id) {
+          @for (i of store.value
+            .createTestModel
+            .eveningSchoolUnits; track i.id) {
             <td>
               <button class="
               rounded-circle

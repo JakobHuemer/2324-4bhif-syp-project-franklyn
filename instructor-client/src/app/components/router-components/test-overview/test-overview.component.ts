@@ -1,10 +1,9 @@
 import {Component, inject} from '@angular/core';
-import {store} from "../../../model";
 import {ExamSelectionListComponent} from "../../entity-lists/exam-selection-list/exam-selection-list.component";
 import {ExamDashboardComponent} from "../../entity-components/exam-dashboard/exam-dashboard.component";
-import {Exam} from "../../../model/entity/Exam";
 import {ExamService} from "../../../services/exam.service";
 import {StoreService} from "../../../services/store.service";
+import {Exam} from "../../../model";
 
 @Component({
     selector: 'app-test-overview',
@@ -24,7 +23,7 @@ export class TestOverviewComponent {
   protected getCurExam(): Exam | undefined {
     return this.examSvc.get(
       (e) =>
-        e.id === this.store.value.examDashboardData.curExamId)
+        e.id === this.store.value.examDashboardModel.curExamId)
       .at(0);
   }
 }

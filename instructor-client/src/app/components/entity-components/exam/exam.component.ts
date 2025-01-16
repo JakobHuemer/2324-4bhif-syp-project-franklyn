@@ -1,7 +1,7 @@
 import {Component, inject, Input} from '@angular/core';
-import {Exam} from "../../../model/entity/Exam";
 import {ExamService} from "../../../services/exam.service";
 import {NgClass} from "@angular/common";
+import {Exam} from "../../../model";
 
 @Component({
     selector: 'app-exam',

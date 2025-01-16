@@ -1,8 +1,7 @@
 import {inject, Injectable} from '@angular/core';
 import {StoreService} from "./store.service";
-import {set} from "../model";
+import {set, SchoolUnit} from "../model";
 import {environment} from "../../../env/environment";
-import {SchoolUnit} from "../model/entity/SchoolUnit";
 
 @Injectable({
   providedIn: 'root'
@@ -18,27 +17,27 @@ export class SchoolUnitService {
 
   public checkIfSelected(): void {
     let startTimeId = this.getSchoolUnitByTime(
-      this.store.value.createExam.start
+      this.store.value.createTestModel.createExam.start
     );
     let endTimeId = this.getSchoolUnitByTime(
-      this.store.value.createExam.end
+      this.store.value.createTestModel.createExam.end
     );
 
     let schoolUnits: SchoolUnit[] = this.getSchoolUnitsSelection(
       startTimeId,
       endTimeId,
-      this.store.value.schoolUnits
+      this.store.value.createTestModel.schoolUnits
     );
 
     let eveningSchoolUnits: SchoolUnit[] = this.getSchoolUnitsSelection(
       startTimeId,
       endTimeId,
-      this.store.value.eveningSchoolUnits
+      this.store.value.createTestModel.eveningSchoolUnits
     );
 
     set(model => {
-      model.schoolUnits = schoolUnits;
-      model.eveningSchoolUnits = eveningSchoolUnits;
+      model.createTestModel.schoolUnits = schoolUnits;
+      model.createTestModel.eveningSchoolUnits = eveningSchoolUnits;
     });
   }
 
@@ -64,8 +63,8 @@ export class SchoolUnitService {
 
   private getSchoolUnitByTime(date: Date): number {
     const times: SchoolUnit[] = [
-      ...this.store.value.schoolUnits,
-      ...this.store.value.eveningSchoolUnits
+      ...this.store.value.createTestModel.schoolUnits,
+      ...this.store.value.createTestModel.eveningSchoolUnits
     ];
 
     let compareDate: Date = new Date(date);
@@ -74,12 +73,12 @@ export class SchoolUnitService {
     compareDate.setDate(times[0].start.getDate());
 
     for (let i = 0; i < times.length - 1; i++) {
-      if (compareDate.getTime() < times[i+1].start.getTime()) {
+      if (compareDate.getTime() < times[i + 1].start.getTime()) {
         return times[i].id;
       }
     }
 
-    return times[times.length-1].id;
+    return times[times.length - 1].id;
   }
 
   private mapEnvironmentToSchoolUnits(): void {
@@ -94,12 +93,12 @@ export class SchoolUnitService {
       .sort((a, b) => a.id - b.id);
 
     set(model => {
-      model.schoolUnits = schoolUnits;
-      model.eveningSchoolUnits = eveningSchoolUnits;
+      model.createTestModel.schoolUnits = schoolUnits;
+      model.createTestModel.eveningSchoolUnits = eveningSchoolUnits;
     });
   }
 
-  private getUnitByItem(item: {id: number, time:string}, isEveningSchool: boolean = false): SchoolUnit {
+  private getUnitByItem(item: { id: number, time: string }, isEveningSchool: boolean = false): SchoolUnit {
     const itemDate = new Date(0, 0, 0, 0, 0, 0, 0);
     const hoursAndMinutes = this.getHoursAndMinutes(item.time);
 

@@ -4,10 +4,9 @@ import {ExamineeListComponent} from "../../entity-lists/examinee-list/examinee-l
 import {FormsModule} from "@angular/forms";
 import {PatrolPageExamineeComponent} from "../../entity-components/patrol-page-examinee/patrol-page-examinee.component";
 import {distinctUntilChanged, map} from "rxjs";
-import {AsyncPipe, Location} from "@angular/common";
+import {AsyncPipe} from "@angular/common";
 import {ExamService} from "../../../services/exam.service";
-import {RouterLink} from "@angular/router";
-import {ExamState} from "../../../model/entity/Exam-State";
+import {ExamState} from "../../../model";
 
 @Component({
     selector: 'app-patrol-mode',
@@ -16,7 +15,6 @@ import {ExamState} from "../../../model/entity/Exam-State";
     PatrolPageExamineeComponent,
     FormsModule,
     AsyncPipe,
-    RouterLink
   ],
     templateUrl: './patrol-mode.component.html',
     styleUrl: './patrol-mode.component.css'
@@ -24,15 +22,15 @@ import {ExamState} from "../../../model/entity/Exam-State";
 export class PatrolModeComponent {
   protected store = inject(StoreService).store;
   protected examSvc = inject(ExamService);
-  protected location = inject(Location);
 
   protected curExam = inject(StoreService)
     .store
     .pipe(
       map(model =>
-        model.examDashboardData.exams
+        model.examDashboardModel.exams
           .filter(exam =>
-            exam.id === model.curExamId && exam.state === ExamState.ONGOING)
+            exam.id === model.patrolModeModel.curExamId &&
+            exam.state === ExamState.ONGOING)
           .at(0)),
       distinctUntilChanged()
     );
@@ -40,7 +38,7 @@ export class PatrolModeComponent {
   getPatrolModeOnState():string {
     let returnString: string = "off";
 
-    if (this.store.value.patrol.isPatrolModeOn) {
+    if (this.store.value.patrolModeModel.patrol.isPatrolModeOn) {
       return "on";
     }
 
@@ -50,7 +48,7 @@ export class PatrolModeComponent {
   getPatrolModeOnStateClass():string {
     let returnString: string = "text-danger";
 
-    if (this.store.value.patrol.isPatrolModeOn) {
+    if (this.store.value.patrolModeModel.patrol.isPatrolModeOn) {
       return "text-success";
     }
 
@@ -58,6 +56,6 @@ export class PatrolModeComponent {
   }
 
   stopCurExam() {
-    this.examSvc.stopExam(this.store.value.curExamId);
+    this.examSvc.stopExam(this.store.value.patrolModeModel.curExamId);
   }
 }

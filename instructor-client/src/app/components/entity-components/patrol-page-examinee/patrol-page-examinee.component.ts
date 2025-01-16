@@ -19,7 +19,7 @@ export class PatrolPageExamineeComponent {
   @Input() showImage: boolean = false;
 
   getScreenshotAddress() {
-    return `${environment.serverBaseUrl}/telemetry/by-user/${this.examinee!.id}/${this.examId}/screen/download?cachebust=${this.store.value.cacheBuster.cachebustNum}`;
+    return `${environment.serverBaseUrl}/telemetry/by-user/${this.examinee!.id}/${this.examId}/screen/download?cachebust=${this.store.value.patrolModeModel.cacheBuster.cachebustNum}`;
   }
 
   getActivity(): string {

@@ -20,7 +20,7 @@
           <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-start w-100">
             <app-patrol-page-examinee
               [examId]="(curExam | async)!.id"
-              [examinee]="store.value.patrol.patrolExaminee"
+              [examinee]="store.value.patrolModeModel.patrol.patrolExaminee"
               [showImage]="true"/>
           </div>
         } @else {
@@ -43,7 +43,7 @@
 
   <div class="text-center align-self-center">
     <label>
-      Patrol speed: {{store.value.timer.patrolSpeed}} sec
+      Patrol speed: {{store.value.scheduleServiceModel.timer.patrolSpeed}} sec
     </label>
   </div>
 
@@ -63,8 +63,7 @@
     <button
       type="button"
       class="btn btn-danger"
-      [class.active]="location.path() === 'create-test'"
-      routerLink="create-test"
+      [class.active]="!store.value.patrolModeModel.curExamId"
       (click)="stopCurExam()">
       Test beenden
     </button>

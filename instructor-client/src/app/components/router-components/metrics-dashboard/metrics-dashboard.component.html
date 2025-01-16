@@ -12,7 +12,11 @@
       </canvas>
     </div>
     <div class="col-1 d-flex align-items-center">
-      <h6 class="align-middle d-table-cell text-center">{{store.value.serverMetrics.cpuUsagePercent.toFixed(1)}} %</h6>
+      <h6 class="align-middle d-table-cell text-center">{{store.value
+        .metricsDashboardModel
+        .serverMetrics
+        .cpuUsagePercent
+        .toFixed(1)}} %</h6>
     </div>
   </div>
   <div class="row">

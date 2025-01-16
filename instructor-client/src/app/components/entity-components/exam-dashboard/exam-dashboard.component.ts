@@ -1,9 +1,8 @@
-import {Component, inject, Input, OnInit} from '@angular/core';
+import {Component, inject, Input} from '@angular/core';
 import {ExamService} from "../../../services/exam.service";
-import {Exam} from "../../../model/entity/Exam";
-import {ExamState} from "../../../model/entity/Exam-State";
 import {RouterLink, RouterLinkActive} from "@angular/router";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
+import {Exam, ExamState} from "../../../model";
 
 @Component({
     selector: 'app-exam-dashboard',

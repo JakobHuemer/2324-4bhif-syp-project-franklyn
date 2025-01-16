@@ -1,5 +1,3 @@
-import {ExamState} from "../Exam-State";
-
 export interface ExamineeDto {
   id: number,
   firstname: string,

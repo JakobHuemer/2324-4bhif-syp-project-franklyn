@@ -1,13 +1,9 @@
 import {inject, Injectable} from '@angular/core';
 import {WebApiService} from "./web-api.service";
-import {set} from "../model";
-import {Exam} from "../model/entity/Exam";
+import {CreateExam, Exam, ExamState, set} from "../model";
 import {StoreService} from "./store.service";
-import {Location} from "@angular/common";
-import {CreateExam} from "../model/entity/CreateExam";
 import {Observable} from "rxjs";
 import {ExamineeService} from "./examinee.service";
-import {ExamState} from "../model/entity/Exam-State";
 
 @Injectable({
   providedIn: 'root'
@@ -27,7 +23,7 @@ export class ExamService {
 
   get(predicate?: ((item: Exam) => boolean) | undefined): Exam[] {
     if (predicate) return this.get().filter(predicate);
-    return this.store.value.examDashboardData.exams;
+    return this.store.value.examDashboardModel.exams;
   }
 
   setCurDashboardExam(exam: Exam) {
@@ -41,7 +37,7 @@ export class ExamService {
       newCurExam = exams[0];
 
     set((model) => {
-      model.examDashboardData.curExamId = newCurExam?.id;
+      model.examDashboardModel.curExamId = newCurExam?.id;
     });
   }
 
@@ -50,12 +46,12 @@ export class ExamService {
   }
 
   isCurDashboardExam(id: number) {
-    return (this.store.value.examDashboardData.curExamId === id);
+    return (this.store.value.examDashboardModel.curExamId === id);
   }
 
   setCurExam(exam: Exam): void {
     set((model) => {
-      model.curExamId = exam?.id;
+      model.patrolModeModel.curExamId = exam?.id;
     });
 
     if (exam.state === ExamState.CREATED) {
@@ -69,7 +65,7 @@ export class ExamService {
 
   setCurVideoExam(exam: Exam): void {
     set((model) => {
-      model.curVideoExamId = exam?.id;
+      model.videoViewerModel.curExamId = exam?.id;
     });
 
     if (exam.state === ExamState.CREATED) {
@@ -85,17 +81,17 @@ export class ExamService {
 
     if (examId) {
       myExamId = examId;
-    } else if (this.store.value.curExamId) {
-      myExamId = this.store.value.curExamId;
+    } else if (this.store.value.patrolModeModel.curExamId) {
+      myExamId = this.store.value.patrolModeModel.curExamId;
     } else {
       return;
     }
 
-    if (myExamId === this.store.value.curExamId) {
+    if (myExamId === this.store.value.patrolModeModel.curExamId) {
       this.examineeSvc.resetExaminees();
 
       set((model) => {
-        model.curExamId = undefined;
+        model.patrolModeModel.curExamId = undefined;
       })
     }
 

@@ -18,7 +18,7 @@ export class ExamineeDownloadListComponent {
   protected examinees = inject(StoreService)
     .store
     .pipe(
-      map(model => model.examineeData.examinees),
+      map(model => model.patrolModeModel.examinees),
       distinctUntilChanged()
     );
 

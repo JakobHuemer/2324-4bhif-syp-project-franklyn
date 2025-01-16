@@ -17,14 +17,14 @@ export class ScheduleService {
 
   constructor() {
     this.store.pipe(
-      map(model => model.timer.patrolSpeed),
+      map(model => model.scheduleServiceModel.timer.patrolSpeed),
       distinctUntilChanged()
     ).subscribe(() => {
       this.startPatrolInterval();
     })
 
     this.store.pipe(
-      map(model => model.timer.nextClientTime),
+      map(model => model.scheduleServiceModel.timer.nextClientTime),
       distinctUntilChanged()
     ).subscribe(() => {
       this.startUpdateDataScheduleInterval();
@@ -33,64 +33,73 @@ export class ScheduleService {
 
   //region stop intervals
   stopGettingServerMetrics() {
-    if (!this.store.value.timer.serverMetricsTimerId) {
-      clearInterval(this.store.value.timer.serverMetricsTimerId);
+    if (!this.store.value.scheduleServiceModel.timer.serverMetricsTimerId) {
+      clearInterval(this.store.value.scheduleServiceModel.timer.serverMetricsTimerId);
     }
 
     set((model) => {
-      model.timer.serverMetricsTimerId = undefined;
+      model.scheduleServiceModel.timer.serverMetricsTimerId = undefined;
     })
   }
 
   stopUpdateDataScheduleInterval() {
-    if (!this.store.value.timer.updateDataScheduleTimerId) {
-      clearInterval(this.store.value.timer.updateDataScheduleTimerId);
+    if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
+      clearInterval(this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId);
     }
 
     set((model) => {
-      model.timer.updateDataScheduleTimerId = undefined;
+      model.scheduleServiceModel.timer.updateDataScheduleTimerId = undefined;
     });
   }
 
   stopPatrolInterval() {
-    if (!this.store.value.timer.patrolScheduleTimer) {
-      clearInterval(this.store.value.timer.patrolScheduleTimer);
+    if (!this.store.value.scheduleServiceModel.timer.patrolScheduleTimer) {
+      clearInterval(this.store.value.scheduleServiceModel.timer.patrolScheduleTimer);
     }
 
     set((model) => {
-      model.timer.patrolScheduleTimer = undefined;
+      model.scheduleServiceModel.timer.patrolScheduleTimer = undefined;
     });
   }
+
   //endregion
 
   //region start intervals
   startUpdateDataScheduleInterval() {
     this.stopUpdateDataScheduleInterval();
 
-    if (!this.store.value.timer.updateDataScheduleTimerId) {
-      this.store.value.timer.updateDataScheduleTimerId =  setInterval(() => {
+    if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
+      this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = setInterval(() => {
         this.examineeRepo.updateScreenshots();
         this.examRepo.reloadAllExams();
 
-        if (this.store.value.examDashboardData.curExamId){
+        if (this.store.value.patrolModeModel.curExamId) {
           // Do not check if exam ongoing since we also want to get
           // examinees for the video viewer when the exam is not ongoing
           this.webApi.getExamineesFromServer(
-            this.store.value.examDashboardData.curExamId
+            this.store.value.patrolModeModel.curExamId
           );
         }
-      }, this.store.value.timer.nextClientTimeMilliseconds) as unknown as number;
+
+        if (this.store.value.videoViewerModel.curExamId) {
+          // Do not check if exam ongoing since we also want to get
+          // examinees for the video viewer when the exam is not ongoing
+          this.webApi.getExamineesFromServer(
+            this.store.value.videoViewerModel.curExamId
+          );
+        }
+      }, this.store.value.scheduleServiceModel.timer.nextClientTimeMilliseconds) as unknown as number;
     }
   }
 
   startPatrolInterval() {
     this.stopPatrolInterval();
 
-    if (this.store.value.timer.patrolScheduleTimer === undefined) {
+    if (this.store.value.scheduleServiceModel.timer.patrolScheduleTimer === undefined) {
       set((model) => {
-        model.timer.patrolScheduleTimer = setInterval(() => {
+        model.scheduleServiceModel.timer.patrolScheduleTimer = setInterval(() => {
           this.examineeRepo.newPatrolExaminee();
-        }, this.store.value.timer.patrolSpeedMilliseconds) as unknown as number;
+        }, this.store.value.scheduleServiceModel.timer.patrolSpeedMilliseconds) as unknown as number;
       });
     }
   }
@@ -98,13 +107,14 @@ export class ScheduleService {
   startGettingServerMetrics() {
     this.stopGettingServerMetrics();
 
-    if (this.store.value.timer.serverMetricsTimerId === undefined) {
+    if (this.store.value.scheduleServiceModel.timer.serverMetricsTimerId === undefined) {
       set((model) => {
-        model.timer.serverMetricsTimerId = setInterval(async () => {
+        model.scheduleServiceModel.timer.serverMetricsTimerId = setInterval(async () => {
           await this.webApi.getServerMetrics();
-        }, this.store.value.timer.reloadDashboardIntervalMilliseconds);
+        }, this.store.value.scheduleServiceModel.timer.reloadDashboardIntervalMilliseconds);
       });
     }
   }
+
   //endregion
 }

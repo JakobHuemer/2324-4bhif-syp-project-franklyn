@@ -1,4 +1,4 @@
-import {ExamState} from "./Exam-State";
+import {ExamState} from "./exam-state";
 
 export interface Exam {
   id: number,
