@@ -80,9 +80,15 @@ export class WebApiService {
 
               return examinee;
             })
-            .sort((a, b) =>
-              (a.lastname > b.lastname ? 1 :
-                (a.firstname > b.firstname ? 1 : -1)));
+            .sort((a, b) => {
+              if (a.lastname > b.lastname) {
+                return 1;
+              } else if (a.lastname === b.lastname) {
+                return (a.firstname > b.firstname ? 1 : -1);
+              } else {
+                return -1;
+              }
+            });
         }),
         "error": (err) => console.error(err),
       });
@@ -105,9 +111,15 @@ export class WebApiService {
 
               return examinee;
             })
-            .sort((a, b) =>
-              (a.lastname > b.lastname ? 1 :
-                (a.firstname > b.firstname ? 1 : -1)));
+            .sort((a, b) => {
+              if (a.lastname > b.lastname) {
+                return 1;
+              } else if (a.lastname === b.lastname) {
+                return (a.firstname > b.firstname ? 1 : -1);
+              } else {
+                return -1;
+              }
+            });
         }),
         "error": (err) => console.error(err),
       });
@@ -287,9 +299,15 @@ export class WebApiService {
 
   private sortExams(exams: Exam[]): Exam[] {
     return exams
-      .sort((a, b) =>
-        (a.title > b.title ? 1 :
-          (a.plannedStart > b.plannedStart ? 1 : -1)));
+      .sort((a, b) => {
+        if (a.title > b.title) {
+          return 1;
+        } else if (a.title === b.title) {
+          return (a.plannedStart > b.plannedStart ? 1 : -1);
+        } else {
+          return -1;
+        }
+      });
   };
 
   //endregion
