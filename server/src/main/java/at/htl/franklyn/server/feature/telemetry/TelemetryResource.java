@@ -3,10 +3,7 @@ package at.htl.franklyn.server.feature.telemetry;
 import at.htl.franklyn.server.common.ExceptionFilter;
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
-import at.htl.franklyn.server.feature.telemetry.video.VideoJobDto;
-import at.htl.franklyn.server.feature.telemetry.video.VideoJobRepository;
-import at.htl.franklyn.server.feature.telemetry.video.VideoJobService;
-import at.htl.franklyn.server.feature.telemetry.video.VideoJobState;
+import at.htl.franklyn.server.feature.telemetry.video.*;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
@@ -147,7 +144,7 @@ public class TelemetryResource {
                                 Response.Status.NOT_FOUND
                         )
                 )
-                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
+                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState(), job.getExam().getId(), job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null))
                 .onItem().transform(dto -> Response.ok(dto).build());
     }
 
@@ -203,7 +200,7 @@ public class TelemetryResource {
                         )
                 )
                 .chain(ignored -> videoJobService.queueVideoJob(userId, examId))
-                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
+                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState(), job.getExam().getId(), job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null))
                 .onItem().transform(job -> {
                     String location = uriInfo.getBaseUriBuilder()
                             .path(TelemetryResource.class)
@@ -211,7 +208,7 @@ public class TelemetryResource {
                             .build(job.id())
                             .toString();
 
-                    return Response.accepted(new VideoJobDto(job.id(), job.state()))
+                    return Response.accepted(job)
                             .header("Location", location)
                             .build();
                 });
@@ -234,7 +231,7 @@ public class TelemetryResource {
                         )
                 )
                 .chain(ignored -> videoJobService.queueBatchVideoJob(examId))
-                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState()))
+                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState(), job.getExam().getId(), job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null))
                 .onItem().transform(job -> {
                     String location = uriInfo.getBaseUriBuilder()
                             .path(TelemetryResource.class)
@@ -242,7 +239,7 @@ public class TelemetryResource {
                             .build(job.id())
                             .toString();
 
-                    return Response.accepted(new VideoJobDto(job.id(), job.state()))
+                    return Response.accepted(job)
                             .header("Location", location)
                             .build();
                 });
