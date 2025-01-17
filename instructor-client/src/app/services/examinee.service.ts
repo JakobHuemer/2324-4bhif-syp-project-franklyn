@@ -19,7 +19,7 @@ export class ExamineeService {
       );
 
     if (this.store.value.videoViewerModel.curExamId)
-      this.webApi.getExamineesFromServer(
+      this.webApi.getVideoExamineesFromServer(
         this.store.value.videoViewerModel.curExamId
       );
   }
