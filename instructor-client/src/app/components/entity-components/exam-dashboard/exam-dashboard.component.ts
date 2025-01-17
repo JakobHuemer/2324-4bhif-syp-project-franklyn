@@ -46,6 +46,12 @@ export class ExamDashboardComponent {
     }
   }
 
+  protected setCurVideoExam() {
+    if (this.exam) {
+      this.examSvc.setCurVideoExam(this.exam);
+    }
+  }
+
   protected stopExam(){
     if (this.exam) {
       this.examSvc.stopExam(this.exam.id);

@@ -68,10 +68,6 @@ export class ExamService {
       model.videoViewerModel.curExamId = exam?.id;
     });
 
-    if (exam.state === ExamState.CREATED) {
-      this.webApi.startExamByIdFromServer(exam);
-    }
-
     this.webApi.getVideoExamineesFromServer(exam.id);
     this.webApi.getExamsFromServer();
   }
