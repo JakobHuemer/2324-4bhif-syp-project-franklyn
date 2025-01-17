@@ -110,7 +110,7 @@ public class TelemetryResource {
                                 Response.Status.BAD_REQUEST
                         )
                 )
-                .chain(ignored -> imageService.loadLatestFrameOfUser(userId, examId))
+                .chain(ignored -> imageService.loadLatestFrameOfUser(examId, userId))
                 .onItem().transform(buf -> Response.ok(buf).build())
                 .onFailure(IllegalStateException.class).transform(e -> new WebApplicationException(
                         "No available screenshot found",
