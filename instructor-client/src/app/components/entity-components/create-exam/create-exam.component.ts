@@ -415,6 +415,7 @@ export class CreateExamComponent implements AfterViewInit{
           model.createTestModel.createExam.screencapture_interval_seconds = environment
             .patrolSpeed;
         });
+        this.schoolUnitSvc.checkIfSelected();
       },
       error: error => {
         this.createdExamInfo = "Der Test wurde nicht erfolgreich gespeichert:";
