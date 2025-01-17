@@ -2,6 +2,7 @@ package at.htl.franklyn.server.feature.telemetry.image;
 
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import io.quarkus.hibernate.reactive.panache.PanacheRepository;
+import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 

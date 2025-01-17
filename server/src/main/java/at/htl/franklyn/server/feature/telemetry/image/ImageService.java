@@ -84,6 +84,11 @@ public class ImageService {
                 .onItem()
                 .transform(Unchecked.function(v -> ImageIO.read(frame)))
                 .onItem().ifNull().failWith(new RuntimeException("Unable to read passed frame"))
+                .invoke(Unchecked.consumer(newClientFrame -> {
+                    if (newClientFrame.getHeight() % 2 != 0 || newClientFrame.getWidth() % 2 != 0) {
+                        throw new IllegalStateException("Frame width and height must be divisible by 2");
+                    }
+                }))
                 .chain(newClientFrame -> {
                     // Beta frame needs processing before it can be saved
                     // Merge with last alpha frame then save
