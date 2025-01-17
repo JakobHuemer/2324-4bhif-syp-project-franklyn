@@ -24,7 +24,7 @@ jobs:
       - name: Setup ffmpeg
         uses: FedericoCarboni/setup-ffmpeg@v3
         with:
-          ffmpeg-version: '7.1.0'
+          ffmpeg-version: '7.0.2'
       - name: Start database
         working-directory: cicd/
         run: |
