@@ -4,4 +4,5 @@ export * from './entity/metrics-dashboard/metrics-dashboard-index';
 export * from './entity/patrol-mode/patrol-mode-index';
 export * from './entity/video-viewer/video-viewer-index';
 export * from './entity/dto/dto-index';
+export * from './entity/job-service/job-service-index';
 export * from './model';
