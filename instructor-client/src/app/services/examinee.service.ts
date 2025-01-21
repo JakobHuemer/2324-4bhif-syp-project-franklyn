@@ -25,8 +25,6 @@ export class ExamineeService {
   }
 
   resetExaminees(): void {
-    this.webApi.resetServer();
-
     set((model) => {
       model.patrolModeModel.examinees = [];
       model.videoViewerModel.examinees = [];

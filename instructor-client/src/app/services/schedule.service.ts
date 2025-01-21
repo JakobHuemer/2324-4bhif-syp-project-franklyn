@@ -5,6 +5,7 @@ import {ExamineeService} from "./examinee.service";
 import {distinctUntilChanged, map} from "rxjs";
 import {WebApiService} from "./web-api.service";
 import {ExamService} from "./exam.service";
+import {JobService} from "./job.service";
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +15,7 @@ export class ScheduleService {
   private examineeRepo = inject(ExamineeService);
   private examRepo = inject(ExamService);
   protected webApi = inject(WebApiService);
+  protected jobSvc = inject(JobService);
 
   constructor() {
     this.store.pipe(
@@ -32,6 +34,7 @@ export class ScheduleService {
   }
 
   //region stop intervals
+
   stopGettingServerMetrics() {
     if (!this.store.value.scheduleServiceModel.timer.serverMetricsTimerId) {
       clearInterval(this.store.value.scheduleServiceModel.timer.serverMetricsTimerId);
@@ -65,6 +68,7 @@ export class ScheduleService {
   //endregion
 
   //region start intervals
+
   startUpdateDataScheduleInterval() {
     this.stopUpdateDataScheduleInterval();
 
@@ -72,6 +76,7 @@ export class ScheduleService {
       this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = setInterval(() => {
         this.examineeRepo.updateScreenshots();
         this.examRepo.reloadAllExams();
+        this.jobSvc.updateAllJobs();
 
         if (this.store.value.patrolModeModel.curExamId) {
           // Do not check if exam ongoing since we also want to get

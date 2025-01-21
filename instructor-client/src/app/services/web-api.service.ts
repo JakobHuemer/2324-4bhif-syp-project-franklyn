@@ -2,7 +2,6 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {environment} from "../../../env/environment";
 import {lastValueFrom, Observable} from "rxjs";
-import {StoreService} from './store.service';
 import {
   set,
   ServerMetricsDto,
@@ -12,7 +11,7 @@ import {
   ExamDto,
   Exam,
   ExamState,
-  CreateExam
+  CreateExam, Job, JobDto, JobState
 } from "../model";
 
 @Injectable({
@@ -21,16 +20,6 @@ import {
 export class WebApiService {
   private httpClient = inject(HttpClient);
   private headers: HttpHeaders = new HttpHeaders().set('Accept', 'application/json');
-  private store = inject(StoreService).store;
-
-  public resetServer(): void {
-    this.httpClient.post(
-      `${environment.serverBaseUrl}/state/reset`,
-      {}
-    ).subscribe({
-      error: err => console.error(err),
-    });
-  }
 
   public async getServerMetrics(): Promise<void> {
     const serverMetricsDto = await lastValueFrom(
@@ -60,6 +49,85 @@ export class WebApiService {
       model.metricsDashboardModel.serverMetrics = serverMetrics;
     });
   }
+
+  //region Job-WebApi calls
+
+  getAllExamVideos(examId: number): void {
+    this.httpClient.post<JobDto>(
+      `${environment.serverBaseUrl}/telemetry/by-exam/${examId}/video/generate-all`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (jobDto) => this.manageJob(jobDto, true),
+        "error": (err) => console.error(err),
+      });
+  }
+
+  getExamExamineeVideo(examId: number, examineeId: number, shouldDownload: boolean): void {
+    this.httpClient.post<JobDto>(
+      `${environment.serverBaseUrl}/telemetry/by-user/${examineeId}/${examId}/video/generate`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (jobDto) => this.manageJob(jobDto, shouldDownload),
+        "error": (err) => console.error(err),
+      });
+  }
+
+  getJobStatus(jobId: number) {
+    this.httpClient.get<JobDto>(
+      `${environment.serverBaseUrl}/telemetry/jobs/video/${jobId}`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (jobDto) => this.manageJob(jobDto, false),
+        "error": (err) => console.error(err),
+      });
+  }
+
+  private manageJob(job: JobDto, shouldDownload: boolean): void {
+    set((model) => {
+      let jobState: JobState = JobState.QUEUED;
+
+      switch (job.state) {
+        case "ONGOING":
+          jobState = JobState.ONGOING;
+          break;
+        case "FAILED":
+          jobState = JobState.FAILED;
+          break;
+        case "DONE":
+          jobState = JobState.DONE;
+          break;
+        case "DELETED":
+          jobState = JobState.DELETED;
+          break;
+      }
+
+      let index = model.jobServiceModel.jobs
+        .findIndex(j => j.id === job.id);
+
+      if (index === -1) {
+        model.jobServiceModel.jobs.push({
+          examineeId: undefined,
+          id: job.id,
+          state: jobState,
+          shouldDownload: shouldDownload,
+          logs: [{
+            state: jobState,
+            message: '', //TODO: get Job message as well
+            timestamp: new Date(Date.now()),
+          }]
+        });
+      } else {
+        model.jobServiceModel.jobs[index].state = jobState;
+        model.jobServiceModel.jobs[index].logs.push({
+          state: jobState,
+          message: '', //TODO: get Job message as well
+          timestamp: new Date(Date.now())
+        });
+      }
+    });
+  }
+
+  //endregion
 
   //region Examinee-WebApi calls
 

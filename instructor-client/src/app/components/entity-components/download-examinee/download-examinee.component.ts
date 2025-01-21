@@ -1,7 +1,5 @@
-import {Component, inject, Input} from '@angular/core';
-import {ExamineeService} from "../../../services/examinee.service";
-import {StoreService} from "../../../services/store.service";
-import {Examinee, set} from "../../../model";
+import {Component, Input} from '@angular/core';
+import {Examinee, Job, set} from "../../../model";
 import {environment} from "../../../../../env/environment";
 
 @Component({
@@ -11,14 +9,12 @@ import {environment} from "../../../../../env/environment";
     styleUrl: './download-examinee.component.css'
 })
 export class DownloadExamineeComponent {
-  protected examineeRepo = inject(ExamineeService);
-
   @Input() examinee: Examinee | undefined;
+  @Input() job!: Job | undefined;
 
   showVideoOfExaminee() {
-    this.examineeRepo.newPatrolExaminee(this.examinee, true);
-
     set((model) => {
+      model.videoViewerModel.patrol.patrolExaminee = this.examinee;
       model.patrolModeModel.cacheBuster.cachebustNum++;
     })
   }

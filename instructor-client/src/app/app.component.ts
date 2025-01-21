@@ -25,12 +25,14 @@ export class AppComponent {
   protected readonly Number = Number;
 
   public changeRoute() {
-    if (this.location.path() === "patrol-mode") {
-      this.scheduleSvc.startUpdateDataScheduleInterval();
-      this.scheduleSvc.startPatrolInterval();
-    } else {
+    if (this.location.path() === "metrics-dashboard" ||
+      this.location.path() === "create-test" ||
+      this.location.path() === "test-overview/edit-test-view"){
       this.scheduleSvc.stopUpdateDataScheduleInterval();
       this.scheduleSvc.stopPatrolInterval();
+    } else {
+      this.scheduleSvc.startUpdateDataScheduleInterval();
+      this.scheduleSvc.startPatrolInterval();
     }
 
     set((model) => {

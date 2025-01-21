@@ -78,8 +78,7 @@ const initialState: Model = {
     }
   },
   jobServiceModel: {
-    getAllVideosJob: undefined,
-    job: []
+    jobs: []
   },
   resetText: ""
 };

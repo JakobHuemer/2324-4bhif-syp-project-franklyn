@@ -1,4 +1,4 @@
-@if (showVideo() && examinee) {
+@if (showVideo() && examinee && (job | async)) {
   <div class="container-fluid">
     <h3>{{examinee.firstname}} {{examinee.lastname}}</h3>
     <video id="videoTag"
@@ -12,10 +12,3 @@
   </div>
 }
 
-<div class="d-flex fixed-bottom flex-row-reverse p-4 w-100"
-     routerLinkActive="active">
-  <a routerLink=".."
-     class="btn btn-primary button-width">
-    Back
-  </a>
-</div>

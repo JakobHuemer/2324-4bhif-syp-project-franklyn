@@ -1,15 +1,35 @@
 <div class="px-4">
-  <a
-    href="{{getDownloadUrl()}}"
-    download="videos.zip"
-    class="text-light text-decoration-none btn btn-primary w-100 mb-2"
-    role="button">
-    Download All
-  </a>
+  @if ((allExamineeDownloadJob | async) !== undefined) {
+    @if((allExamineeDownloadJob | async)!.state === JobState.DONE) {
+      <a
+        href="{{getDownloadUrl((allExamineeDownloadJob | async)!.id)}}"
+        download="videos.zip"
+        class="text-light text-decoration-none btn btn-success w-100 mb-2"
+        role="button"
+        (click)="setShouldDownload()">
+        Download All
+      </a>
+    } @else {
+      <button
+        class="text-decoration-none btn btn-info w-100 mb-2">
+        In Progress
+      </button>
+    }
+  } @else {
+    <button
+      (click)="startDownloadAllJob()"
+      class="text-light text-decoration-none btn btn-primary w-100 mb-2">
+      Start Download All Job
+    </button>
+  }
 
-  @for (examinee of examinees | async; track examinee.firstname+examinee.lastname) {
+  @for (ejob of examineeJobs | async;
+    track ejob.examinee.firstname + ejob.examinee.lastname) {
     <div class="pb-3 w-100">
-      <app-download-examinee [examinee]="examinee"></app-download-examinee>
+      <app-download-examinee
+        [examinee]="ejob.examinee"
+        [job]="ejob.job">
+      </app-download-examinee>
     </div>
   }
 </div>
