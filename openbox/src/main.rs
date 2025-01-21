@@ -15,7 +15,7 @@ fn main() -> iced::Result {
 }
 
 enum Franklyn {
-    Login(String, String, String),
+    Login(String, String),
     Connected(Data),
 }
 
@@ -23,7 +23,6 @@ enum Franklyn {
 enum Message {
     Ev(Event),
 
-    CodeChanged(String),
     LastnameChanged(String),
     FirstnameChanged(String),
 
@@ -38,7 +37,7 @@ impl Application for Franklyn {
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
-            Self::Login(String::new(), String::new(), String::new()),
+            Self::Login(String::new(), String::new()),
             Command::none()
         )
     }
@@ -49,9 +48,8 @@ impl Application for Franklyn {
 
     fn update(&mut self, msg: Message) -> Command<Message> {
         match self {
-            Franklyn::Login(c, f, l) => {
+            Franklyn::Login(f, l) => {
                 match msg {
-                    Message::CodeChanged(cc) => *c = cc,
                     Message::LastnameChanged(lc) => *l = lc,
                     Message::FirstnameChanged(fc) => *f = fc,
                     Message::Login(data) => *self = Franklyn::Connected(data),
@@ -79,17 +77,13 @@ impl Application for Franklyn {
 
     fn subscription(&self) -> Subscription<Message> {
         match self {
-            Franklyn::Login(_, _, _) => Subscription::none(),
+            Franklyn::Login(_, _) => Subscription::none(),
             Franklyn::Connected(data)=> openbox::connect(data.clone()).map(Message::Ev),
         }
     }
 
     fn view(&self) -> Element<Message> {
-        let font = Font { 
-            family: Family::Monospace,
-            weight: Weight::Semibold,
-            ..Font::DEFAULT
-        };
+        let font = Font { ..Font::DEFAULT };
 
         let logo = row![
             container(text("FRAN")
@@ -101,12 +95,7 @@ impl Application for Franklyn {
         ];
 
         let content = match self {
-            Franklyn::Login(code, firstname, lastname) => {
-                let code_input = text_input("Code", &code)
-                    .on_input(Message::CodeChanged)
-                    .width(300)
-                    .padding(10);
-
+            Franklyn::Login(firstname, lastname) => {
                 let firstname_input = text_input("Firstname", &firstname)
                     .on_input(Message::FirstnameChanged)
                     .width(300)
@@ -124,9 +113,8 @@ impl Application for Franklyn {
                 )
                 .padding([0, 20]);
 
-                if let Some((code, firstname, lastname)) = openbox::get_credentials(&code, &firstname, &lastname) {
+                if let Some((firstname, lastname)) = openbox::get_credentials(&firstname, &lastname) {
                     let data = openbox::Data {
-                        code,
                         firstname,
                         lastname,
                         image: None,
@@ -134,13 +122,12 @@ impl Application for Franklyn {
                     button = button.on_press(Message::Login(data));
                 }
 
-                column![code_input, firstname_input, lastname_input, button]
+                column![firstname_input, lastname_input, button]
                     .spacing(10)
                     .align_items(Alignment::Center)
             }
             Franklyn::Connected(data) => {
                 column![
-                    text(format!("code: {}", &data.code)).size(30),
                     row![
                         text(&data.firstname).size(50), 
                         text(&data.lastname).size(50)

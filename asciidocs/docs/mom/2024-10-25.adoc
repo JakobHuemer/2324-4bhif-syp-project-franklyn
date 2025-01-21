@@ -63,6 +63,19 @@ endif::backend-html5[]
 *** Aichinger + Schludermann
 
 
+** Plakat
+*** Personen wichtiger als Technologien
+*** EDV Saal mit Leuten als Bild
+*** Einleitungssprich ist falsch
+**** Zitat Stütz: "Franklyn nimmt die Bildschirme auf, dafür kann man bei Tests das Internet verwenden"
+*** Informatik 2024/25 entfernen
+*** Titel wirkt wie eine Kopfzeile
+*** Logo kleiner
+*** Nachnamen kleiner
+
+*** Schulspezifisch filterung
+**** Namen vervollständigen
+
 * *Sprint bis:*
 **
 
