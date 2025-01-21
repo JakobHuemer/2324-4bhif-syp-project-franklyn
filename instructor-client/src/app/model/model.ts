@@ -5,10 +5,12 @@ import {ExamineeData} from "./entity/ExamineeData";
 import {Patrol} from "./entity/Patrol";
 import {ServerMetrics} from "./entity/ServerMetrics";
 import {Timer} from "./entity/Timer";
+import {ExamData} from "./entity/ExamData";
 
 export interface Model {
   readonly cacheBuster: CacheBuster,
   readonly examineeData: ExamineeData,
+  readonly examData: ExamData,
   readonly patrol: Patrol,
   readonly serverMetrics: ServerMetrics,
   readonly timer: Timer,
@@ -21,6 +23,10 @@ const initialState: Model = {
   },
   examineeData: {
     examinees: []
+  },
+  examData: {
+    exams: [],
+    curExam: undefined
   },
   patrol: {
     isPatrolModeOn: false,

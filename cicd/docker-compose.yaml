@@ -1,6 +1,8 @@
 services:
   franklyn-server:
     container_name: franklyn-server
+    depends_on:
+      - franklyn-db
     image: ghcr.io/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/franklyn-server:latest
     restart: unless-stopped
     ports:
@@ -18,6 +20,25 @@ services:
       - franklyn-server
     ports:
       - 8088:80
+    networks:
+      - franklyn-net
+
+  franklyn-db:
+    container_name: franklyn-db
+    image: postgres:17.2-alpine3.21
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_MULTIPLE_DATABASES: db,quartz
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - 5432:5432
+    volumes:
+      - /var/lib/franklyn/db:/var/lib/postgresql/data
+      - /var/lib/franklyn/db-import:/import
+      - ./pg-init-scripts:/docker-entrypoint-initdb.d
     networks:
       - franklyn-net
 networks:

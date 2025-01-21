@@ -1,9 +1,131 @@
-### GET all examinees
-GET http://localhost:8080/examinees
+@baseUrl = http://localhost:8080
 
-### Reset state (delte screenshot folder, clear examinees)
-POST http://localhost:8080/state/reset
+### Create new Exam
+POST {{baseUrl}}/exams
+Content-Type: application/json
 
-### Get System metrics
-GET http://localhost:8080/state/system-metrics
-Content-Type: */*
+{
+  "title": "WMC Test02",
+  "start": "2030-03-18T12:20:00",
+  "end": "2030-03-18T16:30:00",
+  "screencapture_interval_seconds": 5
+}
+
+> {%
+client.global.set("pin", response.body.pin)
+client.global.set("id", response.body.id)
+console.log(client.global.get("pin"));
+console.log(client.global.get("id"));
+%}
+
+### Get Exam by id
+GET {{baseUrl}}/exams/{{id}}
+Accept: application/json
+
+### Get all exams
+GET {{baseUrl}}/exams
+Accept: application/json
+
+### Delete exam by id
+DELETE {{baseUrl}}/exams/{{id}}
+Accept: application/json
+
+### Get examinees of exam
+GET {{baseUrl}}/exams/{{id}}/examinees
+Accept: application/json
+
+> {%
+client.global.set("userId", response.body[0].id)
+console.log(client.global.get("userId"))
+ %}
+
+### Join Exam
+POST {{baseUrl}}/exams/join/{{pin}}
+Content-Type: application/json
+
+{
+  "firstname": "Franz",
+  "lastname": "Höller"
+}
+
+> {%
+    client.global.set("session", response.headers.valueOf("Location").split("/").reverse()[0])
+    console.log(client.global.get("session"));
+%}
+
+### Start exam
+POST {{baseUrl}}/exams/{{id}}/start
+Content-Type: application/json
+
+### Complete exam
+POST {{baseUrl}}/exams/{{id}}/complete
+Content-Type: application/json
+
+### Upload alpha
+POST {{baseUrl}}/telemetry/by-session/{{session}}/screen/upload/alpha
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="image"; filename="alpha-frame.png"
+
+< ../src/test/resources/alpha-frame.png
+--WebAppBoundary--
+
+### Upload beta
+POST {{baseUrl}}/telemetry/by-session/{{session}}/screen/upload/beta
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="image"; filename="beta-frame.png"
+
+< ../src/test/resources/beta-frame.png
+--WebAppBoundary--
+
+### Download latest frame
+GET {{baseUrl}}/telemetry/by-user/{{userId}}/{{id}}/screen/download
+
+### Delete exam telemetry
+DELETE {{baseUrl}}/exams/{{id}}/telemetry
+Content-Type: application/json
+
+### Delete exam
+DELETE {{baseUrl}}/exams/{{id}}
+Content-Type: application/json
+
+### Get Jobstatus (Not found)
+GET {{baseUrl}}/telemetry/jobs/video/2
+Content-Type: application/json
+
+### Get Jobstatus (Bad request)
+GET {{baseUrl}}/telemetry/jobs/video/null
+Content-Type: application/json
+
+### Create video
+POST {{baseUrl}}/telemetry/by-user/{{userId}}/{{id}}/video/generate
+Content-Type: application/json
+
+> {%
+client.global.set("jobId", response.body.id);
+console.log(client.global.get("jobId"));
+%}
+
+### Start batch creation job
+POST {{baseUrl}}/telemetry/by-exam/{{id}}/video/generate-all
+Content-Type: application/json
+
+> {%
+    client.global.set("jobId", response.body.id);
+    console.log(client.global.get("jobId"));
+%}
+
+### Get Jobstatus
+GET {{baseUrl}}/telemetry/jobs/video/{{jobId}}
+Content-Type: application/json
+
+### Download job artifact
+GET {{baseUrl}}/telemetry/jobs/video/{{jobId}}/download
+Content-Type: application/json
+
+### Get server Metrics
+GET {{baseUrl}}/metrics
+Content-Type: application/json
