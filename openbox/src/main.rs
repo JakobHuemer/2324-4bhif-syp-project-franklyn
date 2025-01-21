@@ -9,6 +9,7 @@ use iced::{
 use openbox::ws::Event;
 
 const _PROD_URL: &str = "franklyn3.htl-leonding.ac.at:8080";
+const _STAGING_URL: &str = "franklyn.ddns.net:8080";
 const _DEV_URL: &str = "localhost:8080";
 
 const IS_VALID_RANGE: std::ops::RangeInclusive<usize> = 2..=50usize;
