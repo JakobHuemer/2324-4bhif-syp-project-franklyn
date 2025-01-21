@@ -3,6 +3,7 @@ import {JobState} from "./job-state";
 export interface Job {
   id: number,
   state: JobState,
-  examId: number | undefined,
+  examId: number,
   examineeId: number | undefined,
+  shouldDownload: boolean,
 }

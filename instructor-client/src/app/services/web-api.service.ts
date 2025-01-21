@@ -57,17 +57,31 @@ export class WebApiService {
       `${environment.serverBaseUrl}/telemetry/by-exam/${examId}/video/generate-all`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(jobDto, examId, undefined),
+        "next": (jobDto) => this.manageJob(
+          jobDto,
+          examId,
+          undefined,
+          true
+        ),
         "error": (err) => console.error(err),
       });
   }
 
-  getExamExamineeVideo(examId: number, examineeId: number): void {
+  getExamExamineeVideo(
+    examId: number,
+    examineeId: number,
+    shouldDownload: boolean
+  ): void {
     this.httpClient.post<JobDto>(
       `${environment.serverBaseUrl}/telemetry/by-user/${examineeId}/${examId}/video/generate`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(jobDto, examId, examineeId),
+        "next": (jobDto) => this.manageJob(
+          jobDto,
+          examId,
+          examineeId,
+          shouldDownload
+        ),
         "error": (err) => console.error(err),
       });
   }
@@ -85,7 +99,8 @@ export class WebApiService {
   private manageJob(
     job: JobDto,
     examId: number | undefined,
-    examineeId: number | undefined
+    examineeId: number | undefined,
+    shouldDownload: boolean = false
   ): void {
     set((model) => {
       let jobState: JobState = JobState.QUEUED;
@@ -109,11 +124,29 @@ export class WebApiService {
         .findIndex(j => j.id === job.id);
 
       if (index === -1) {
+        let myExamId: number;
+
+        if (examId === undefined) {
+          let foundExamId = model.jobServiceModel.jobs
+            .find(j => j.id === job.id)?.examId;
+
+          if (foundExamId === undefined) {
+            // SHOULD NOT HAPPEN
+            console.error('examId is undefined');
+            examId = -1;
+          } else {
+            myExamId = foundExamId;
+          }
+        } else {
+          myExamId = examId;
+        }
+
         model.jobServiceModel.jobs.push({
           id: job.id,
           state: jobState,
-          examId: examId,
+          examId: myExamId!,
           examineeId: examineeId,
+          shouldDownload: shouldDownload,
         });
         model.jobServiceModel.jobLogs.push({
           jobId: job.id,

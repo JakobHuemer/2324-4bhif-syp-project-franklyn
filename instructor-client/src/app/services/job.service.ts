@@ -21,7 +21,8 @@ export class JobService {
   ): void {
     this.webApi.getExamExamineeVideo(
       exam.id,
-      examinee.id
+      examinee.id,
+      shouldDownload
     );
   }
 
