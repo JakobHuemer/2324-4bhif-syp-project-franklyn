@@ -1,10 +1,8 @@
-import {Component, inject, model} from '@angular/core';
-import {environment} from "../../../../../env/environment";
+import {Component, inject} from '@angular/core';
 import {StoreService} from "../../../services/store.service";
-import {distinctUntilChanged, map, Observable} from "rxjs";
+import {distinctUntilChanged, map} from "rxjs";
 import {AsyncPipe} from "@angular/common";
 import {DownloadExamineeComponent} from "../../entity-components/download-examinee/download-examinee.component";
-import {Examinee, Job, JobState, set} from "../../../model";
 import {JobService} from "../../../services/job.service";
 
 @Component({
@@ -17,67 +15,33 @@ import {JobService} from "../../../services/job.service";
   styleUrl: './examinee-download-list.component.css'
 })
 export class ExamineeDownloadListComponent {
-  protected store = inject(StoreService).store;
   protected jobSvc = inject(JobService);
-  protected examineeJobs: Observable<{
-    examinee: Examinee,
-    job: Job | undefined,
-  }[]> = this.store
+  protected store = inject(StoreService).store;
+  protected examinees = this.store
     .pipe(
-      map(model => model.videoViewerModel.examinees
-        .map(e => ({
-          examinee: e,
-          job: this.getJobForExaminee(e.id)
-        }))),
-      distinctUntilChanged()
-    );
-  protected allExamineeDownloadJob = this.store
-    .pipe(
-      map(model => model.jobServiceModel.jobs
-        .filter(j =>
-          j.examineeId === undefined &&
-          j.shouldDownload
-        ).at(0)),
+      map(model => model.videoViewerModel.examinees),
       distinctUntilChanged()
     );
 
-  setShouldDownload() {
-    this.allExamineeDownloadJob.subscribe({
-      "next": (job) => {
-        if (job !== undefined) {
-          set(model => {
-            const index = model.jobServiceModel.jobs
-              .findIndex(j => j.id === job.id);
+  protected curExam = inject(StoreService)
+    .store
+    .pipe(
+      map(model =>
+        model.examDashboardModel.exams
+          .filter(exam =>
+            exam.id === model.videoViewerModel.curExamId)
+          .at(0)),
+      distinctUntilChanged()
+    );
 
-            model.jobServiceModel.jobs[index].shouldDownload = false;
-          });
-        }
-      },
-      "error": (error) => console.error(error),
-    });
-  }
-
-  getDownloadUrl(jobId: number): string {
-    return `${environment.serverBaseUrl}/telemetry/jobs/video/${jobId}/download.zip`;
-  }
-
-  getJobForExaminee(examineeId: number): Job | undefined {
-    return this.store.value.jobServiceModel.jobs
-      .find(j =>
-        j.state === JobState.DONE &&
-        j.shouldDownload &&
-        j.examineeId === examineeId
-      );
-  }
-
-  startDownloadAllJob() {
+  protected startDownloadAllJob() {
     let exam = this.store.value.examDashboardModel.exams
-      .find(e => e.id === this.store.value.videoViewerModel.curExamId);
+      .find(e =>
+        e.id === this.store.value.videoViewerModel.curExamId
+      );
 
     if (exam !== undefined) {
       this.jobSvc.getAllExamVideos(exam);
     }
   }
-
-  protected readonly JobState = JobState;
 }
