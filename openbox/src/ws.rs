@@ -39,6 +39,7 @@ pub enum State {
 pub enum Event {
     Reconnect,
     Disconnect,
+    ServerError,
     Received(WsMessage),
 }
 
@@ -64,12 +65,18 @@ pub enum FrameType {
     Unspecified,
 }
 
+pub enum Connection {
+    Upgrade(FragmentCollector<TokioIo<Upgraded>>, String),
+    InvalidPin,
+    ServerError,
+}
+
 pub async fn connect(
     pin: &str,
     server: &str,
     firstname: &str,
     lastname: &str,
-) -> Result<(FragmentCollector<TokioIo<Upgraded>>, String)> {
+) -> Result<Connection> {
     let stream = TcpStream::connect(&server).await?;
 
     let res = reqwest::Client::new()
@@ -81,8 +88,14 @@ pub async fn connect(
         .send()
         .await?;
 
-    let location = res.headers().get("location").unwrap().to_str().unwrap();
-    let session_id = location.split('/').last().unwrap().to_string();
+    let Some(location) = res.headers().get("location") else {
+        return Ok(Connection::InvalidPin);
+    };
+    let location = location.to_str()?;
+
+    let Some(session_id) = location.split('/').last() else {
+        return Ok(Connection::ServerError);
+    };
 
     let req = Request::builder()
         .method("GET")
@@ -95,7 +108,7 @@ pub async fn connect(
         .body(Empty::<Bytes>::new())?;
 
     let (ws, _) = handshake::client(&SpawnExecutor, req, stream).await?;
-    Ok((FragmentCollector::new(ws), session_id))
+    Ok(Connection::Upgrade(FragmentCollector::new(ws), session_id.to_string()))
 }
 
 pub fn subscribe(
@@ -113,20 +126,27 @@ pub fn subscribe(
 
         loop {
             match &mut state {
-                State::Disconnected => match connect(&pin, &server, &firstname, &lastname).await {
-                    Ok((ws, session)) => {
-                        sender.send(WsMessage::SetId(session)).await.unwrap();
-                        state = State::Connected(ws);
-                    }
-                    Err(e) => {
-                        eprintln!("Disconnected with error: {e:?}");
+                State::Disconnected => {
+                    let Ok(connection) = connect(&pin, &server, &firstname, &lastname).await else {
+                        eprintln!("Error: could not connect to {server}");
                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                        continue;
+                    };
+
+                    match connection {
+                        Connection::Upgrade(ws, session) => {
+                            sender.send(WsMessage::SetId(session)).await.unwrap();
+                            state = State::Connected(ws);
+                        }
+                        Connection::InvalidPin | Connection::ServerError => {
+                            output.send(Event::ServerError).await.unwrap();
+                        }
                     }
-                },
+                }
                 State::Connected(ws) => match handle_message(ws).await {
                     Event::Received(ws_msg) => sender.send(ws_msg).await.unwrap(),
                     Event::Reconnect => state = State::Disconnected,
-                    Event::Disconnect => _ = output.send(Event::Disconnect).await,
+                    event => _ = output.send(event).await,
                 },
             }
         }
