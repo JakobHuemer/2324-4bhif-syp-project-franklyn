@@ -78,7 +78,8 @@ const initialState: Model = {
     }
   },
   jobServiceModel: {
-    jobs: []
+    jobs: [],
+    jobLogs: [],
   },
   resetText: ""
 };

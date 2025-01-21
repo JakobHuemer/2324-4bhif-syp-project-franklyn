@@ -1,8 +1,7 @@
-import {inject, Injectable, model} from '@angular/core';
-import {Exam, Examinee, JobState, set, store} from "../model";
+import {inject, Injectable} from '@angular/core';
+import {Exam, Examinee, store} from "../model";
 import {WebApiService} from "./web-api.service";
 import {StoreService} from "./store.service";
-import {distinctUntilChanged, map} from "rxjs";
 
 @Injectable({
   providedIn: 'root'
@@ -22,8 +21,7 @@ export class JobService {
   ): void {
     this.webApi.getExamExamineeVideo(
       exam.id,
-      examinee.id,
-      shouldDownload
+      examinee.id
     );
   }
 

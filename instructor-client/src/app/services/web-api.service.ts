@@ -57,17 +57,17 @@ export class WebApiService {
       `${environment.serverBaseUrl}/telemetry/by-exam/${examId}/video/generate-all`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(jobDto, true),
+        "next": (jobDto) => this.manageJob(jobDto, examId, undefined),
         "error": (err) => console.error(err),
       });
   }
 
-  getExamExamineeVideo(examId: number, examineeId: number, shouldDownload: boolean): void {
+  getExamExamineeVideo(examId: number, examineeId: number): void {
     this.httpClient.post<JobDto>(
       `${environment.serverBaseUrl}/telemetry/by-user/${examineeId}/${examId}/video/generate`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(jobDto, shouldDownload),
+        "next": (jobDto) => this.manageJob(jobDto, examId, examineeId),
         "error": (err) => console.error(err),
       });
   }
@@ -77,12 +77,16 @@ export class WebApiService {
       `${environment.serverBaseUrl}/telemetry/jobs/video/${jobId}`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(jobDto, false),
+        "next": (jobDto) => this.manageJob(jobDto, undefined, undefined),
         "error": (err) => console.error(err),
       });
   }
 
-  private manageJob(job: JobDto, shouldDownload: boolean): void {
+  private manageJob(
+    job: JobDto,
+    examId: number | undefined,
+    examineeId: number | undefined
+  ): void {
     set((model) => {
       let jobState: JobState = JobState.QUEUED;
 
@@ -106,23 +110,27 @@ export class WebApiService {
 
       if (index === -1) {
         model.jobServiceModel.jobs.push({
-          examineeId: undefined,
           id: job.id,
           state: jobState,
-          shouldDownload: shouldDownload,
-          logs: [{
-            state: jobState,
-            message: '', //TODO: get Job message as well
-            timestamp: new Date(Date.now()),
-          }]
+          examId: examId,
+          examineeId: examineeId,
+        });
+        model.jobServiceModel.jobLogs.push({
+          jobId: job.id,
+          state: jobState,
+          message: 'started job with id' + job.id, //TODO: get Job message as well
+          timestamp: new Date(Date.now()),
         });
       } else {
-        model.jobServiceModel.jobs[index].state = jobState;
-        model.jobServiceModel.jobs[index].logs.push({
-          state: jobState,
-          message: '', //TODO: get Job message as well
-          timestamp: new Date(Date.now())
-        });
+        if (jobState !== model.jobServiceModel.jobs[index].state) {
+          model.jobServiceModel.jobs[index].state = jobState;
+          model.jobServiceModel.jobLogs.push({
+            jobId: model.jobServiceModel.jobs[index].id,
+            state: jobState,
+            message: `Job with id ${model.jobServiceModel.jobs[index].id} has the status: ${jobState}`, //TODO: get Job message as well
+            timestamp: new Date(Date.now())
+          });
+        }
       }
     });
   }
