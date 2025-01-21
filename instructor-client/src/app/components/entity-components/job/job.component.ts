@@ -3,6 +3,7 @@ import {Exam, Examinee, ExamState, Job, JobLog, JobState, set} from "../../../mo
 import {StoreService} from "../../../services/store.service";
 import {distinctUntilChanged, filter, map, Observable} from "rxjs";
 import {AsyncPipe, DatePipe} from "@angular/common";
+import {environment} from "../../../../../env/environment";
 
 @Component({
   selector: 'app-job',
@@ -68,8 +69,8 @@ export class JobComponent {
     }
   }
 
-  startDownloadJob() {
-    //TODO: Implement this
+  getDownloadUrl(): string {
+    return `${environment.serverBaseUrl}/telemetry/jobs/video/${this.jobLog?.jobId}/download`;
   }
 
   protected readonly JobState = JobState;
