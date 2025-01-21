@@ -7,6 +7,7 @@ import {VideoExamineeComponent} from "../../entity-components/video-examinee/vid
 import {distinctUntilChanged, map} from "rxjs";
 import {AsyncPipe} from "@angular/common";
 import {RouterLink, RouterLinkActive} from "@angular/router";
+import {JobListComponent} from "../../entity-lists/job-list/job-list.component";
 
 @Component({
     selector: 'app-video-viewer',
@@ -16,6 +17,7 @@ import {RouterLink, RouterLinkActive} from "@angular/router";
     AsyncPipe,
     RouterLink,
     RouterLinkActive,
+    JobListComponent,
   ],
     templateUrl: './video-viewer.component.html',
     styleUrl: './video-viewer.component.css'

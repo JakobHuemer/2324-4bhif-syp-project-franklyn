@@ -32,8 +32,34 @@
 
 <div class="d-flex fixed-bottom flex-row-reverse p-4 w-100"
      routerLinkActive="active">
-  <a routerLink=".."
-     class="btn btn-primary button-width">
-    Back
-  </a>
+  <div class="button-group-width btn-group">
+    <button
+      class="btn btn-info w-50"
+      type="button"
+      data-bs-toggle="offcanvas"
+      data-bs-target="#offcanvasScrolling"
+      aria-controls="offcanvasScrolling">
+      Job Logs
+    </button>
+    <a routerLink=".."
+       class="btn btn-primary w-50">
+      Back
+    </a>
+  </div>
+</div>
+
+<div
+  class="offcanvas offcanvas-start"
+  data-bs-scroll="true"
+  data-bs-backdrop="false"
+  tabindex="-1"
+  id="offcanvasScrolling"
+  aria-labelledby="offcanvasScrollingLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="offcanvasScrollingLabel">Job Logs</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <app-job-list></app-job-list>
+  </div>
 </div>
