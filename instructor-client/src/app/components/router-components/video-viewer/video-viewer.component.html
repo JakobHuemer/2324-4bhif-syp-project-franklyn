@@ -18,11 +18,7 @@
       <td class="selector-width w-auto align-top pt-2 px-3">
         @if (curExam | async) {
           <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-start w-100">
-            <!--<app-patrol-page-examinee
-              [examId]="(curExam | async)!.id"
-              [examinee]="store.value.patrolModeModel.patrol.patrolExaminee"
-              [showImage]="true"/>-->
-            <app-video-examinee [examinee]="store.value.patrolModeModel.patrol.patrolExaminee"></app-video-examinee>
+            <app-video-examinee [examId]="(curExam | async)?.id" [examinee]="store.value.patrolModeModel.patrol.patrolExaminee"></app-video-examinee>
           </div>
         } @else {
           <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-center">
