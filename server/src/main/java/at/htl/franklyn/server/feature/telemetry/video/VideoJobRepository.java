@@ -4,6 +4,8 @@ import io.quarkus.hibernate.reactive.panache.PanacheRepository;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.util.List;
+
 @ApplicationScoped
 public class VideoJobRepository implements PanacheRepository<VideoJob> {
     public Uni<VideoJob> getNextJob() {
@@ -29,4 +31,13 @@ public class VideoJobRepository implements PanacheRepository<VideoJob> {
     public Uni<Void> failJob(long jobId) {
         return update("state = ?1 where id = ?2", VideoJobState.FAILED, jobId).replaceWithVoid();
     }
+
+    public Uni<List<VideoJob>> getVideoJobsOfExam(long examId) {
+        return find("""
+                select vj from VideoJob vj where vj.exam.id = ?1
+                """, examId)
+                .list();
+    }
+
+
 }

@@ -8,6 +8,8 @@ import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateReposi
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobRepository;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -34,6 +36,12 @@ public class ExamService {
 
     @Inject
     ImageService imageService;
+
+    @Inject
+    VideoJobService videoJobService;
+
+    @Inject
+    VideoJobRepository videoJobRepository;
 
     @Inject
     ExamineeCommandSocket commandSocket;
@@ -135,9 +143,20 @@ public class ExamService {
      * @return Uni<Void> or Exception on failure to delete
      */
     public Uni<Void> deleteTelemetry(Exam e) {
-        return participationRepository
-                .getParticipationsOfExam(e)
-                .onItem().transformToUni(p -> {
+        return videoJobRepository.getVideoJobsOfExam(e.getId())
+                .onItem().transformToUni(vjs -> {
+                    List<Uni<Void>> results = new ArrayList<>();
+                    for (var videoJob : vjs) {
+                        results.add(videoJobService.deleteVideoJob(videoJob.getId()));
+                    }
+
+                    // Uni.join().all(...) can only be called with non-empty lists
+                    return !results.isEmpty()
+                            ? Uni.join().all(results).andCollectFailures()
+                            : Uni.createFrom().voidItem();
+                })
+                .chain(ignored -> participationRepository.getParticipationsOfExam(e))
+                .chain(p -> {
                     List<Uni<Void>> results = new ArrayList<>();
                     for (var participation : p) {
                         results.add(

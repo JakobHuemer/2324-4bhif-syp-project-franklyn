@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'server/**'
+      - '.github/workflows/test.yaml'
   workflow_dispatch:
 
 jobs:
@@ -20,6 +21,10 @@ jobs:
           java-version: '21'
           cache: 'maven'
           cache-dependency-path: 'server/pom.xml'
+      - name: Setup ffmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: '7.0.2'
       - name: Start database
         working-directory: cicd/
         run: |

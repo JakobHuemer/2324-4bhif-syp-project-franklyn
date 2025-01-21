@@ -67,6 +67,7 @@ impl<'a> Openbox<'a> {
             }
             Message::FocusNext => return focus_next(),
             Message::Ev(Event::Disconnect) => return iced::exit(),
+            Message::Ev(Event::ServerError) => self.should_connect = false,
             _ => (),
         }
 

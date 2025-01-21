@@ -4,6 +4,8 @@ import at.htl.franklyn.server.feature.exam.ExamDto;
 import at.htl.franklyn.server.feature.exam.ExamInfoDto;
 import at.htl.franklyn.server.feature.exam.ExamState;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobDto;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobState;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
@@ -14,7 +16,11 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -31,6 +37,7 @@ public class ExamLifecycleTest {
 
     private static ExamInfoDto createdExam;
     private static String userSession;
+    private static long joinedExamineeId;
 
     @Test
     @Order(0)
@@ -271,6 +278,8 @@ public class ExamLifecycleTest {
         assertThat(actualExaminee)
                 .usingRecursiveComparison()
                 .isEqualTo(expectedExaminee);
+
+        joinedExamineeId = actualExaminee.id();
     }
 
     @Test
@@ -328,6 +337,23 @@ public class ExamLifecycleTest {
     }
 
     @Test
+    @Order(601)
+    void test_downloadLatestFrameTooEarly_ok() {
+        // Arrange
+
+        // Act
+        Response response = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .get(String.format("/by-user/%s/%s/screen/download", createdExam.id(), joinedExamineeId));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.NOT_FOUND);
+    }
+
+    @Test
     @Order(700)
     void test_simpleUploadAlpha_ok() {
         // Arrange
@@ -348,6 +374,55 @@ public class ExamLifecycleTest {
     }
 
     @Test
+    @Order(701)
+    void test_uploadBadlySizedAlpha_ok() {
+        // Arrange
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(Objects.requireNonNull(classLoader.getResource("/alpha-frame-1x1.png")).getFile());
+
+        // Act
+        Response response = given()
+                .contentType(ContentType.MULTIPART)
+                .basePath("/telemetry")
+                .multiPart("image", file)
+                .when()
+                .post(String.format("/by-session/%s/screen/upload/alpha", userSession));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(701)
+    void test_downloadLatestFrame_ok() throws IOException {
+        // Arrange
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(Objects.requireNonNull(classLoader.getResource("alpha-frame.png")).getFile());
+
+        // reading and writing using imageio seems to alter the png a bit
+        // which is suboptimal for comparison
+        // this hack replicates the actions done on the franklyn server to get byte perfect results
+        BufferedImage img = ImageIO.read(file);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", baos);
+        byte[] imageBytes = baos.toByteArray();
+
+        // Act
+        Response response = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .get(String.format("/by-user/%s/%s/screen/download", createdExam.id(), joinedExamineeId));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+        assertThat(response.body().asByteArray())
+                .isEqualTo(imageBytes);
+    }
+
+    @Test
     @Order(800)
     void test_simpleUploadBeta_ok() {
         // Arrange
@@ -365,6 +440,26 @@ public class ExamLifecycleTest {
         // Assert
         assertThat(response.statusCode())
                 .isEqualTo(RestResponse.StatusCode.OK);
+    }
+
+    @Test
+    @Order(801)
+    void testuploadBadlySizedBeta_ok() {
+        // Arrange
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(Objects.requireNonNull(classLoader.getResource("beta-frame-1x1.png")).getFile());
+
+        // Act
+        Response response = given()
+                .contentType(ContentType.MULTIPART)
+                .basePath("/telemetry")
+                .multiPart("image", file)
+                .when()
+                .post(String.format("/by-session/%s/screen/upload/beta", userSession));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
     }
 
     @Test
@@ -452,6 +547,69 @@ public class ExamLifecycleTest {
 
     @Test
     @Order(1200)
+    void test_downloadSingleVideo_ok() throws InterruptedException {
+        // Arrange
+
+        // Act: Start video job
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-user/%d/%d/video/generate", joinedExamineeId, createdExam.id()));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.ACCEPTED);
+        VideoJobDto jobDto = createResponse.then()
+                .log().body()
+                .extract().as(VideoJobDto.class);
+        assertThat(jobDto)
+                .isNotNull();
+
+        // Act: Poll for job progress
+        do {
+            Response pollResponse = given()
+                    .contentType(ContentType.JSON)
+                    .basePath("/telemetry")
+                    .when()
+                    .get(String.format("/jobs/video/%d", jobDto.id()));
+            assertThat(pollResponse.statusCode())
+                    .isEqualTo(RestResponse.StatusCode.OK);
+            jobDto = pollResponse.then()
+                    .log().body()
+                    .extract().as(VideoJobDto.class);
+
+            // Delay before requesting again
+            Thread.sleep(500);
+        } while(jobDto.state() == VideoJobState.QUEUED || jobDto.state() == VideoJobState.ONGOING);
+
+        // Assert
+        assertThat(jobDto.state())
+                .isEqualTo(VideoJobState.DONE);
+
+
+        // Act: Download video job artifact
+        Response downloadResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .get(String.format("/jobs/video/%d/download", jobDto.id()));
+
+        // Assert
+        assertThat(downloadResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+
+        byte[] video = downloadResponse.asByteArray();
+
+        assertThat(video)
+                .isNotNull();
+        assertThat(video)
+                .isNotEmpty();
+
+    }
+
+    @Test
+    @Order(1300)
     void test_simpleDeleteTelemetryOfExam_ok() {
         // Arrange
 
@@ -467,7 +625,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(1300)
+    @Order(1400)
     void test_simpleDeleteExam_ok() {
         // Arrange
 
