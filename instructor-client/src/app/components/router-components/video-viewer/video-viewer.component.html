@@ -16,9 +16,12 @@
         }
       </td>
       <td class="selector-width w-auto align-top pt-2 px-3">
-        @if (curExam | async) {
+        @if ((curExam | async) && store.value.videoViewerModel.examinee) {
           <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-start w-100">
-            <app-video-examinee [examId]="(curExam | async)?.id" [examinee]="store.value.patrolModeModel.patrol.patrolExaminee"></app-video-examinee>
+            <app-video-examinee
+              [examId]="(curExam | async)?.id"
+              [examinee]="store.value.videoViewerModel.examinee">
+            </app-video-examinee>
           </div>
         } @else {
           <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-center">

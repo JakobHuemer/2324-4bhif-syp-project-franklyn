@@ -146,7 +146,7 @@ export class WebApiService {
         model.jobServiceModel.jobLogs.push({
           jobId: job.id,
           state: jobState,
-          message: 'started job with id' + job.id + "ksanfdjjjjjjjhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", //TODO: get Job message as well
+          message: 'started job with id' + job.id,
           timestamp: new Date(Date.now()),
         });
       } else {
@@ -155,7 +155,7 @@ export class WebApiService {
           model.jobServiceModel.jobLogs.push({
             jobId: model.jobServiceModel.jobs[index].id,
             state: jobState,
-            message: `Job with id ${model.jobServiceModel.jobs[index].id} has the status: ${this.jobStateToString(jobState)}`, //TODO: get Job message as well
+            message: `Job with id ${model.jobServiceModel.jobs[index].id} has the status: ${this.jobStateToString(jobState)}`,
             timestamp: new Date(Date.now())
           });
         }

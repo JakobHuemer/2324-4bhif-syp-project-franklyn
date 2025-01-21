@@ -72,10 +72,7 @@ const initialState: Model = {
     curExamId: undefined,
     examinees: [],
     examinee: undefined,
-    patrol: {
-      isPatrolModeOn: false,
-      patrolExaminee: undefined
-    }
+    jobId: undefined
   },
   jobServiceModel: {
     jobs: [],

@@ -1,5 +1,5 @@
 import {Component, inject, Input} from '@angular/core';
-import {Exam, Examinee, ExamState, Job, JobLog, JobState} from "../../../model";
+import {Exam, Examinee, ExamState, Job, JobLog, JobState, set} from "../../../model";
 import {StoreService} from "../../../services/store.service";
 import {distinctUntilChanged, filter, map, Observable} from "rxjs";
 import {AsyncPipe, DatePipe} from "@angular/common";
@@ -16,6 +16,7 @@ import {AsyncPipe, DatePipe} from "@angular/common";
 export class JobComponent {
   @Input() jobLog: JobLog | undefined;
 
+  protected store = inject(StoreService).store;
   protected job: Observable<{
     job: Job,
     exam: Exam | undefined,
@@ -50,7 +51,21 @@ export class JobComponent {
     );
 
   showVideoOfExaminee() {
-    //TODO: Implement this
+    let job = this.store.value.jobServiceModel.jobs
+      .find(j => j.id === this.jobLog?.jobId);
+
+    if (job !== undefined) {
+      let examinee = this.store.value
+        .videoViewerModel
+        .examinees
+        .find(e => e.id === job.examineeId);
+
+      set((model) => {
+        model.videoViewerModel.examinee = examinee;
+        model.videoViewerModel.jobId = job?.id;
+        model.patrolModeModel.cacheBuster.cachebustNum++;
+      })
+    }
   }
 
   startDownloadJob() {

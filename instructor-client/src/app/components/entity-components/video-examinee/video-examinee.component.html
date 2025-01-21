@@ -1,4 +1,4 @@
-@if (showVideo() && examinee) {
+@if (showVideo() && examinee && store.value.videoViewerModel.jobId) {
   <div class="container-fluid">
     <h3>{{examinee.firstname}} {{examinee.lastname}}</h3>
     <video id="videoTag"
