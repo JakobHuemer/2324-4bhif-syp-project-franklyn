@@ -20,7 +20,9 @@ import jakarta.ws.rs.core.UriInfo;
 import org.jboss.resteasy.reactive.PartType;
 import org.jboss.resteasy.reactive.RestForm;
 
+import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.UUID;
 
 @Path("/telemetry")
@@ -170,9 +172,17 @@ public class TelemetryResource {
                     if (job.getState() != VideoJobState.DONE) {
                         throw new WebApplicationException("Job is not done", Response.Status.BAD_REQUEST);
                     }
-                    return vertx.fileSystem().open(job.getArtifactPath(), new OpenOptions());
-                }))
-                .onItem().transform(file -> Response.ok(file).build());
+                    return vertx.fileSystem().open(job.getArtifactPath(), new OpenOptions())
+                            .onItem().transform(file -> Response
+                                    .ok(file)
+                                    .header(
+                                            "Content-Disposition",
+                                            "attachment; filename=\""
+                                                    + Paths.get(job.getArtifactPath()).getFileName()
+                                                    + "\""
+                                    )
+                                    .build());
+                }));
     }
 
     @POST
