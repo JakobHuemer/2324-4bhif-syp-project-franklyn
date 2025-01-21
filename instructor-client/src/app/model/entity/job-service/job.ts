@@ -5,5 +5,4 @@ export interface Job {
   state: JobState,
   examId: number,
   examineeId: number | undefined,
-  shouldDownload: boolean,
 }

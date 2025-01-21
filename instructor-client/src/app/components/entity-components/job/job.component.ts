@@ -1,5 +1,5 @@
 import {Component, inject, Input} from '@angular/core';
-import {Exam, Examinee, ExamState, Job, JobLog} from "../../../model";
+import {Exam, Examinee, ExamState, Job, JobLog, JobState} from "../../../model";
 import {StoreService} from "../../../services/store.service";
 import {distinctUntilChanged, filter, map, Observable} from "rxjs";
 import {AsyncPipe, DatePipe} from "@angular/common";
@@ -56,4 +56,6 @@ export class JobComponent {
   startDownloadJob() {
     //TODO: Implement this
   }
+
+  protected readonly JobState = JobState;
 }

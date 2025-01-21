@@ -60,8 +60,7 @@ export class WebApiService {
         "next": (jobDto) => this.manageJob(
           jobDto,
           examId,
-          undefined,
-          true
+          undefined
         ),
         "error": (err) => console.error(err),
       });
@@ -69,8 +68,7 @@ export class WebApiService {
 
   getExamExamineeVideo(
     examId: number,
-    examineeId: number,
-    shouldDownload: boolean
+    examineeId: number
   ): void {
     this.httpClient.post<JobDto>(
       `${environment.serverBaseUrl}/telemetry/by-user/${examineeId}/${examId}/video/generate`,
@@ -79,8 +77,7 @@ export class WebApiService {
         "next": (jobDto) => this.manageJob(
           jobDto,
           examId,
-          examineeId,
-          shouldDownload
+          examineeId
         ),
         "error": (err) => console.error(err),
       });
@@ -99,8 +96,7 @@ export class WebApiService {
   private manageJob(
     job: JobDto,
     examId: number | undefined,
-    examineeId: number | undefined,
-    shouldDownload: boolean = false
+    examineeId: number | undefined
   ): void {
     set((model) => {
       let jobState: JobState = JobState.QUEUED;
@@ -146,12 +142,11 @@ export class WebApiService {
           state: jobState,
           examId: myExamId!,
           examineeId: examineeId,
-          shouldDownload: shouldDownload,
         });
         model.jobServiceModel.jobLogs.push({
           jobId: job.id,
           state: jobState,
-          message: 'started job with id' + job.id, //TODO: get Job message as well
+          message: 'started job with id' + job.id + "ksanfdjjjjjjjhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", //TODO: get Job message as well
           timestamp: new Date(Date.now()),
         });
       } else {
@@ -160,12 +155,27 @@ export class WebApiService {
           model.jobServiceModel.jobLogs.push({
             jobId: model.jobServiceModel.jobs[index].id,
             state: jobState,
-            message: `Job with id ${model.jobServiceModel.jobs[index].id} has the status: ${jobState}`, //TODO: get Job message as well
+            message: `Job with id ${model.jobServiceModel.jobs[index].id} has the status: ${this.jobStateToString(jobState)}`, //TODO: get Job message as well
             timestamp: new Date(Date.now())
           });
         }
       }
     });
+  }
+
+  jobStateToString(state: JobState): string {
+    switch (state) {
+      case JobState.QUEUED:
+        return "Queued";
+      case JobState.ONGOING:
+        return "Ongoing";
+      case JobState.DONE:
+        return "Done";
+      case JobState.DELETED:
+        return "Deleted";
+      default:
+        return "Failed";
+    }
   }
 
   //endregion

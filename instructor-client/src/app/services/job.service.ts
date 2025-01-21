@@ -16,13 +16,11 @@ export class JobService {
 
   getExamExamineeVideos(
     exam: Exam,
-    examinee: Examinee,
-    shouldDownload: boolean
+    examinee: Examinee
   ): void {
     this.webApi.getExamExamineeVideo(
       exam.id,
-      examinee.id,
-      shouldDownload
+      examinee.id
     );
   }
 

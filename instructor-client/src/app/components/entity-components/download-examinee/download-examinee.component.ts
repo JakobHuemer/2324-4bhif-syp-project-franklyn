@@ -13,20 +13,9 @@ export class DownloadExamineeComponent {
   @Input() exam: Exam | undefined;
   @Input() examinee: Examinee | undefined;
 
-  showVideoOfExaminee() {
-    set((model) => {
-      model.videoViewerModel.patrol.patrolExaminee = this.examinee;
-      model.patrolModeModel.cacheBuster.cachebustNum++;
-    })
-
+  startJob() {
     if (this.exam !== undefined && this.examinee !== undefined) {
-      this.jobSvc.getExamExamineeVideos(this.exam, this.examinee, false);
-    }
-  }
-
-  startDownloadJob() {
-    if (this.exam !== undefined && this.examinee !== undefined) {
-      this.jobSvc.getExamExamineeVideos(this.exam, this.examinee, true);
+      this.jobSvc.getExamExamineeVideos(this.exam, this.examinee);
     }
   }
 }
