@@ -9,7 +9,8 @@ use iced::{
 use openbox::ws::Event;
 
 const _PROD_URL: &str = "franklyn3.htl-leonding.ac.at:8080";
-const _STAGING_URL: &str = "franklyn.ddns.net:8080";
+const _STAGING_URL: &str = "franklyn3a.htl-leonding.ac.at:8080";
+const _CI_URL: &str = "franklyn.ddns.net:8080";
 const _DEV_URL: &str = "localhost:8080";
 
 const IS_VALID_RANGE: std::ops::RangeInclusive<usize> = 2..=50usize;
@@ -43,8 +44,15 @@ impl<'a> Openbox<'a> {
                 pin: String::new(),
                 firstname: String::new(),
                 lastname: String::new(),
-
-                server_address: _DEV_URL,
+                server_address: if cfg!(feature = "srv_prod") {
+                    _PROD_URL
+                } else if cfg!(feature = "srv_staging") {
+                    _STAGING_URL
+                } else if cfg!(feature = "srv_ci") {
+                    _CI_URL
+                } else {
+                    _DEV_URL
+                },
                 should_connect: false,
             },
             Task::none(),

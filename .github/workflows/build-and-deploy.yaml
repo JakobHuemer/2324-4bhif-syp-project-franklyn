@@ -12,7 +12,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  openbox-determine-version:
+    runs-on: ubuntu-22.04
+    steps:
+      - id: identify
+        run: |
+          if test "${{ github.ref_name }}" = "main"; then 
+            export feat="srv_prod"; 
+          elif "${{ github.ref_name }}" = "develop"; then 
+            export feat="srv_ci";
+          else 
+            export feat="default";
+          fi
+          echo "openbox_feature=${feat}" >> $GITHUB_OUTPUT
+    outputs:
+      openbox_feature: ${{ steps.identify.outputs.openbox_feature }}
+
   openbox-linux:
+    needs: openbox-determine-version
     runs-on: ubuntu-22.04
     steps:
       - uses: hecrj/setup-rust-action@v2
@@ -27,7 +44,7 @@ jobs:
       - name: Build openbox binary
         run: |
           cd openbox
-          cargo build --profile release-opt --package openbox
+          cargo build --profile release-opt --package openbox --features "${{ needs.openbox-determine-version.outputs.openbox_feature }}"
       - name: Archive openbox binary
         uses: actions/upload-artifact@v4
         with:
@@ -35,6 +52,7 @@ jobs:
           path: openbox/target/release-opt/openbox
 
   openbox-macos:
+    needs: openbox-determine-version
     runs-on: macOS-15
     steps:
     - uses: hecrj/setup-rust-action@v2
@@ -44,7 +62,7 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET: 10.14
       run: |
         cd openbox
-        cargo build --profile release-opt --package openbox
+        cargo build --profile release-opt --package openbox --features "${{ needs.openbox-determine-version.outputs.openbox_feature }}"
     - name: Open binary via double-click
       run: chmod +x openbox/target/release-opt/openbox
     - name: Archive openbox binary
@@ -54,6 +72,7 @@ jobs:
         path: openbox/target/release-opt/openbox
 
   openbox-windows:
+    needs: openbox-determine-version
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@master
@@ -63,7 +82,7 @@ jobs:
       - name: Build openbox binary
         run: |
           cd openbox
-          cargo build --profile release-opt --package openbox --target x86_64-pc-windows-msvc
+          cargo build --profile release-opt --package openbox --target x86_64-pc-windows-msvc --features "${{ needs.openbox-determine-version.outputs.openbox_feature }}"
       - name: Archive openbox binary
         uses: actions/upload-artifact@v4
         with:
