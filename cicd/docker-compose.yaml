@@ -3,7 +3,7 @@ services:
     container_name: franklyn-server
     depends_on:
       - franklyn-db
-    image: ghcr.io/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/franklyn-server:latest
+    image: ghcr.io/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/franklyn-server:${IMAGE_TAG}
     restart: unless-stopped
     ports:
       - 8080:8080
@@ -14,7 +14,7 @@ services:
 
   franklyn-instructor-client:
     container_name: franklyn-instructor-client
-    image: ghcr.io/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/franklyn-instructor-client:latest
+    image: ghcr.io/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/franklyn-instructor-client:${IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       - franklyn-server
