@@ -93,7 +93,7 @@ jobs:
       - name: Download openbox artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: openbox-
+          pattern: openbox-*
           path: /tmp/openbox-artifacts/
 
       - name: Rename artifacts
