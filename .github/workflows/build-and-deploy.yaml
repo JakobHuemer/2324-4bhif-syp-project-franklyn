@@ -1,0 +1,136 @@
+name: Build Openbox
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+jobs:
+  openbox-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: hecrj/setup-rust-action@v2
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+      - uses: actions/checkout@master
+      - name: Install dependencies
+        run: |
+          export DEBIAN_FRONTED=noninteractive
+          sudo apt-get -qq update
+          sudo apt-get install -y libxkbcommon-dev
+      - name: Build openbox binary
+        run: |
+          cd openbox
+          cargo build --profile release-opt --package openbox
+      - name: Archive openbox binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbox-x86_64-unknown-linux-gnu
+          path: openbox/target/release-opt/openbox
+
+  openbox-macos:
+    runs-on: macOS-15
+    steps:
+    - uses: hecrj/setup-rust-action@v2
+    - uses: actions/checkout@master
+    - name: Build openbox binary
+      env:
+        MACOSX_DEPLOYMENT_TARGET: 10.14
+      run: |
+        cd openbox
+        cargo build --profile release-opt --package openbox
+    - name: Open binary via double-click
+      run: chmod +x openbox/target/release-opt/openbox
+    - name: Archive openbox binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: openbox-x86_64-apple-darwin
+        path: openbox/target/release-opt/openbox
+
+  openbox-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@master
+      - uses: hecrj/setup-rust-action@v2
+      - name: Add target for Windows
+        run: rustup target add x86_64-pc-windows-msvc
+      - name: Build openbox binary
+        run: |
+          cd openbox
+          cargo build --profile release-opt --package openbox --target x86_64-pc-windows-msvc
+      - name: Archive openbox binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbox-x86_64-pc-windows-msvc
+          path: openbox/target/x86_64-pc-windows-msvc/release-opt/openbox.exe
+
+  app-docker-images:
+    if: github.ref == 'refs/heads/develop'
+    name: Build Docker images
+    uses: ./.github/workflows/build-docker.yaml@develop
+
+  deploy-to-oravm:
+    needs: [openbox-linux, openbox-macos, openbox-windows, app-docker-images]
+    if: github.ref == 'refs/heads/develop'
+    name: Deploy Franklyn
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup ssh
+        run: source ./cicd/setup-ssh.sh ${{github.workspace}} ${{secrets.SSH_USERNAME}} ${{secrets.SSH_HOST}}
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{secrets.SSH_PRIVATE_KEY}}
+          SSH_KNOWN_HOSTS: ${{secrets.SSH_KNOWN_HOSTS}}
+
+      - name: Download macos artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: openbox-x86_64-apple-darwin
+          path: /tmp/openbox-artifacts/
+
+      - name: Download rename macos artifact
+        run: |
+          mv /tmp/openbox-artifacts/openbox /tmp/openbox-artifacts/openbox-darwin
+
+      - name: Download linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: openbox-x86_64-unknown-linux-gnu
+          path: /tmp/openbox-artifacts/
+
+      - name: Download rename linux artifact
+        run: |
+          mv /tmp/openbox-artifacts/openbox /tmp/openbox-artifacts/openbox-linux
+
+      - name: Download windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: openbox-x86_64-pc-windows-msvc
+          path: /tmp/openbox-artifacts/
+
+      - name: Download rename windows artifact
+        run: |
+          mv /tmp/openbox-artifacts/openbox.exe /tmp/openbox-artifacts/openbox-windows.exe
+
+      - name: Deploy build
+        run: |
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "git -C project-franklyn pull --rebase || git clone https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn.git project-franklyn"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "git -C project-franklyn switch ${{ github.ref_name }}"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "git -C project-franklyn pull --rebase"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "docker compose -f project-franklyn/cicd/docker-compose.yaml down"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "echo 'IMAGE_TAG=dev' > project-franklyn/cicd/.env"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "docker compose -f project-franklyn/cicd/docker-compose.yaml pull"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "docker compose -f project-franklyn/cicd/docker-compose.yaml up -d"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "sudo cp -f project-franklyn/nginx/nginx.conf /etc/nginx/nginx.conf"
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "sudo cp -f project-franklyn/nginx/index.html /var/www/html/"
+          scp -i $SSH_KEY_PATH /tmp/openbox-artifacts/* $SSH_USER@$SSH_HOST:/var/www/downloads
+          ssh -i $SSH_KEY_PATH $SSH_USER@$SSH_HOST "sudo systemctl restart nginx.service"
+        shell: bash
