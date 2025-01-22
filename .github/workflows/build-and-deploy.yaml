@@ -17,9 +17,10 @@ jobs:
     steps:
       - id: identify
         run: |
+          echo "${{ github.ref_name }}"
           if test "${{ github.ref_name }}" = "main"; then 
             export feat="srv_prod"; 
-          elif "${{ github.ref_name }}" = "develop"; then 
+          elif test "${{ github.ref_name }}" = "develop"; then 
             export feat="srv_ci";
           else 
             export feat="default";
@@ -33,8 +34,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: hecrj/setup-rust-action@v2
-      - name: Install cargo-deb
-        run: cargo install cargo-deb
       - uses: actions/checkout@master
       - name: Install dependencies
         run: |
