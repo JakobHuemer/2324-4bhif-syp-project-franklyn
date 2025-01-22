@@ -98,6 +98,7 @@ jobs:
 
       - name: Rename artifacts
         run: |
+          tree /tmp/openbox-artifacts/
           mv /tmp/openbox-artifacts/openbox-x86_64-apple-darwin/openbox /tmp/openbox-artifacts/openbox-darwin
           rmdir /tmp/openbox-artifacts/openbox-x86_64-apple-darwin
           mv /tmp/openbox-artifacts/openbox-x86_64-unknown-linux-gnu/openbox /tmp/openbox-artifacts/openbox-linux
