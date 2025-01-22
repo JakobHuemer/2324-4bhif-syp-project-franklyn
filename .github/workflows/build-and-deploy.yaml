@@ -73,7 +73,7 @@ jobs:
   app-docker-images:
     if: github.ref == 'refs/heads/develop'
     name: Build Docker images
-    uses: ./.github/workflows/build-docker.yaml@develop
+    uses: ./.github/workflows/build-docker.yaml
 
   deploy-to-oravm:
     needs: [openbox-linux, openbox-macos, openbox-windows, app-docker-images]
