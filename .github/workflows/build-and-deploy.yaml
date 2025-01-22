@@ -90,36 +90,20 @@ jobs:
           SSH_PRIVATE_KEY: ${{secrets.SSH_PRIVATE_KEY}}
           SSH_KNOWN_HOSTS: ${{secrets.SSH_KNOWN_HOSTS}}
 
-      - name: Download macos artifact
+      - name: Download openbox artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: openbox-x86_64-apple-darwin
+          pattern: openbox-
           path: /tmp/openbox-artifacts/
 
-      - name: Download rename macos artifact
+      - name: Rename artifacts
         run: |
-          tree /tmp/openbox-artifacts/
-          mv /tmp/openbox-artifacts/openbox /tmp/openbox-artifacts/openbox-darwin
-
-      - name: Download linux artifact
-        uses: actions/download-artifact@v4
-        with:
-          pattern: openbox-x86_64-unknown-linux-gnu
-          path: /tmp/openbox-artifacts/
-
-      - name: Download rename linux artifact
-        run: |
-          mv /tmp/openbox-artifacts/openbox /tmp/openbox-artifacts/openbox-linux
-
-      - name: Download windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          pattern: openbox-x86_64-pc-windows-msvc
-          path: /tmp/openbox-artifacts/
-
-      - name: Download rename windows artifact
-        run: |
-          mv /tmp/openbox-artifacts/openbox.exe /tmp/openbox-artifacts/openbox-windows.exe
+          mv /tmp/openbox-artifacts/openbox-x86_64-apple-darwin/openbox /tmp/openbox-artifacts/openbox-darwin
+          rmdir /tmp/openbox-artifacts/openbox-x86_64-apple-darwin
+          mv /tmp/openbox-artifacts/openbox-x86_64-unknown-linux-gnu/openbox /tmp/openbox-artifacts/openbox-linux
+          rmdir /tmp/openbox-artifacts/openbox-x86_64-unknown-linux-gnu
+          mv /tmp/openbox-artifacts/openbox-x86_64-pc-windows-msvc/openbox.exe /tmp/openbox-artifacts/openbox-windows.exe
+          rmdir /tmp/openbox-artifacts/openbox-x86_64-pc-windows-msvc
 
       - name: Deploy build
         run: |
