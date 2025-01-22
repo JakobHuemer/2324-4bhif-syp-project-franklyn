@@ -98,6 +98,7 @@ jobs:
 
       - name: Download rename macos artifact
         run: |
+          tree /tmp/openbox-artifacts/
           mv /tmp/openbox-artifacts/openbox /tmp/openbox-artifacts/openbox-darwin
 
       - name: Download linux artifact
