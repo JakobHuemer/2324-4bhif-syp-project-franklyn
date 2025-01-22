@@ -3,12 +3,12 @@
     <tr>
       <td class="bg-light align-top pt-3 left-bar-width">
         <div class="overflow-scroll screen-height">
-          <h6 class="fw-bold text-center">Tests</h6>
+          <h5 class="fw-bold text-center">Tests</h5>
           <app-exam-selection-list></app-exam-selection-list>
         </div>
       </td>
       <td class="selector-width w-auto align-top pt-2 px-3">
-        <app-exam-dashboard [exam]="store.value.examData.curExam"></app-exam-dashboard>
+        <app-exam-dashboard [exam]="getCurExam()"></app-exam-dashboard>
       </td>
     </tr>
   </table>

@@ -4,6 +4,7 @@ import {VideoViewerComponent} from "./components/router-components/video-viewer/
 import {MetricsDashboardComponent} from "./components/router-components/metrics-dashboard/metrics-dashboard.component";
 import {TestOverviewComponent} from "./components/router-components/test-overview/test-overview.component";
 import {EditTestViewComponent} from "./components/router-components/edit-test-view/edit-test-view.component";
+import {CreateTestComponent} from "./components/router-components/create-test/create-test.component";
 
 export const routes: Routes = [
   {
@@ -30,5 +31,9 @@ export const routes: Routes = [
   {
     path: "metrics-dashboard",
     component: MetricsDashboardComponent
+  },
+  {
+    path: "create-test",
+    component: CreateTestComponent
   }
 ];

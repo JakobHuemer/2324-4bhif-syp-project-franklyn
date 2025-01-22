@@ -1,0 +1,12 @@
+.job-label-width {
+  width: 6vw;
+}
+
+.job-message-width {
+  width: 16vw;
+  display: block;
+}
+
+td {
+  vertical-align: top;
+}

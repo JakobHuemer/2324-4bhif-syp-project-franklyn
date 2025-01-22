@@ -1,57 +1,89 @@
 import {BehaviorSubject} from "rxjs";
 import {Draft, produce} from "immer";
-import {CacheBuster} from "./entity/CacheBuster";
-import {ExamineeData} from "./entity/ExamineeData";
-import {Patrol} from "./entity/Patrol";
-import {ServerMetrics} from "./entity/ServerMetrics";
-import {Timer} from "./entity/Timer";
-import {ExamData} from "./entity/ExamData";
+import {CreateTestModel} from "./entity/create-test/create-test-index";
+import {ExamDashboardModel} from "./entity/exam-dashboard/exam-dashboard-index";
+import {MetricsDashboardModel} from "./entity/metrics-dashboard/metrics-dashboard-index";
+import {PatrolModeModel} from "./entity/patrol-mode/patrol-mode-index";
+import {ScheduleServiceModel, Timer} from "./entity/schedule-service/schedule-service-index";
+import {VideoViewerModel} from "./entity/video-viewer/video-viewer-index";
+import {environment} from "../../../env/environment";
+import {JobServiceModel} from "./entity/job-service/job-service-model";
 
 export interface Model {
-  readonly cacheBuster: CacheBuster,
-  readonly examineeData: ExamineeData,
-  readonly examData: ExamData,
-  readonly patrol: Patrol,
-  readonly serverMetrics: ServerMetrics,
-  readonly timer: Timer,
-  readonly resetText: string
+    createTestModel: CreateTestModel,
+    examDashboardModel: ExamDashboardModel,
+    metricsDashboardModel: MetricsDashboardModel,
+    patrolModeModel: PatrolModeModel,
+    scheduleServiceModel: ScheduleServiceModel,
+    videoViewerModel: VideoViewerModel,
+    jobServiceModel:JobServiceModel,
+    readonly resetText: string,
 }
 
 const initialState: Model = {
-  cacheBuster: {
-    cachebustNum: 0
+  createTestModel: {
+    createExam: {
+      title: "",
+      start: new Date(Date.now()),
+      end: new Date(Date.now() + 3000000), // add 50 minutes
+      screencapture_interval_seconds: environment.patrolSpeed
+    },
+    createdExam: false,
+    schoolUnits: [],
+    eveningSchoolUnits: []
   },
-  examineeData: {
-    examinees: []
-  },
-  examData: {
+  examDashboardModel: {
     exams: [],
-    curExam: undefined
+    curExamId: undefined
   },
-  patrol: {
-    isPatrolModeOn: false,
-    patrolExaminee: undefined
-  },
-  serverMetrics: {
-    cpuUsagePercent: 0,
-    totalDiskSpaceInBytes: 0,
-    remainingDiskSpaceInBytes: 0,
-    savedScreenshotsSizeInBytes: 0,
-    maxAvailableMemoryInBytes: 0,
-    totalUsedMemoryInBytes: 0,
+  metricsDashboardModel: {
+    serverMetrics: {
+      cpuUsagePercent: 0,
+      totalDiskSpaceInBytes: 0,
+      remainingDiskSpaceInBytes: 0,
+      savedScreenshotsSizeInBytes: 0,
+      savedVideosSizeInBytes: 0,
+      maxAvailableMemoryInBytes: 0,
+      totalUsedMemoryInBytes: 0
+    },
     diagramBackgroundColor: "#f0f0f0",
     diagramTextColor: "#36363a",
     cpuUtilisationColor: "#0d6efd",
-    diskUsageColor: "#0d6efd",
+    diskUsageScreenshotColor: "rgb(54, 162, 235)",
+    diskUsageVideoColor: "rgb(255, 99, 132)",
+    diskUsageOtherColor: "rgb(255, 205, 86)",
     memoryUtilisationColor: "#0d6efd"
   },
-  timer: new Timer(),
+  patrolModeModel: {
+    curExamId: undefined,
+    examinees: [],
+    patrol: {
+      isPatrolModeOn: false,
+      patrolExaminee: undefined
+    },
+    cacheBuster: {
+      cachebustNum: 0
+    }
+  },
+  scheduleServiceModel: {
+    timer: new Timer()
+  },
+  videoViewerModel: {
+    curExamId: undefined,
+    examinees: [],
+    examinee: undefined,
+    jobId: undefined
+  },
+  jobServiceModel: {
+    jobs: [],
+    jobLogs: [],
+  },
   resetText: ""
 };
 
 export const store = new BehaviorSubject<Model>(initialState);
 
-export function set(recipe: (model: Draft<Model>)=>void) {
-  const nextState = produce(store.value, recipe);
-  store.next(nextState);
+export function set(recipe: (model: Draft<Model>) => void) {
+    const nextState = produce(store.value, recipe);
+    store.next(nextState);
 }

@@ -1,31 +1,21 @@
 import {Component, inject, Input} from '@angular/core';
-import {ExamineeService} from "../../../services/examinee.service";
-import {StoreService} from "../../../services/store.service";
-import {Examinee, set} from "../../../model";
-import {environment} from "../../../../../env/environment";
+import {Exam, Examinee, set} from "../../../model";
+import {JobService} from "../../../services/job.service";
 
 @Component({
-  selector: 'app-download-examinee',
-  standalone: true,
-  imports: [],
-  templateUrl: './download-examinee.component.html',
-  styleUrl: './download-examinee.component.css'
+    selector: 'app-download-examinee',
+    imports: [],
+    templateUrl: './download-examinee.component.html',
+    styleUrl: './download-examinee.component.css'
 })
 export class DownloadExamineeComponent {
-  protected examineeRepo = inject(ExamineeService);
-  private store = inject(StoreService).store;
-
+  private jobSvc = inject(JobService);
+  @Input() exam: Exam | undefined;
   @Input() examinee: Examinee | undefined;
 
-  showVideoOfExaminee() {
-    this.examineeRepo.newPatrolExaminee(this.examinee, true);
-
-    set((model) => {
-      model.cacheBuster.cachebustNum++;
-    })
-  }
-
-  getDownloadUrl(): string {
-    return `${environment.serverBaseUrl}/video/download/${this.examinee?.firstname}-${this.examinee?.lastname}`
+  startJob() {
+    if (this.exam !== undefined && this.examinee !== undefined) {
+      this.jobSvc.getExamExamineeVideos(this.exam, this.examinee);
+    }
   }
 }

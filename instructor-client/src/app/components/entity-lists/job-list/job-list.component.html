@@ -1,0 +1,8 @@
+<div class="px-4">
+  @for (jobLog of jobLogs | async;
+    track jobLog.jobId.toString() + jobLog.timestamp.toString() + jobLog.message) {
+    <div class="pb-3 w-100">
+      <app-job [jobLog]="jobLog"></app-job>
+    </div>
+  }
+</div>

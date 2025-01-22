@@ -1,13 +1,12 @@
 import {Component, inject} from '@angular/core';
-import {environment} from "../../../../../env/environment";
 import {StoreService} from "../../../services/store.service";
 import {distinctUntilChanged, map} from "rxjs";
 import {AsyncPipe} from "@angular/common";
 import {DownloadExamineeComponent} from "../../entity-components/download-examinee/download-examinee.component";
+import {JobService} from "../../../services/job.service";
 
 @Component({
   selector: 'app-examinee-download-list',
-  standalone: true,
   imports: [
     DownloadExamineeComponent,
     AsyncPipe
@@ -16,14 +15,33 @@ import {DownloadExamineeComponent} from "../../entity-components/download-examin
   styleUrl: './examinee-download-list.component.css'
 })
 export class ExamineeDownloadListComponent {
-  protected examinees = inject(StoreService)
-    .store
+  protected jobSvc = inject(JobService);
+  protected store = inject(StoreService).store;
+  protected examinees = this.store
     .pipe(
-      map(model => model.examineeData.examinees),
+      map(model => model.videoViewerModel.examinees),
       distinctUntilChanged()
     );
 
-  getDownloadUrl(): string {
-    return `${environment.serverBaseUrl}/video/download`
+  protected curExam = inject(StoreService)
+    .store
+    .pipe(
+      map(model =>
+        model.examDashboardModel.exams
+          .filter(exam =>
+            exam.id === model.videoViewerModel.curExamId)
+          .at(0)),
+      distinctUntilChanged()
+    );
+
+  protected startDownloadAllJob() {
+    let exam = this.store.value.examDashboardModel.exams
+      .find(e =>
+        e.id === this.store.value.videoViewerModel.curExamId
+      );
+
+    if (exam !== undefined) {
+      this.jobSvc.getAllExamVideos(exam);
+    }
   }
 }

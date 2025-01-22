@@ -3,11 +3,7 @@ export interface ServerMetrics {
   totalDiskSpaceInBytes: number,
   remainingDiskSpaceInBytes: number,
   savedScreenshotsSizeInBytes: number,
+  savedVideosSizeInBytes: number,
   maxAvailableMemoryInBytes: number,
-  totalUsedMemoryInBytes: number,
-  diagramBackgroundColor: string,
-  diagramTextColor: string,
-  cpuUtilisationColor: string,
-  diskUsageColor: string,
-  memoryUtilisationColor: string,
+  totalUsedMemoryInBytes: number
 }

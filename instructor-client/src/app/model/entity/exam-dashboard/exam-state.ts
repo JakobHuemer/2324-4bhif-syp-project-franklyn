@@ -1,5 +1,5 @@
 export enum ExamState {
-  CREATED,
+  CREATED = 20,
   ONGOING,
   DONE,
   DELETED,

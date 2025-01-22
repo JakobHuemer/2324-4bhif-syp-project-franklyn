@@ -1,12 +1,18 @@
 import {inject, Injectable} from '@angular/core';
-import { HttpClient, HttpHeaders } from "@angular/common/http";
-import {Examinee, ServerMetrics} from "../model";
+import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {environment} from "../../../env/environment";
-import {lastValueFrom} from "rxjs";
-import {set} from "../model";
-import {Exam} from "../model/entity/Exam";
-import {ExamDto} from "../model/entity/dto/exam-dto";
-import {ExamState} from "../model/entity/Exam-State";
+import {lastValueFrom, Observable} from "rxjs";
+import {
+  set,
+  ServerMetricsDto,
+  ServerMetrics,
+  ExamineeDto,
+  Examinee,
+  ExamDto,
+  Exam,
+  ExamState,
+  CreateExam, Job, JobDto, JobState
+} from "../model";
 
 @Injectable({
   providedIn: 'root'
@@ -15,178 +21,413 @@ export class WebApiService {
   private httpClient = inject(HttpClient);
   private headers: HttpHeaders = new HttpHeaders().set('Accept', 'application/json');
 
-  public async getExamineesFromServer(examId: number): Promise<void> {
-      this.httpClient.get<Examinee[]>(
-        `${environment.serverBaseUrl}/exams/${examId}/examinees`,
-        {headers: this.headers})
-        .subscribe({
-        "next": (examinees) => set((model) => {
-          model.examineeData.examinees = examinees;
-        }),
-        "error": (err) => console.error(err),
-      });
-  }
-
-  public async resetServer(): Promise<void> {
-    this.httpClient.post(
-      `${environment.serverBaseUrl}/state/reset`,
-      {}
-    ).subscribe({
-      error: err => console.error(err),
-    });
-  }
-
-  public async updateScreenshotCaptureInterval(updateInterval: number): Promise<void> {
-    this.httpClient.post(
-      `${environment.serverBaseUrl}/screenshot/updateInterval`,
-      {newInterval: updateInterval}
-    ).subscribe({
-      error: err => console.error(err),
-    });
-  }
-
-  public async getIntervalSpeed(): Promise<void> {
-    const intervalSpeed: number = await lastValueFrom(
+  public async getServerMetrics(): Promise<void> {
+    const serverMetricsDto = await lastValueFrom(
       this.httpClient
-        .get<number>(
-          `${environment.serverBaseUrl}/screenshot/intervalSpeed`,
-      {headers: this.headers}
+        .get<ServerMetricsDto>(
+          `${environment.serverBaseUrl}/metrics`,
+          {headers: this.headers}
         )
     );
 
+    const serverMetrics: ServerMetrics = {
+      cpuUsagePercent: serverMetricsDto.cpu_usage_percent,
+      totalDiskSpaceInBytes: serverMetricsDto.total_disk_space_in_bytes,
+      remainingDiskSpaceInBytes: serverMetricsDto
+        .remaining_disk_space_in_bytes,
+      savedScreenshotsSizeInBytes: serverMetricsDto
+        .saved_screenshots_size_in_bytes,
+      savedVideosSizeInBytes: serverMetricsDto
+        .saved_videos_size_in_bytes,
+      maxAvailableMemoryInBytes: serverMetricsDto
+        .max_available_memory_in_bytes,
+      totalUsedMemoryInBytes: serverMetricsDto
+        .total_used_memory_in_bytes
+    }
+
     set((model) => {
-      model.timer.screenshotCaptureInterval = intervalSpeed;
+      model.metricsDashboardModel.serverMetrics = serverMetrics;
     });
   }
 
-  public async getServerMetrics(): Promise<void> {
-    const serverMetrics: ServerMetrics = await lastValueFrom(
-      this.httpClient
-        .get<ServerMetrics>(
-        `${environment.serverBaseUrl}/state/system-metrics`,
-        {headers: this.headers}
-      )
-    );
+  //region Job-WebApi calls
 
-    set((model) => {
-      model.serverMetrics = serverMetrics;
-    });
-  }
-
-  public async getExamsFromServer(): Promise<void> {
-    /*this.httpClient.get<Exam[]>(
-      `${environment.serverBaseUrl}/exams`,
+  getAllExamVideos(examId: number): void {
+    this.httpClient.post<JobDto>(
+      `${environment.serverBaseUrl}/telemetry/by-exam/${examId}/video/generate-all`,
       {headers: this.headers})
       .subscribe({
-        "next": (exams) => set((model) => {
-          model.examData.exams = this.sortExams(exams);
-
-          if (model.examData.exams.length >= 1) {
-            model.examData.curExam = model.examData.exams[0];
-          };
-        }),
+        "next": (jobDto) => this.manageJob(
+          jobDto,
+          examId,
+          undefined
+        ),
         "error": (err) => console.error(err),
-      });*/
-
-    let date = Date.now()
-
-    set((model) => {
-      model.examData.exams = [
-        {
-          id: 0,
-          plannedStart: new Date(date),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a1",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-        {
-          id: 1,
-          plannedStart: new Date(new Date().setHours(3)),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a2",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-        {
-          id: 2,
-          plannedStart: new Date(date),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a3",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-        {
-          id: 3,
-          plannedStart: new Date(new Date(date).setHours(1)),
-          plannedEnd: new Date(date),
-          actualEnd: new Date(date),
-          title: "a4",
-          pin: 123,
-          state: ExamState.CREATED
-        },
-      ];
-      model.examData.exams = this.sortExams(model.examData.exams);
-
-      if (model.examData.exams.length >= 1) {
-        model.examData.curExam = model.examData.exams[0];
-      };
-    })
+      });
   }
 
-  public async getExamByIdFromServer(id: number): Promise<void> {
-    this.httpClient.get<Exam>(
-      `${environment.serverBaseUrl}/exams/${id}`,
+  getExamExamineeVideo(
+    examId: number,
+    examineeId: number
+  ): void {
+    this.httpClient.post<JobDto>(
+      `${environment.serverBaseUrl}/telemetry/by-user/${examineeId}/${examId}/video/generate`,
       {headers: this.headers})
       .subscribe({
-        "next": (exam) => set((model) => {
-          let index: number = model.examData.exams
-            .findIndex((e) => e.id === id);
+        "next": (jobDto) => this.manageJob(
+          jobDto,
+          examId,
+          examineeId
+        ),
+        "error": (err) => console.error(err),
+      });
+  }
 
-          if (index >= 0 && !Number.isNaN(index)) {
-            model.examData.exams[index] = exam;
+  getJobStatus(jobId: number) {
+    this.httpClient.get<JobDto>(
+      `${environment.serverBaseUrl}/telemetry/jobs/video/${jobId}`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (jobDto) => this.manageJob(jobDto, undefined, undefined),
+        "error": (err) => console.error(err),
+      });
+  }
+
+  private manageJob(
+    job: JobDto,
+    examId: number | undefined,
+    examineeId: number | undefined
+  ): void {
+    set((model) => {
+      let jobState: JobState = JobState.QUEUED;
+
+      switch (job.state) {
+        case "ONGOING":
+          jobState = JobState.ONGOING;
+          break;
+        case "FAILED":
+          jobState = JobState.FAILED;
+          break;
+        case "DONE":
+          jobState = JobState.DONE;
+          break;
+        case "DELETED":
+          jobState = JobState.DELETED;
+          break;
+      }
+
+      let index = model.jobServiceModel.jobs
+        .findIndex(j => j.id === job.id);
+
+      if (index === -1) {
+        let myExamId: number;
+
+        if (examId === undefined) {
+          let foundExamId = model.jobServiceModel.jobs
+            .find(j => j.id === job.id)?.examId;
+
+          if (foundExamId === undefined) {
+            // SHOULD NOT HAPPEN
+            console.error('examId is undefined');
+            examId = -1;
+          } else {
+            myExamId = foundExamId;
           }
+        } else {
+          myExamId = examId;
+        }
 
-          model.examData.exams = this.sortExams(model.examData.exams);
+        model.jobServiceModel.jobs.push({
+          id: job.id,
+          state: jobState,
+          examId: myExamId!,
+          examineeId: examineeId,
+        });
+        model.jobServiceModel.jobLogs.push({
+          jobId: job.id,
+          state: jobState,
+          message: 'started job with id' + job.id,
+          timestamp: new Date(Date.now()),
+        });
+      } else {
+        if (jobState !== model.jobServiceModel.jobs[index].state) {
+          model.jobServiceModel.jobs[index].state = jobState;
+          model.jobServiceModel.jobLogs.push({
+            jobId: model.jobServiceModel.jobs[index].id,
+            state: jobState,
+            message: `Job with id ${model.jobServiceModel.jobs[index].id} has the status: ${this.jobStateToString(jobState)}`,
+            timestamp: new Date(Date.now())
+          });
+        }
+      }
+    });
+  }
+
+  jobStateToString(state: JobState): string {
+    switch (state) {
+      case JobState.QUEUED:
+        return "Queued";
+      case JobState.ONGOING:
+        return "Ongoing";
+      case JobState.DONE:
+        return "Done";
+      case JobState.DELETED:
+        return "Deleted";
+      default:
+        return "Failed";
+    }
+  }
+
+  //endregion
+
+  //region Examinee-WebApi calls
+
+  public getExamineesFromServer(examId: number): void {
+    this.httpClient.get<ExamineeDto[]>(
+      `${environment.serverBaseUrl}/exams/${examId}/examinees`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (examinees) => set((model) => {
+          model.patrolModeModel.examinees = examinees.map(
+            (eDto) => {
+              let examinee: Examinee = {
+                id: eDto.id,
+                firstname: eDto.firstname,
+                lastname: eDto.lastname,
+                isConnected: eDto.is_connected
+              };
+
+              return examinee;
+            })
+            .sort((a, b) => {
+              if (a.lastname > b.lastname) {
+                return 1;
+              } else if (a.lastname === b.lastname) {
+                return (a.firstname > b.firstname ? 1 : -1);
+              } else {
+                return -1;
+              }
+            });
         }),
         "error": (err) => console.error(err),
       });
   }
 
-  public async createNewExam(exam: ExamDto): Promise<void> {
-    this.httpClient.post<Exam>(
-      `${environment.serverBaseUrl}/exams`,
-      exam
-    ).subscribe({
-      next: (exam) => {
-        this.getExamsFromServer();
-      },
-      error: err => console.error(err)
-    });
+  public getVideoExamineesFromServer(examId: number): void {
+    this.httpClient.get<ExamineeDto[]>(
+      `${environment.serverBaseUrl}/exams/${examId}/examinees`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (examinees) => set((model) => {
+          model.videoViewerModel.examinees = examinees.map(
+            (eDto) => {
+              let examinee: Examinee = {
+                id: eDto.id,
+                firstname: eDto.firstname,
+                lastname: eDto.lastname,
+                isConnected: eDto.is_connected
+              };
+
+              return examinee;
+            })
+            .sort((a, b) => {
+              if (a.lastname > b.lastname) {
+                return 1;
+              } else if (a.lastname === b.lastname) {
+                return (a.firstname > b.firstname ? 1 : -1);
+              } else {
+                return -1;
+              }
+            });
+        }),
+        "error": (err) => console.error(err),
+      });
   }
 
-  public async deleteExamByIdFromServer(id: number): Promise<void> {
+  //endregion
+
+  //region Exam-WebApi calls
+
+  public getExamsFromServer(): void {
+    this.httpClient.get<ExamDto[]>(
+      `${environment.serverBaseUrl}/exams`,
+      {headers: this.headers})
+      .subscribe({
+        "next": (exams) => {
+          set((model) => {
+            model.examDashboardModel.exams = exams.map(
+              eDto => {
+                let examState: ExamState = ExamState.CREATED
+
+                switch (eDto.state) {
+                  case "ONGOING":
+                    examState = ExamState.ONGOING;
+                    break;
+                  case "DONE":
+                    examState = ExamState.DONE;
+                    break;
+                  case "DELETED":
+                    examState = ExamState.DELETED;
+                    break;
+                }
+
+                let exam: Exam = {
+                  id: eDto.id,
+                  title: eDto.title,
+                  pin: eDto.pin,
+                  state: examState,
+                  plannedStart: new Date(eDto.planned_start),
+                  plannedEnd: new Date(eDto.planned_end),
+                  actualStart: undefined,
+                  actualEnd: undefined,
+                  screencaptureIntervalSeconds: eDto
+                    .screencapture_interval_seconds,
+                  amountOfExaminees: eDto.registered_students_num
+                }
+
+                const timeZoneOffsetMinutes = (-1) * exam.plannedStart
+                  .getTimezoneOffset();
+
+                exam.plannedStart = new Date(
+                  exam.plannedStart.getTime()
+                  + timeZoneOffsetMinutes * 60000
+                );
+                exam.plannedEnd = new Date(
+                  exam.plannedEnd.getTime()
+                  + timeZoneOffsetMinutes * 60000
+                );
+
+                if (eDto.actual_start !== null) {
+                  exam.actualStart = new Date(
+                    new Date(eDto.actual_start).getTime()
+                    + timeZoneOffsetMinutes * 60000
+                  );
+                }
+
+                if (eDto.actual_end !== null) {
+                  exam.actualEnd = new Date(
+                    new Date(eDto.actual_end).getTime()
+                    + timeZoneOffsetMinutes * 60000
+                  );
+                }
+
+                return exam;
+              }
+            );
+
+            model.examDashboardModel.exams = this.sortExams(
+              model.examDashboardModel.exams
+            );
+
+            if (model.examDashboardModel.exams
+              .find(e =>
+                e.id === model.examDashboardModel.curExamId) === undefined
+            ) {
+              model.examDashboardModel.curExamId = undefined;
+            }
+
+            if (model.examDashboardModel.exams
+                .find(e => e.id === model
+                  .patrolModeModel.curExamId)
+              === undefined) {
+              model.patrolModeModel.curExamId = undefined;
+              model.patrolModeModel.examinees = [];
+              model.patrolModeModel.patrol.patrolExaminee = undefined;
+            }
+
+            if (model.examDashboardModel.exams
+                .find(e => e.id === model
+                  .videoViewerModel.curExamId)
+              === undefined) {
+              model.videoViewerModel.curExamId = undefined;
+              model.videoViewerModel.examinees = [];
+              model.videoViewerModel.examinee = undefined;
+            }
+
+            if (model.examDashboardModel.exams.length >= 1 &&
+              !model.examDashboardModel.curExamId) {
+              model.examDashboardModel.curExamId = model
+                .examDashboardModel
+                .exams[0]
+                .id;
+            }
+          });
+        },
+        "error": (err) => console.error(err),
+      });
+  }
+
+  public async createNewExam(exam: CreateExam): Promise<Observable<Exam>> {
+    let newExam: CreateExam = {
+      title: exam.title,
+      start: exam.start,
+      end: exam.end,
+      "screencapture_interval_seconds": exam.screencapture_interval_seconds
+    };
+
+    return this.httpClient.post<Exam>(
+      `${environment.serverBaseUrl}/exams`,
+      newExam
+    );
+  }
+
+  public deleteExamByIdFromServer(id: number): void {
     this.httpClient.delete(
       `${environment.serverBaseUrl}/exams/${id}`,
       {headers: this.headers})
       .subscribe({
-        next: () => {
+        next: (response) => {
+          console.log(response); // as tooltip
           this.getExamsFromServer();
         },
-        error: (error) => console.log(error)
+        error: (error) => {
+          console.log(error); // as tooltip
+        }
+      });
+  }
+
+  public startExamByIdFromServer(exam: Exam): void {
+    this.httpClient.post(
+      `${environment.serverBaseUrl}/exams/${exam.id}/start`,
+      {headers: this.headers})
+      .subscribe({
+        next: (response) => {
+          console.log(response); // as tooltip
+          this.getExamsFromServer();
+        },
+        error: (error) => {
+          console.log(error); // as tooltip
+        }
+      });
+  }
+
+  public completeExamByIdFromServer(id: number): void {
+    this.httpClient.post(
+      `${environment.serverBaseUrl}/exams/${id}/complete`,
+      {headers: this.headers})
+      .subscribe({
+        next: (response) => {
+          console.log(response); // as tooltip
+          this.getExamsFromServer();
+        },
+        error: (error) => {
+          console.log(error); // as tooltip
+        }
       });
   }
 
   private sortExams(exams: Exam[]): Exam[] {
-    return exams.sort((a, b) => {
-      if (a.plannedStart === b.plannedStart) {
-        return (a.title < b.title) ? 1 : -1;
-      }
-
-      return (a.plannedStart < b.plannedStart) ? 1 : -1
-    })
+    return exams
+      .sort((a, b) => {
+        if (a.title > b.title) {
+          return 1;
+        } else if (a.title === b.title) {
+          return (a.plannedStart > b.plannedStart ? 1 : -1);
+        } else {
+          return -1;
+        }
+      });
   };
+
+  //endregion
 }

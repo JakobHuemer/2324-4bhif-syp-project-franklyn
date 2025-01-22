@@ -13,27 +13,38 @@ export class ExamineeService {
   private webApi = inject(WebApiService);
 
   constructor() {
-    if (this.store.value.examData.curExam)
-      this.webApi.getExamineesFromServer(this.store.value.examData.curExam.id);
+    if (this.store.value.patrolModeModel.curExamId)
+      this.webApi.getExamineesFromServer(
+        this.store.value.patrolModeModel.curExamId
+      );
+
+    if (this.store.value.videoViewerModel.curExamId)
+      this.webApi.getVideoExamineesFromServer(
+        this.store.value.videoViewerModel.curExamId
+      );
   }
 
   resetExaminees(): void {
-    this.webApi.resetServer();
-
     set((model) => {
-      model.examineeData.examinees = [];
+      model.patrolModeModel.examinees = [];
+      model.videoViewerModel.examinees = [];
     })
   }
 
   get(predicate?: ((item: Examinee) => boolean) | undefined): Examinee[] {
     if (predicate) return this.get().filter(predicate);
-    return this.store.value.examineeData.examinees;
+    return this.store.value.patrolModeModel.examinees;
+  }
+
+  getVideo(predicate?: ((item: Examinee) => boolean) | undefined): Examinee[] {
+    if (predicate) return this.getVideo().filter(predicate);
+    return this.store.value.videoViewerModel.examinees;
   }
 
   updateScreenshots() {
     if (this.location.path() !== "/video-viewer") {
       set((model) => {
-        model.cacheBuster.cachebustNum++;
+        model.patrolModeModel.cacheBuster.cachebustNum++;
       });
     }
   }
@@ -42,15 +53,20 @@ export class ExamineeService {
     // if a valid examinee is specified to be the patrol-examinee
     if (examinee !== undefined && (examinee.isConnected || ignoreConnection)) {
       set((model) => {
-        model.patrol.isPatrolModeOn = false;
-        model.patrol.patrolExaminee = examinee;
+        model.patrolModeModel.patrol.isPatrolModeOn = false;
+        model.patrolModeModel.patrol.patrolExaminee = examinee;
       });
     } else {
       /*
       * potential new valid patrol examinees
       * (they are connected and not the current patrol-examinee)
       */
-      let examinees: Examinee[] = this.get(e => e?.isConnected && e.firstname !== this.store.value.patrol.patrolExaminee?.firstname && e.lastname !== this.store.value.patrol.patrolExaminee?.lastname);
+      let examinees: Examinee[] = this.get(e =>
+        e?.isConnected &&
+        e.firstname !== this.store.value.patrolModeModel
+          .patrol.patrolExaminee?.firstname &&
+        e.lastname !== this.store.value.patrolModeModel
+          .patrol.patrolExaminee?.lastname);
 
       // if length = 0 then there are no valid patrol-examinees
       if (examinees.length === 0) {
@@ -67,19 +83,20 @@ export class ExamineeService {
         * isn't connected so this is a way to check if the
         * current chosen (patrol) examinee is still connected
         */
-        if (!this.store.value.patrol.patrolExaminee?.isConnected) {
+        if (!this.store.value.patrolModeModel.patrol.patrolExaminee?.isConnected) {
           set((model) => {
-            model.patrol.patrolExaminee = undefined;
+            model.patrolModeModel.patrol.patrolExaminee = undefined;
           });
         }
-      } else if (this.store.value.patrol.isPatrolModeOn && examinees.length !== 0) {
+      } else if (this.store.value.patrolModeModel.patrol.isPatrolModeOn &&
+        examinees.length !== 0) {
         /*
         * if there are any valid examinees, that could become
         * the new patrol-examinee and if the patrol-mode is
         * on then we choose a new random patrol-examinee
         */
         set((model) => {
-          model.patrol.patrolExaminee = examinees[Math.floor(Math.random() * examinees.length)];
+          model.patrolModeModel.patrol.patrolExaminee = examinees[Math.floor(Math.random() * examinees.length)];
         })
       }
     }

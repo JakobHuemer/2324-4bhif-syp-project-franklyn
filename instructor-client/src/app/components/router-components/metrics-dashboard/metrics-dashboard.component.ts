@@ -10,14 +10,13 @@ import {environment} from "../../../../../env/environment";
 
 @Component({
   selector: 'app-metrics-dashboard',
-  standalone: true,
   imports: [
     BaseChartDirective
   ],
   templateUrl: './metrics-dashboard.component.html',
   styleUrl: './metrics-dashboard.component.css'
 })
-export class MetricsDashboardComponent implements OnInit, OnDestroy{
+export class MetricsDashboardComponent implements OnInit, OnDestroy {
   @ViewChildren(BaseChartDirective) charts: QueryList<BaseChartDirective> | undefined;
 
   protected store = inject(StoreService).store;
@@ -28,7 +27,7 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
     // subscribe to server-metrics to update when
     // there are changes
     this.store.pipe(
-      map(store => store.serverMetrics),
+      map(store => store.metricsDashboardModel.serverMetrics),
       distinctUntilChanged()
     ).subscribe(next => {
       this.updateDatasets();
@@ -46,38 +45,42 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
 
   updateDatasets() {
     this.diskChartData.datasets[0].data = [
-      this.store.value.serverMetrics.remainingDiskSpaceInBytes / (1024 * 1024 * 1024),
-      this.store.value.serverMetrics.savedScreenshotsSizeInBytes / (1024 * 1024 * 1024),
+      this.store.value.metricsDashboardModel.serverMetrics.savedVideosSizeInBytes / (1024 * 1024 * 1024),
+      this.store.value.metricsDashboardModel.serverMetrics.savedScreenshotsSizeInBytes / (1024 * 1024 * 1024),
+      (this.store.value.metricsDashboardModel.serverMetrics.totalDiskSpaceInBytes - this.store.value.metricsDashboardModel.serverMetrics.remainingDiskSpaceInBytes - this.store.value.metricsDashboardModel.serverMetrics.savedVideosSizeInBytes - this.store.value.metricsDashboardModel.serverMetrics.savedScreenshotsSizeInBytes) / (1024 * 1024 * 1024),
+      this.store.value.metricsDashboardModel.serverMetrics.remainingDiskSpaceInBytes / (1024 * 1024 * 1024),
     ];
-    this.diskChartData.labels![this.memChartData.labels!.length - 1] = `Disk usage: ${this.diskChartData.datasets[0].data[1].toFixed(2)} GiB`;
+    this.diskDoughnutLabel.lblText = `Disk: ${((this.store.value.metricsDashboardModel.serverMetrics.totalDiskSpaceInBytes - this.store.value.metricsDashboardModel.serverMetrics.remainingDiskSpaceInBytes) / (1024 * 1024 * 1024)).toFixed(0)} / ${(this.store.value.metricsDashboardModel.serverMetrics.totalDiskSpaceInBytes / (1024 * 1024 * 1024)).toFixed(0)} GiB`;
 
     this.memChartData.datasets[0].data = [
-      (this.store.value.serverMetrics.maxAvailableMemoryInBytes - this.store.value.serverMetrics.totalUsedMemoryInBytes)/ (1024 * 1024 * 1024),
-      this.store.value.serverMetrics.totalUsedMemoryInBytes / (1024 * 1024 * 1024),
+      (this.store.value.metricsDashboardModel.serverMetrics.maxAvailableMemoryInBytes - this.store.value.metricsDashboardModel.serverMetrics.totalUsedMemoryInBytes) / (1024 * 1024 * 1024),
+      this.store.value.metricsDashboardModel.serverMetrics.totalUsedMemoryInBytes / (1024 * 1024 * 1024),
     ];
-    this.memChartData.labels![this.memChartData.labels!.length - 1] = `Memory utilization: ${(this.store.value.serverMetrics.totalUsedMemoryInBytes / this.store.value.serverMetrics.maxAvailableMemoryInBytes * 100).toFixed(2)}%`;
+    this.memoryDoughnutLabel.lblText = `Memory utilization: ${(this.store.value.metricsDashboardModel.serverMetrics.totalUsedMemoryInBytes / this.store.value.metricsDashboardModel.serverMetrics.maxAvailableMemoryInBytes * 100).toFixed(2)}%`;
 
     this.cpuChartData.datasets[0].data = [
-      this.store.value.serverMetrics.cpuUsagePercent,
-      100 - this.store.value.serverMetrics.cpuUsagePercent
+      this.store.value.metricsDashboardModel.serverMetrics.cpuUsagePercent,
+      100 - this.store.value.metricsDashboardModel.serverMetrics.cpuUsagePercent
     ]
 
     this.updateColorLabels();
 
     this.diskChartData.datasets[0].backgroundColor = [
-      store.value.serverMetrics.diagramBackgroundColor,
-      store.value.serverMetrics.diskUsageColor
-    ]
+      store.value.metricsDashboardModel.diskUsageVideoColor,
+      store.value.metricsDashboardModel.diskUsageScreenshotColor,
+      store.value.metricsDashboardModel.diskUsageOtherColor,
+      store.value.metricsDashboardModel.diagramBackgroundColor,
+    ];
 
     this.memChartData.datasets[0].backgroundColor = [
-      store.value.serverMetrics.diagramBackgroundColor,
-      store.value.serverMetrics.memoryUtilisationColor
+      store.value.metricsDashboardModel.diagramBackgroundColor,
+      store.value.metricsDashboardModel.memoryUtilisationColor
     ];
 
     this.cpuChartData.datasets[0].backgroundColor = [
-      store.value.serverMetrics.cpuUtilisationColor,
-      store.value.serverMetrics.diagramBackgroundColor
-    ]
+      store.value.metricsDashboardModel.cpuUtilisationColor,
+      store.value.metricsDashboardModel.diagramBackgroundColor
+    ];
 
     this.charts?.forEach(c => c.update());
   }
@@ -95,47 +98,66 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
   }
 
   updateColorLabels() {
-    let cpuPercent: number = this.store.value.serverMetrics.cpuUsagePercent/100;
+    let cpuPercent: number = this.store.value.metricsDashboardModel.serverMetrics.cpuUsagePercent / 100;
 
-    let diskUsagePercent: number = this.store.value.serverMetrics.totalUsedMemoryInBytes / this.store.value.serverMetrics.maxAvailableMemoryInBytes;
-
-    let memoryPercent: number = this.store.value.serverMetrics.totalUsedMemoryInBytes / this.store.value.serverMetrics.maxAvailableMemoryInBytes;
+    let memoryPercent: number = this.store.value.metricsDashboardModel.serverMetrics.totalUsedMemoryInBytes / this.store.value.metricsDashboardModel.serverMetrics.maxAvailableMemoryInBytes;
 
     set((model) => {
-      model.serverMetrics.cpuUtilisationColor = this.getColorPerPercentage(cpuPercent);
-      model.serverMetrics.diskUsageColor = this.getColorPerPercentage(diskUsagePercent);
-      model.serverMetrics.memoryUtilisationColor = this.getColorPerPercentage(memoryPercent);
+      model.metricsDashboardModel.cpuUtilisationColor = this.getColorPerPercentage(cpuPercent);
+      model.metricsDashboardModel.memoryUtilisationColor = this.getColorPerPercentage(memoryPercent);
     })
   }
 
-  doughnutLabel = {
+  diskDoughnutLabel = {
     id: 'doughnutLabel',
-    beforeDatasetsDraw(chart:  any, args:  any, options: any): boolean | void {
-      const { ctx, data } = chart;
+    lblText: "Disk usage",
+    beforeDatasetsDraw(chart: any, args: any, options: any): boolean | void {
+      const {ctx, data} = chart;
 
       ctx.save();
       const x = chart.getDatasetMeta(0).data[0].x;
       const y = chart.getDatasetMeta(0).data[0].y;
       ctx.font = "bold 15px sans-serif";
-      ctx.fillStyle = store.value.serverMetrics.diagramTextColor;
+      ctx.fillStyle = store.value.metricsDashboardModel.diagramTextColor;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(data.labels[data.labels.length - 1], x, y);
+      ctx.fillText(this.lblText, x, y);
+    }
+  };
+
+  memoryDoughnutLabel = {
+    id: 'doughnutLabel',
+    lblText: "Memory utilization",
+    beforeDatasetsDraw(chart: any, args: any, options: any): boolean | void {
+      const {ctx, data} = chart;
+
+      ctx.save();
+      const x = chart.getDatasetMeta(0).data[0].x;
+      const y = chart.getDatasetMeta(0).data[0].y;
+      ctx.font = "bold 15px sans-serif";
+      ctx.fillStyle = store.value.metricsDashboardModel.diagramTextColor;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(this.lblText, x, y);
     }
   };
 
   protected diskChartType: ChartType = "doughnut";
   protected diskChartData: ChartData<'doughnut', number[], string> = {
-    labels: [ "Free", "Screenshots", "Disk usage"],
+    labels: ["Videos", "Screenshots", "Other", "Free"],
     datasets: [
       {
         data: [
-          this.store.value.serverMetrics.remainingDiskSpaceInBytes / (1024 * 1024 * 1024),
-          this.store.value.serverMetrics.savedScreenshotsSizeInBytes / (1024 * 1024 * 1024),
+          this.store.value.metricsDashboardModel.serverMetrics.savedVideosSizeInBytes / (1024 * 1024 * 1024),
+          this.store.value.metricsDashboardModel.serverMetrics.savedScreenshotsSizeInBytes / (1024 * 1024 * 1024),
+          (this.store.value.metricsDashboardModel.serverMetrics.totalDiskSpaceInBytes - this.store.value.metricsDashboardModel.serverMetrics.remainingDiskSpaceInBytes - this.store.value.metricsDashboardModel.serverMetrics.savedVideosSizeInBytes - this.store.value.metricsDashboardModel.serverMetrics.savedScreenshotsSizeInBytes) / (1024 * 1024 * 1024),
+          this.store.value.metricsDashboardModel.serverMetrics.remainingDiskSpaceInBytes / (1024 * 1024 * 1024),
         ],
         backgroundColor: [
-          store.value.serverMetrics.diagramBackgroundColor,
-          store.value.serverMetrics.diskUsageColor
+          store.value.metricsDashboardModel.diskUsageVideoColor,
+          store.value.metricsDashboardModel.diskUsageScreenshotColor,
+          store.value.metricsDashboardModel.diskUsageOtherColor,
+          store.value.metricsDashboardModel.diagramBackgroundColor,
         ]
       }
     ]
@@ -145,7 +167,7 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
     responsive: true,
     plugins: {
       legend: {
-        display: false,
+        display: true,
       },
       tooltip: {
         callbacks: {
@@ -157,16 +179,16 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
 
   protected memChartType: ChartType = "doughnut"
   protected memChartData: ChartData<'doughnut', number[], string> = {
-    labels: [ "Free", "Used", "Memory utilization"],
+    labels: ["Free", "Used"],
     datasets: [
       {
         data: [
-          (this.store.value.serverMetrics.maxAvailableMemoryInBytes - this.store.value.serverMetrics.totalUsedMemoryInBytes)/ (1024 * 1024 * 1024),
-          this.store.value.serverMetrics.totalUsedMemoryInBytes / (1024 * 1024 * 1024),
+          (this.store.value.metricsDashboardModel.serverMetrics.maxAvailableMemoryInBytes - this.store.value.metricsDashboardModel.serverMetrics.totalUsedMemoryInBytes) / (1024 * 1024 * 1024),
+          this.store.value.metricsDashboardModel.serverMetrics.totalUsedMemoryInBytes / (1024 * 1024 * 1024),
         ],
         backgroundColor: [
-          store.value.serverMetrics.diagramBackgroundColor,
-          store.value.serverMetrics.memoryUtilisationColor
+          store.value.metricsDashboardModel.diagramBackgroundColor,
+          store.value.metricsDashboardModel.memoryUtilisationColor
         ]
       }
     ]
@@ -176,7 +198,7 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
     responsive: true,
     plugins: {
       legend: {
-        display: false,
+        display: true,
       },
       tooltip: {
         callbacks: {
@@ -188,22 +210,22 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
 
   protected cpuChartType = "bar" as const;
   protected cpuChartData: ChartData<'bar', number[], string> = {
-    labels: [ "CPU Utilization"],
+    labels: ["CPU Utilization"],
     datasets: [
       {
         data: [
-          100 - this.store.value.serverMetrics.cpuUsagePercent
+          100 - this.store.value.metricsDashboardModel.serverMetrics.cpuUsagePercent
         ],
         backgroundColor: [
-          store.value.serverMetrics.cpuUtilisationColor
+          store.value.metricsDashboardModel.cpuUtilisationColor
         ]
       },
       {
         data: [
-          100 - this.store.value.serverMetrics.cpuUsagePercent
+          100 - this.store.value.metricsDashboardModel.serverMetrics.cpuUsagePercent
         ],
         backgroundColor: [
-          store.value.serverMetrics.diagramBackgroundColor
+          store.value.metricsDashboardModel.diagramBackgroundColor
         ]
       }
     ]
@@ -234,8 +256,8 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
       tooltip: {
         callbacks: {
           label: (ttItem) => {
-            if(ttItem.datasetIndex == 0) {
-              return(`${ttItem.parsed.x.toFixed(2)} %`)
+            if (ttItem.datasetIndex == 0) {
+              return (`${ttItem.parsed.x.toFixed(2)} %`)
             } else {
               return "";
             }

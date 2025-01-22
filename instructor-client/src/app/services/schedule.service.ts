@@ -1,10 +1,11 @@
-import {inject, Injectable, OnDestroy, OnInit} from '@angular/core';
+import {inject, Injectable} from '@angular/core';
 import {StoreService} from "./store.service";
 import {set} from "../model";
 import {ExamineeService} from "./examinee.service";
 import {distinctUntilChanged, map} from "rxjs";
-import {environment} from "../../../env/environment";
 import {WebApiService} from "./web-api.service";
+import {ExamService} from "./exam.service";
+import {JobService} from "./job.service";
 
 @Injectable({
   providedIn: 'root'
@@ -12,71 +13,98 @@ import {WebApiService} from "./web-api.service";
 export class ScheduleService {
   private store = inject(StoreService).store;
   private examineeRepo = inject(ExamineeService);
+  private examRepo = inject(ExamService);
   protected webApi = inject(WebApiService);
+  protected jobSvc = inject(JobService);
 
   constructor() {
     this.store.pipe(
-      map(model => model.timer.patrolSpeed),
+      map(model => model.scheduleServiceModel.timer.patrolSpeed),
       distinctUntilChanged()
     ).subscribe(() => {
       this.startPatrolInterval();
     })
 
     this.store.pipe(
-      map(model => model.timer.nextClientTime),
+      map(model => model.scheduleServiceModel.timer.nextClientTime),
       distinctUntilChanged()
     ).subscribe(() => {
-      this.startExamineeScheduleInterval();
+      this.startUpdateDataScheduleInterval();
     })
   }
+
+  //region stop intervals
 
   stopGettingServerMetrics() {
-    clearInterval(this.store.value.timer.serverMetricsTimerId);
-    set((model) => {
-      model.timer.serverMetricsTimerId = undefined;
-    })
-  }
-
-  stopExamineeScheduleInterval() {
-    if (this.store.value.timer.clientScheduleTimerId !== undefined) {
-      clearInterval(this.store.value.timer.clientScheduleTimerId);
+    if (!this.store.value.scheduleServiceModel.timer.serverMetricsTimerId) {
+      clearInterval(this.store.value.scheduleServiceModel.timer.serverMetricsTimerId);
     }
 
     set((model) => {
-      model.timer.clientScheduleTimerId = undefined;
+      model.scheduleServiceModel.timer.serverMetricsTimerId = undefined;
+    })
+  }
+
+  stopUpdateDataScheduleInterval() {
+    if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
+      clearInterval(this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId);
+    }
+
+    set((model) => {
+      model.scheduleServiceModel.timer.updateDataScheduleTimerId = undefined;
     });
   }
 
   stopPatrolInterval() {
-    if (this.store.value.timer.patrolScheduleTimer !== undefined) {
-      clearInterval(this.store.value.timer.patrolScheduleTimer);
+    if (!this.store.value.scheduleServiceModel.timer.patrolScheduleTimer) {
+      clearInterval(this.store.value.scheduleServiceModel.timer.patrolScheduleTimer);
     }
 
     set((model) => {
-      model.timer.patrolScheduleTimer = undefined;
+      model.scheduleServiceModel.timer.patrolScheduleTimer = undefined;
     });
   }
 
-  startExamineeScheduleInterval() {
-    this.stopExamineeScheduleInterval();
+  //endregion
 
-    if (this.store.value.timer.clientScheduleTimerId === undefined) {
-      this.store.value.timer.clientScheduleTimerId = setInterval(() => {
+  //region start intervals
+
+  startUpdateDataScheduleInterval() {
+    this.stopUpdateDataScheduleInterval();
+
+    if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
+      this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = setInterval(() => {
         this.examineeRepo.updateScreenshots();
-        if (this.store.value.examData.curExam)
-          this.webApi.getExamineesFromServer(this.store.value.examData.curExam.id);
-      }, this.store.value.timer.nextClientTimeMilliseconds);
+        this.examRepo.reloadAllExams();
+        this.jobSvc.updateAllJobs();
+
+        if (this.store.value.patrolModeModel.curExamId) {
+          // Do not check if exam ongoing since we also want to get
+          // examinees for the video viewer when the exam is not ongoing
+          this.webApi.getExamineesFromServer(
+            this.store.value.patrolModeModel.curExamId
+          );
+        }
+
+        if (this.store.value.videoViewerModel.curExamId) {
+          // Do not check if exam ongoing since we also want to get
+          // examinees for the video viewer when the exam is not ongoing
+          this.webApi.getExamineesFromServer(
+            this.store.value.videoViewerModel.curExamId
+          );
+        }
+      }, this.store.value.scheduleServiceModel.timer.nextClientTimeMilliseconds) as unknown as number;
     }
   }
 
   startPatrolInterval() {
     this.stopPatrolInterval();
 
-    if (this.store.value.timer.patrolScheduleTimer === undefined) {
+    if (this.store.value.scheduleServiceModel.timer.patrolScheduleTimer === undefined) {
       set((model) => {
-        model.timer.patrolScheduleTimer = setInterval(() => {
+        model.scheduleServiceModel.timer.patrolScheduleTimer = setInterval(() => {
           this.examineeRepo.newPatrolExaminee();
-        }, this.store.value.timer.patrolSpeedMilliseconds);
+        }, this.store.value.scheduleServiceModel.timer.patrolSpeedMilliseconds) as unknown as number;
       });
     }
   }
@@ -84,12 +112,14 @@ export class ScheduleService {
   startGettingServerMetrics() {
     this.stopGettingServerMetrics();
 
-    if (this.store.value.timer.serverMetricsTimerId === undefined) {
+    if (this.store.value.scheduleServiceModel.timer.serverMetricsTimerId === undefined) {
       set((model) => {
-        model.timer.serverMetricsTimerId = setInterval(async () => {
+        model.scheduleServiceModel.timer.serverMetricsTimerId = setInterval(async () => {
           await this.webApi.getServerMetrics();
-        }, this.store.value.timer.reloadDashboardIntervalMilliseconds);
+        }, this.store.value.scheduleServiceModel.timer.reloadDashboardIntervalMilliseconds);
       });
     }
   }
+
+  //endregion
 }

@@ -1,15 +1,19 @@
 <div class="px-4">
-  <a
-    href="{{getDownloadUrl()}}"
-    download="videos.zip"
-    class="text-light text-decoration-none btn btn-primary w-100 mb-2"
-    role="button">
-    Download All
-  </a>
+  <button
+    (click)="startDownloadAllJob()"
+    class="text-light text-decoration-none btn btn-primary w-100 mb-2">
+    Start Generating All Videos
+  </button>
 
-  @for (examinee of examinees | async; track examinee.firstname+examinee.lastname) {
-    <div class="pb-3 w-100">
-      <app-download-examinee [examinee]="examinee"></app-download-examinee>
-    </div>
+  @if ((curExam | async) !== undefined) {
+    @for (examinee of examinees | async;
+      track examinee.firstname + examinee.lastname) {
+      <div class="pb-3 w-100">
+        <app-download-examinee
+          [exam]="(curExam | async)!"
+          [examinee]="examinee">
+        </app-download-examinee>
+      </div>
+    }
   }
 </div>

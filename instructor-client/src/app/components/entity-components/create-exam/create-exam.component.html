@@ -1,0 +1,177 @@
+@if (!store.value.createTestModel.createdExam) {
+  <h5 class="mb-3 fw-bold">Allgemeines</h5>
+
+  <div class="mb-3">
+    <label for="titleInput" class="form-label">Titel:</label>
+    <input #title
+           type="text"
+           class="form-control w-25"
+           id="titleInput"
+           placeholder="Titel eingeben"
+           (keyup)="setIsValidTitle(title.value)"
+           [value]="store.value.createTestModel.createExam.title">
+    <p class="form-text text-danger" [hidden]="isValidTitle">
+      Bitte gib einen Titel an!
+    </p>
+  </div>
+
+  <div class="mb-3">
+    <label for="dateInput" class="form-label">Testdatum:</label>
+    <input #date
+           type="date"
+           class="form-control w-25"
+           id="dateInput"
+           (input)="setIsValidDate(date.value)">
+    <p class="form-text text-danger" [hidden]="isValidDate">
+      Bitte gib ein gültiges Datum an!
+    </p>
+    <p class="form-text text-danger" [hidden]="dateNotInPast">
+      Dieses Datum muss in der Zukunft liegen!
+    </p>
+  </div>
+
+  <div class="mb-3 position-relative w-25">
+    <label
+      for="screencapture-interval-range"
+      class="form-label">
+      Screencapture Interval: {{this.store.value
+      .createTestModel
+      .createExam
+      .screencapture_interval_seconds}} sec
+      <span
+        class="position-absolute end-0"
+        data-bs-toggle="tooltip"
+        data-bs-placement="top"
+        title="Der Zeitabstand zwischen den Screenshots, die auf den Schüler-PCs aufgenommen werden.">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
+        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+      </svg>
+    </span>
+    </label>
+    <div>
+      <label
+        for="screencapture-interval-range"
+        class="form-label">
+        {{environment.minScreencaptureInterval}}
+      </label>
+      <input #screencaptureInterval
+             type="range"
+             class="form-range w-auto"
+             [min]="environment.minScreencaptureInterval"
+             [max]="environment.maxScreencaptureInterval"
+             id="screencapture-interval-range"
+             name="screencapture-interval-range"
+             [value]="store.value.createTestModel
+             .createExam
+             .screencapture_interval_seconds"
+             (input)="setScreencaptureInterval(screencaptureInterval.value)">
+      <label for="screencapture-interval-range">{{environment.maxScreencaptureInterval}}</label>
+    </div>
+  </div>
+
+  <h5 class="mb-3 fw-bold">Start- und Endzeit festlegen</h5>
+
+  <div class="mb-3">
+    <label for="startTimeInput" class="form-label">Von:</label>
+    <input #startTime
+           type="time"
+           class="form-control w-25"
+           id="startTimeInput"
+           (input)="setStartTime(startTime.value)">
+    <p class="form-text text-danger" [hidden]="isValidStartTime">
+      Diese Zeit muss in der Zukunft liegen!
+    </p>
+  </div>
+
+  <div class="mb-3">
+    <label for="endTimeInput" class="form-label">Bis:</label>
+    <input #endTime
+           type="time"
+           class="form-control w-25"
+           id="endTimeInput"
+           (input)="setEndTime(endTime.value)">
+    <p class="form-text text-danger" [hidden]="isEndTimeAfterStartTime">
+      Diese Zeit muss nach der Start-Zeit sein!
+    </p>
+    <p class="form-text text-danger" [hidden]="isValidEndTime">
+      Diese Zeit muss in der Zukunft liegen!
+    </p>
+  </div>
+
+  <div class="mb-3">
+    <h6>Oder Einheiten auswählen:</h6>
+    <table>
+      <tr>
+        @for (i of store.value
+          .createTestModel
+          .schoolUnits; track i.id) {
+          <td>
+            <button class="
+            rounded-circle
+            p-1
+            px-2
+            btn
+            btn-outline-info
+            mx-1"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="top"
+                    title="{{dateToTimeString(i.start)}}"
+                    (click)="selectUnit(i)"
+                    [ngClass]="btnToggled(i)">
+              {{pad(i.id, 2)}}
+            </button>
+          </td>
+        }
+      </tr>
+    </table>
+  </div>
+
+  @if (environment.displayEveningSchoolUnits) {
+    <div class="mb-3">
+      <h6>Abendschule:</h6>
+      <table>
+        <tr>
+          @for (i of store.value
+            .createTestModel
+            .eveningSchoolUnits; track i.id) {
+            <td>
+              <button class="
+              rounded-circle
+              p-1
+              px-2
+              btn
+              mx-1"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="{{dateToTimeString(i.start)}}"
+                      (click)="selectUnit(i)"
+                      [ngClass]="btnToggled(i)">
+                {{pad(i.id, 2)}}
+              </button>
+            </td>
+          }
+        </tr>
+      </table>
+    </div>
+  }
+
+  <div class="position-relative">
+    <button
+      class="btn btn-success position-absolute end-0 bottom-0"
+      [disabled]="!isValidTitle ||
+        !isValidDate ||
+        !isEndTimeAfterStartTime ||
+        !isValidEndTime ||
+        !isValidStartTime ||
+        !dateNotInPast"
+      (click)="createTestBtnClicked()">
+      Test speichern
+    </button>
+  </div>
+} @else {
+  <div class="m-4" [class]="textColourForCreateExamResponse">
+    <h3 class="mb-3">{{createdExamInfo}}</h3>
+    <h1>{{createdExamValue}}</h1>
+  </div>
+}

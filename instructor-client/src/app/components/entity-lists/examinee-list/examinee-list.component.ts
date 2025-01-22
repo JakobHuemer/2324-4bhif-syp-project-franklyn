@@ -5,20 +5,19 @@ import {AsyncPipe} from "@angular/common";
 import {PatrolPageExamineeComponent} from "../../entity-components/patrol-page-examinee/patrol-page-examinee.component";
 
 @Component({
-  selector: 'app-examinee-list',
-  standalone: true,
-  imports: [
-    AsyncPipe,
-    PatrolPageExamineeComponent
-  ],
-  templateUrl: './examinee-list.component.html',
-  styleUrl: './examinee-list.component.css'
+    selector: 'app-examinee-list',
+    imports: [
+        AsyncPipe,
+        PatrolPageExamineeComponent
+    ],
+    templateUrl: './examinee-list.component.html',
+    styleUrl: './examinee-list.component.css'
 })
 export class ExamineeListComponent {
   protected examinees = inject(StoreService)
     .store
     .pipe(
-      map(model => model.examineeData.examinees),
+      map(model => model.patrolModeModel.examinees),
       distinctUntilChanged()
     );
 }

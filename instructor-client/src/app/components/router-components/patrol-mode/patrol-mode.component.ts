@@ -3,25 +3,42 @@ import {StoreService} from "../../../services/store.service";
 import {ExamineeListComponent} from "../../entity-lists/examinee-list/examinee-list.component";
 import {FormsModule} from "@angular/forms";
 import {PatrolPageExamineeComponent} from "../../entity-components/patrol-page-examinee/patrol-page-examinee.component";
+import {distinctUntilChanged, map} from "rxjs";
+import {AsyncPipe} from "@angular/common";
+import {ExamService} from "../../../services/exam.service";
+import {ExamState} from "../../../model";
 
 @Component({
-  selector: 'app-patrol-mode',
-  standalone: true,
-    imports: [
-        ExamineeListComponent,
-        PatrolPageExamineeComponent,
-        FormsModule
-    ],
-  templateUrl: './patrol-mode.component.html',
-  styleUrl: './patrol-mode.component.css'
+    selector: 'app-patrol-mode',
+  imports: [
+    ExamineeListComponent,
+    PatrolPageExamineeComponent,
+    FormsModule,
+    AsyncPipe,
+  ],
+    templateUrl: './patrol-mode.component.html',
+    styleUrl: './patrol-mode.component.css'
 })
 export class PatrolModeComponent {
   protected store = inject(StoreService).store;
+  protected examSvc = inject(ExamService);
+
+  protected curExam = inject(StoreService)
+    .store
+    .pipe(
+      map(model =>
+        model.examDashboardModel.exams
+          .filter(exam =>
+            exam.id === model.patrolModeModel.curExamId &&
+            exam.state === ExamState.ONGOING)
+          .at(0)),
+      distinctUntilChanged()
+    );
 
   getPatrolModeOnState():string {
     let returnString: string = "off";
 
-    if (this.store.value.patrol.isPatrolModeOn) {
+    if (this.store.value.patrolModeModel.patrol.isPatrolModeOn) {
       return "on";
     }
 
@@ -31,10 +48,14 @@ export class PatrolModeComponent {
   getPatrolModeOnStateClass():string {
     let returnString: string = "text-danger";
 
-    if (this.store.value.patrol.isPatrolModeOn) {
+    if (this.store.value.patrolModeModel.patrol.isPatrolModeOn) {
       return "text-success";
     }
 
     return returnString;
+  }
+
+  stopCurExam() {
+    this.examSvc.stopExam(this.store.value.patrolModeModel.curExamId);
   }
 }

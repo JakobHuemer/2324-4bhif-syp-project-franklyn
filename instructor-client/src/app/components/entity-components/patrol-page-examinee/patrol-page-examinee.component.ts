@@ -5,21 +5,21 @@ import {Examinee} from "../../../model";
 import {environment} from "../../../../../env/environment";
 
 @Component({
-  selector: 'app-patrol-page-examinee',
-  standalone: true,
-  imports: [],
-  templateUrl: './patrol-page-examinee.component.html',
-  styleUrl: './patrol-page-examinee.component.css'
+    selector: 'app-patrol-page-examinee',
+    imports: [],
+    templateUrl: './patrol-page-examinee.component.html',
+    styleUrl: './patrol-page-examinee.component.css'
 })
 export class PatrolPageExamineeComponent {
   protected examineeSvc = inject(ExamineeService);
   protected store = inject(StoreService).store;
 
+  @Input() examId: number | undefined;
   @Input() examinee: Examinee | undefined;
   @Input() showImage: boolean = false;
 
   getScreenshotAddress() {
-    return `${environment.serverBaseUrl}/screenshot/${this.examinee!.firstname}-${this.examinee!.lastname}/${environment.imageWidth}/${environment.imageHeight}?cachebust=${this.store.value.cacheBuster.cachebustNum}`; //TODO: get new screenshot-address
+    return `${environment.serverBaseUrl}/telemetry/by-user/${this.examinee!.id}/${this.examId}/screen/download?cachebust=${this.store.value.patrolModeModel.cacheBuster.cachebustNum}`;
   }
 
   getActivity(): string {

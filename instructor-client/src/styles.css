@@ -1,6 +1,10 @@
 /* You can add global styles to this file, and also import other style files */
 .screen-height {
-  height: 87vh
+  height: 85vh
+}
+
+.height-examinee-list {
+  height: 80vh
 }
 
 .left-bar-width {

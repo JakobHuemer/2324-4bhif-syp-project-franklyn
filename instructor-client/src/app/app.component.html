@@ -44,9 +44,9 @@
         </li>
       </ul>
 
-      <!--settings dropdown-->
+      <!--settings dropdown
       <div class="nav-item d-flex dropdown">
-        <!--scrollable when there are many fields (over 70% view height)-->
+        scrollable when there are many fields (over 70% view height)
         <form class="dropdown-menu p-4 dropdown-menu-end settings-dropdown overflow-scroll" data-bs-theme="light">
           <div class="mb-3 form-check">
             <input #patrolModeOn
@@ -130,7 +130,21 @@
           </svg>
         </button>
       </div>
+      -->
     </div>
+
+    <!--create test-->
+    <form class="container-fluid justify-content-end">
+      <button
+        type="button"
+        class="btn btn-warning"
+        [class.active]="location.path() === 'create-test'"
+        routerLink="create-test"
+        (click)="changeRoute()">
+        Test erstellen
+      </button>
+    </form>
+
   </nav>
 </header>
 
@@ -138,7 +152,7 @@
   <router-outlet></router-outlet>
 </main>
 
-<!-- Modal -->
+<!--Modal
 <div
   class="modal fade"
   id="verification-modal"
@@ -187,3 +201,4 @@
     </div>
   </div>
 </div>
+-->

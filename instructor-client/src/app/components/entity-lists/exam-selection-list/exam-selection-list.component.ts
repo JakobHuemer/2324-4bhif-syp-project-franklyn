@@ -5,20 +5,19 @@ import {AsyncPipe} from "@angular/common";
 import {ExamComponent} from "../../entity-components/exam/exam.component";
 
 @Component({
-  selector: 'app-exam-selection-list',
-  standalone: true,
-  imports: [
-    AsyncPipe,
-    ExamComponent
-  ],
-  templateUrl: './exam-selection-list.component.html',
-  styleUrl: './exam-selection-list.component.css'
+    selector: 'app-exam-selection-list',
+    imports: [
+        AsyncPipe,
+        ExamComponent
+    ],
+    templateUrl: './exam-selection-list.component.html',
+    styleUrl: './exam-selection-list.component.css'
 })
 export class ExamSelectionListComponent {
   protected exams = inject(StoreService)
     .store
     .pipe(
-      map(model => model.examData.exams),
+      map(model => model.examDashboardModel.exams),
       distinctUntilChanged()
     );
 }
