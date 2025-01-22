@@ -23,13 +23,13 @@ public class ConnectionStateRepository implements PanacheRepository<ConnectionSt
                 .replaceWithVoid();
     }
 
-    public Uni<Void> disconnectMany(List<Participation> participations) {
+    public Uni<Void> changeConnectionStatesOfMany(List<Participation> participations, boolean isConnected) {
         return persist(participations
                 .stream()
                 .map(participation -> new ConnectionState(
                         LocalDateTime.now(),
                         participation,
-                        false
+                        isConnected
                 )));
     }
 }

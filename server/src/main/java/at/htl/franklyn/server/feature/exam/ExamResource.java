@@ -223,14 +223,12 @@ public class ExamResource {
                         )
                 )
                 .chain(e -> examService.completeExam(e))
-                /*
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
                     Log.errorf("Could not complete exam %d (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException(
                             "Could not start exam", Response.Status.INTERNAL_SERVER_ERROR
                     );
                 })
-                 */
                 .onItem()
                 .transform(x -> Response.ok().build())
                 .emitOn(scheduler);

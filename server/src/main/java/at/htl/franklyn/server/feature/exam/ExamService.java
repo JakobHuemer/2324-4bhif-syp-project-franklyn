@@ -106,6 +106,10 @@ public class ExamService {
                         ExamState.ONGOING,
                         LocalDateTime.now(),
                         e.getId())
+                .chain(ignored -> participationRepository.getParticipationsOfExam(e))
+                // make sure examinees are not immediately disconnected, when the exam starts and they are already connected to the socket
+                .call(participations -> connectionStateRepository
+                        .changeConnectionStatesOfMany(participations, true))
                 .chain(affectedRows -> screenshotJobManager.startScreenshotJob(e));
     }
 
@@ -131,7 +135,8 @@ public class ExamService {
                     List<UUID> pIds = participations.stream().map(Participation::getId).toList();
                     return commandSocket.broadcastDisconnect(pIds);
                 })
-                .call(participations -> connectionStateRepository.disconnectMany(participations))
+                .call(participations -> connectionStateRepository
+                        .changeConnectionStatesOfMany(participations, false))
                 .replaceWithVoid();
     }
 
