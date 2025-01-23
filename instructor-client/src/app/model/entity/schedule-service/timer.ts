@@ -2,14 +2,10 @@ import {environment} from "../../../../../env/environment";
 
 export class Timer {
   constructor() {
-    this.screenshotCaptureIntervalProp = 10;
     this.patrolSpeedProp = environment.patrolSpeed;
     this.nextClientScheduleTimeProp = environment.nextClientScheduleTime;
     this.reloadDashboardIntervalProp = environment.reloadDashboardInterval;
   }
-
-  private screenshotCaptureIntervalProp: number;
-  private examineeTimerIdProp: number | undefined;
 
   private patrolSpeedProp: number;
   private patrolScheduleTimerProp: number | undefined;
@@ -18,12 +14,9 @@ export class Timer {
   private clientScheduleTimerIdProp: number | undefined;
 
   private reloadDashboardIntervalProp: number;
-  private serverMetricsTimerIdProp: any | undefined
+  private serverMetricsTimerIdProp: number | undefined
 
   //region <unformatted time-getter and setter>
-  get screenshotCaptureInterval() {
-    return this.screenshotCaptureIntervalProp;
-  }
 
   get patrolSpeed() {
     return this.patrolSpeedProp;
@@ -35,10 +28,6 @@ export class Timer {
 
   get reloadDashboardInterval() {
     return this.reloadDashboardIntervalProp;
-  }
-
-  set screenshotCaptureInterval(val) {
-    this.screenshotCaptureIntervalProp = val;
   }
 
   set patrolSpeed(val) {
@@ -55,9 +44,6 @@ export class Timer {
   //endregion
 
   //region <formatted time-getter>
-  get screenshotCaptureIntervalMilliseconds() {
-    return this.screenshotCaptureIntervalProp*1000;
-  }
 
   get patrolSpeedMilliseconds() {
     return this.patrolSpeedProp*1000;
@@ -73,10 +59,6 @@ export class Timer {
   //endregion
 
   //region <timer getter and setter>
-  get examineeTimerId() {
-    return this.examineeTimerIdProp;
-  }
-
   get patrolScheduleTimer() {
     return this.patrolScheduleTimerProp;
   }
@@ -87,10 +69,6 @@ export class Timer {
 
   get serverMetricsTimerId() {
     return this.serverMetricsTimerIdProp;
-  }
-
-  set examineeTimerId(val) {
-    this.examineeTimerIdProp = val;
   }
 
   set patrolScheduleTimer(val) {
