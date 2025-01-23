@@ -19,13 +19,6 @@ export class ScheduleService {
 
   constructor() {
     this.store.pipe(
-      map(model => model.scheduleServiceModel.timer.patrolSpeed),
-      distinctUntilChanged()
-    ).subscribe(() => {
-      this.startPatrolInterval();
-    })
-
-    this.store.pipe(
       map(model => model.scheduleServiceModel.timer.nextClientTime),
       distinctUntilChanged()
     ).subscribe(() => {
@@ -36,8 +29,10 @@ export class ScheduleService {
   //region stop intervals
 
   stopGettingServerMetrics() {
-    if (!this.store.value.scheduleServiceModel.timer.serverMetricsTimerId) {
-      clearInterval(this.store.value.scheduleServiceModel.timer.serverMetricsTimerId);
+    if (this.store.value.scheduleServiceModel.timer.serverMetricsTimerId !== undefined) {
+      window.clearInterval(
+        this.store.value.scheduleServiceModel.timer.serverMetricsTimerId
+      );
     }
 
     set((model) => {
@@ -46,8 +41,10 @@ export class ScheduleService {
   }
 
   stopUpdateDataScheduleInterval() {
-    if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
-      clearInterval(this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId);
+    if (this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId !== undefined) {
+      window.clearInterval(
+        this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId
+      );
     }
 
     set((model) => {
@@ -56,8 +53,10 @@ export class ScheduleService {
   }
 
   stopPatrolInterval() {
-    if (!this.store.value.scheduleServiceModel.timer.patrolScheduleTimer) {
-      clearInterval(this.store.value.scheduleServiceModel.timer.patrolScheduleTimer);
+    if (this.store.value.scheduleServiceModel.timer.patrolScheduleTimer !== undefined) {
+      window.clearInterval(
+        this.store.value.scheduleServiceModel.timer.patrolScheduleTimer
+      );
     }
 
     set((model) => {
@@ -73,7 +72,7 @@ export class ScheduleService {
     this.stopUpdateDataScheduleInterval();
 
     if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
-      this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = setInterval(() => {
+      this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = window.setInterval(() => {
         this.examineeRepo.updateScreenshots();
         this.examRepo.reloadAllExams();
         this.jobSvc.updateAllJobs();
@@ -93,7 +92,7 @@ export class ScheduleService {
             this.store.value.videoViewerModel.curExamId
           );
         }
-      }, this.store.value.scheduleServiceModel.timer.nextClientTimeMilliseconds) as unknown as number;
+      }, this.store.value.scheduleServiceModel.timer.nextClientTimeMilliseconds);
     }
   }
 
@@ -102,9 +101,9 @@ export class ScheduleService {
 
     if (this.store.value.scheduleServiceModel.timer.patrolScheduleTimer === undefined) {
       set((model) => {
-        model.scheduleServiceModel.timer.patrolScheduleTimer = setInterval(() => {
+        model.scheduleServiceModel.timer.patrolScheduleTimer = window.setInterval(() => {
           this.examineeRepo.newPatrolExaminee();
-        }, this.store.value.scheduleServiceModel.timer.patrolSpeedMilliseconds) as unknown as number;
+        }, this.store.value.scheduleServiceModel.timer.patrolSpeedMilliseconds);
       });
     }
   }
@@ -114,7 +113,7 @@ export class ScheduleService {
 
     if (this.store.value.scheduleServiceModel.timer.serverMetricsTimerId === undefined) {
       set((model) => {
-        model.scheduleServiceModel.timer.serverMetricsTimerId = setInterval(async () => {
+        model.scheduleServiceModel.timer.serverMetricsTimerId = window.setInterval(async () => {
           await this.webApi.getServerMetrics();
         }, this.store.value.scheduleServiceModel.timer.reloadDashboardIntervalMilliseconds);
       });

@@ -1,12 +1,13 @@
-import {Component, inject} from '@angular/core';
+import {Component, inject, OnDestroy} from '@angular/core';
 import {StoreService} from "../../../services/store.service";
 import {ExamineeListComponent} from "../../entity-lists/examinee-list/examinee-list.component";
 import {FormsModule} from "@angular/forms";
 import {PatrolPageExamineeComponent} from "../../entity-components/patrol-page-examinee/patrol-page-examinee.component";
 import {distinctUntilChanged, map} from "rxjs";
-import {AsyncPipe} from "@angular/common";
+import {AsyncPipe, Location} from "@angular/common";
 import {ExamService} from "../../../services/exam.service";
-import {ExamState} from "../../../model";
+import {ExamState, set} from "../../../model";
+import {ScheduleService} from "../../../services/schedule.service";
 
 @Component({
     selector: 'app-patrol-mode',
@@ -22,6 +23,8 @@ import {ExamState} from "../../../model";
 export class PatrolModeComponent {
   protected store = inject(StoreService).store;
   protected examSvc = inject(ExamService);
+  protected scheduleSvc = inject(ScheduleService);
+  protected location = inject(Location);
 
   protected curExam = inject(StoreService)
     .store
@@ -34,6 +37,18 @@ export class PatrolModeComponent {
           .at(0)),
       distinctUntilChanged()
     );
+
+  constructor() {
+    this.location.onUrlChange((url) => {
+      if (url !== "/patrol-mode") {
+        this.scheduleSvc.stopPatrolInterval();
+      } else {
+        if (this.store.value.patrolModeModel.patrol.isPatrolModeOn) {
+          this.scheduleSvc.startPatrolInterval();
+        }
+      }
+    });
+  }
 
   getPatrolModeOnState():string {
     let returnString: string = "off";
@@ -57,5 +72,19 @@ export class PatrolModeComponent {
 
   stopCurExam() {
     this.examSvc.stopExam(this.store.value.patrolModeModel.curExamId);
+  }
+
+  setPatrolMode() {
+    set((model) => {
+      model.patrolModeModel.patrol.isPatrolModeOn = !model.patrolModeModel
+        .patrol
+        .isPatrolModeOn;
+
+      if (model.patrolModeModel.patrol.isPatrolModeOn) {
+        this.scheduleSvc.startPatrolInterval();
+      } else {
+        this.scheduleSvc.stopPatrolInterval();
+      }
+    });
   }
 }

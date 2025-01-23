@@ -29,16 +29,13 @@ export class AppComponent {
       this.location.path() === "create-test" ||
       this.location.path() === "test-overview/edit-test-view"){
       this.scheduleSvc.stopUpdateDataScheduleInterval();
-      this.scheduleSvc.stopPatrolInterval();
     } else {
       this.scheduleSvc.startUpdateDataScheduleInterval();
-      this.scheduleSvc.startPatrolInterval();
     }
 
     set((model) => {
       //safety measure to prevent any possible bugs
       model.patrolModeModel.patrol.patrolExaminee = undefined;
-      model.patrolModeModel.patrol.isPatrolModeOn = false;
       model.createTestModel.createdExam = false;
     })
   }
