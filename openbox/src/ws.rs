@@ -37,6 +37,7 @@ pub enum State {
 
 #[derive(Debug, Clone)]
 pub enum Event {
+    Connected,
     Reconnect,
     Disconnect,
     ServerError,
@@ -55,6 +56,9 @@ pub enum WsMessage {
 
     // used for process_screenshots to update session_id
     SetId(String),
+
+    // used to abort task
+    Cancel,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -128,18 +132,21 @@ pub fn subscribe(
             match &mut state {
                 State::Disconnected => {
                     let Ok(connection) = connect(&pin, &server, &firstname, &lastname).await else {
-                        eprintln!("Error: could not connect to {server}");
                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                        output.send(Event::Reconnect).await.unwrap();
                         continue;
                     };
 
                     match connection {
                         Connection::Upgrade(ws, session) => {
+                            output.send(Event::Connected).await.unwrap();
                             sender.send(WsMessage::SetId(session)).await.unwrap();
                             state = State::Connected(ws);
                         }
                         Connection::InvalidPin | Connection::ServerError => {
+                            sender.send(WsMessage::Cancel).await.unwrap();
                             output.send(Event::ServerError).await.unwrap();
+                            return;
                         }
                     }
                 }
@@ -187,6 +194,7 @@ async fn process_screenshots(server: String, mut receiver: mpsc::Receiver<WsMess
         let msg = receiver.select_next_some().await;
 
         let (file_part, image, option) = match msg {
+            WsMessage::Cancel => return,
             WsMessage::SetId(id) => {
                 session = id;
                 continue;
