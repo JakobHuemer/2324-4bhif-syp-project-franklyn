@@ -1,18 +1,17 @@
-use anyhow::Context;
+use anyhow::{Context, Result};
 use image::{ImageFormat, Rgba, RgbaImage};
 use reqwest::multipart::Part;
 
 pub fn take_screenshot(
     expect_alpha: bool,
-    cur: Option<RgbaImage>,
-) -> (Part, RgbaImage, &'static str) {
+    cur: Option<&RgbaImage>,
+) -> (Result<Part>, RgbaImage, &'static str) {
     let image = xcap::Monitor::all()
-        .unwrap()
+        .expect("ERROR: could not access monitors")
         .first()
-        .context("ERROR: no monitor found")
-        .unwrap()
+        .expect("ERROR: no monitors found")
         .capture_image()
-        .unwrap();
+        .expect("ERROR: unable to take screenshot");
 
     if expect_alpha {
         return (image_to_file_part(&image), image, "alpha");
@@ -22,28 +21,21 @@ pub fn take_screenshot(
     (image_to_file_part(&image), image, option)
 }
 
-fn image_to_file_part(image: &RgbaImage) -> Part {
+fn image_to_file_part(image: &RgbaImage) -> Result<Part> {
     let mut buf = Vec::<u8>::new();
-
-    image
-        .write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
-        .unwrap();
-
+    image.write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)?;
     Part::bytes(buf)
         .file_name("image.png")
         .mime_str("image/png")
-        .unwrap()
+        .context("ERROR: failed to create file part")
 }
 
-fn transform_screenshot(cur_img: Option<RgbaImage>, img: RgbaImage) -> (RgbaImage, &'static str) {
+fn transform_screenshot(cur_img: Option<&RgbaImage>, img: RgbaImage) -> (RgbaImage, &'static str) {
     let Some(cur_img) = cur_img else {
         return (img, "alpha");
     };
 
-    let w = cur_img.width();
-    let h = cur_img.height();
-
-    let mut cnt = 0;
+    let (w, h, mut c) = (cur_img.width(), cur_img.height(), 0);
     let mut out_img = RgbaImage::from_pixel(w, h, Rgba([0, 0, 0, 0]));
 
     for x in 0..w {
@@ -51,13 +43,13 @@ fn transform_screenshot(cur_img: Option<RgbaImage>, img: RgbaImage) -> (RgbaImag
             let beta_rgb = img.get_pixel(x, y);
 
             if cur_img.get_pixel(x, y) != beta_rgb {
-                cnt += 1;
+                c += 1;
                 out_img.put_pixel(x, y, beta_rgb.clone());
             }
         }
     }
 
-    if cnt > w * h / 2 {
+    if c > w * h / 2 {
         return (img, "alpha");
     }
 
