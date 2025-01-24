@@ -64,9 +64,13 @@ export class ExamService {
   }
 
   setCurVideoExam(exam: Exam): void {
-    set((model) => {
-      model.videoViewerModel.curExamId = exam?.id;
-    });
+    if (this.store.value.videoViewerModel.curExamId !== exam?.id) {
+      set((model) => {
+        model.videoViewerModel.examinees = [];
+        model.videoViewerModel.examinee = undefined;
+        model.videoViewerModel.curExamId = exam?.id;
+      });
+    }
 
     this.webApi.getVideoExamineesFromServer(exam.id);
     this.webApi.getExamsFromServer();

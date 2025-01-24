@@ -16,16 +16,26 @@
         }
       </td>
       <td class="selector-width w-auto align-top pt-2 px-3">
-        @if ((curExam | async) && store.value.videoViewerModel.examinee) {
-          <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-start w-100">
-            <app-video-examinee
-              [examId]="(curExam | async)?.id"
-              [examinee]="store.value.videoViewerModel.examinee">
-            </app-video-examinee>
-          </div>
+        @if ((curExam | async) !== undefined) {
+          @if (store.value.videoViewerModel.examinee !== undefined) {
+            <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-start w-100">
+              <app-video-examinee
+                [examId]="(curExam | async)?.id"
+                [examinee]="store.value.videoViewerModel.examinee">
+              </app-video-examinee>
+            </div>
+          } @else {
+            <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-center">
+              <h1 class="text-center text-danger fw-bold">
+                No examinee selected
+              </h1>
+            </div>
+          }
         } @else {
           <div class="selector-width w-auto align-top pt-2 px-3 screen-height d-flex justify-content-center align-items-center">
-            <h1 class="text-center text-danger fw-bold">No exam selected</h1>
+            <h1 class="text-center text-danger fw-bold">
+              No exam selected
+            </h1>
           </div>
         }
       </td>

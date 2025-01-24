@@ -8,6 +8,7 @@ import {ScheduleServiceModel, Timer} from "./entity/schedule-service/schedule-se
 import {VideoViewerModel} from "./entity/video-viewer/video-viewer-index";
 import {environment} from "../../../env/environment";
 import {JobServiceModel} from "./entity/job-service/job-service-model";
+import {ToastModel} from "./entity/toast/toast-model";
 
 export interface Model {
     createTestModel: CreateTestModel,
@@ -17,6 +18,7 @@ export interface Model {
     scheduleServiceModel: ScheduleServiceModel,
     videoViewerModel: VideoViewerModel,
     jobServiceModel:JobServiceModel,
+    toastModel: ToastModel,
     readonly resetText: string,
 }
 
@@ -77,6 +79,9 @@ const initialState: Model = {
   jobServiceModel: {
     jobs: [],
     jobLogs: [],
+  },
+  toastModel: {
+    toasts: []
   },
   resetText: ""
 };

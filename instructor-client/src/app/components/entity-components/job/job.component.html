@@ -27,20 +27,22 @@
           }
         </td>
       </tr>
-      <tr>
-        <td>
+      @if ((job | async)?.examinee !== undefined) {
+        <tr>
+          <td>
           <span class="fw-bold">
             Examinee:
           </span>
-        </td>
-        <td>
-          @if ((job | async)?.examinee) {
-            <span class="text-start job-message-width">
+          </td>
+          <td>
+            @if ((job | async)?.examinee) {
+              <span class="text-start job-message-width">
               {{(job | async)!.examinee!.firstname}} {{(job | async)!.examinee!.lastname}}
             </span>
-          }
-        </td>
-      </tr>
+            }
+          </td>
+        </tr>
+      }
       <tr>
         <td>
           <span class="fw-bold">
@@ -60,9 +62,7 @@
           </span>
         </td>
         <td>
-          <span class="text-start job-message-width">
-            {{jobLog.message}}
-          </span>
+          <span class="text-start job-message-width me-1">{{jobLog.message}}</span>
         </td>
       </tr>
 

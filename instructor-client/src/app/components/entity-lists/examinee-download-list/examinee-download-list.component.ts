@@ -4,6 +4,7 @@ import {distinctUntilChanged, map} from "rxjs";
 import {AsyncPipe} from "@angular/common";
 import {DownloadExamineeComponent} from "../../entity-components/download-examinee/download-examinee.component";
 import {JobService} from "../../../services/job.service";
+import {ToastService} from "../../../services/toast.service";
 
 @Component({
   selector: 'app-examinee-download-list',
@@ -17,6 +18,7 @@ import {JobService} from "../../../services/job.service";
 export class ExamineeDownloadListComponent {
   protected jobSvc = inject(JobService);
   protected store = inject(StoreService).store;
+  protected toastSvc = inject(ToastService);
   protected examinees = this.store
     .pipe(
       map(model => model.videoViewerModel.examinees),
@@ -42,6 +44,12 @@ export class ExamineeDownloadListComponent {
 
     if (exam !== undefined) {
       this.jobSvc.getAllExamVideos(exam);
+
+      this.toastSvc.addToast(
+        "Job Started",
+        `The Job to generate the videos for the exam '${exam.title}' has been started.`,
+        "success"
+      );
     }
   }
 }

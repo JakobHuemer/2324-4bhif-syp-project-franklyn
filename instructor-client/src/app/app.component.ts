@@ -8,10 +8,11 @@ import {set} from "./model";
 import {WebApiService} from "./services/web-api.service";
 import {ScheduleService} from "./services/schedule.service";
 import {FormsModule} from "@angular/forms";
+import {ToastComponent} from "./components/entity-components/toast/toast.component";
 
 @Component({
     selector: 'app-root',
-    imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, FormsModule],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, FormsModule, ToastComponent],
     templateUrl: './app.component.html',
     styleUrl: './app.component.css'
 })
