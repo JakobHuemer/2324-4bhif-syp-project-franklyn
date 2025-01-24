@@ -79,7 +79,9 @@ impl<'a> Openbox<'a> {
             Message::PinChanged(pin) => self.pin = pin,
             Message::FirstnameChanged(firstname) => self.firstname = firstname,
             Message::LastnameChanged(lastname) => self.lastname = lastname,
-            Message::Connect | Message::ConnectKb if self.is_input_valid() => self.state = State::Connected,
+            Message::Connect | Message::ConnectKb if self.is_input_valid() => {
+                self.state = State::Connected
+            }
             Message::FocusNext => return focus_next(),
             Message::Ev(Event::Disconnect) => return iced::exit(),
             Message::Ev(Event::Connected) => self.state = State::Connected,
@@ -103,12 +105,13 @@ impl<'a> Openbox<'a> {
 
         let ws = match self.state {
             State::Connected | State::Reconnecting => ws::subscribe(
-                self.pin.clone(), 
+                self.pin.clone(),
                 self.server_address.to_string(),
                 self.firstname.clone(),
                 self.lastname.clone(),
-            ).map(Message::Ev),
-            _ => Subscription::none()
+            )
+            .map(Message::Ev),
+            _ => Subscription::none(),
         };
 
         Subscription::batch([hotkeys, ws])
@@ -126,13 +129,12 @@ impl<'a> Openbox<'a> {
 
     fn logo_view(&self) -> Element<Message> {
         row![
-            container(
-                text("FRAN").size(70)).style(|_| openbox::theme::LogoTheme::default().to_style()
-            ),
+            container(text("FRAN").size(70))
+                .style(|_| openbox::theme::LogoTheme::default().to_style()),
             text("KLYN").size(70),
         ]
-            .align_y(Center)
-            .into()
+        .align_y(Center)
+        .into()
     }
 
     fn login_view(&self) -> Element<Message> {
@@ -178,8 +180,12 @@ impl<'a> Openbox<'a> {
 
     fn connected_view(&self) -> Element<Message> {
         column![
-            self.logo_view(), 
-            row![text(&self.firstname).size(50), text(&self.lastname).size(50)].spacing(20)
+            self.logo_view(),
+            row![
+                text(&self.firstname).size(50),
+                text(&self.lastname).size(50)
+            ]
+            .spacing(20)
         ]
         .spacing(20)
         .align_x(Center)

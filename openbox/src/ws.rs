@@ -49,7 +49,7 @@ pub enum Event {
 pub enum WsMessage {
     #[serde(rename = "CAPTURE_SCREEN")]
     CaptureScreen {
-        frame_type: Option<FrameType>,
+        frame_type: FrameType,
     },
     #[serde(rename = "DISCONNECT")]
     Disconnect,
@@ -112,7 +112,10 @@ pub async fn connect(
         .body(Empty::<Bytes>::new())?;
 
     let (ws, _) = handshake::client(&SpawnExecutor, req, stream).await?;
-    Ok(Connection::Upgrade(FragmentCollector::new(ws), session_id.to_string()))
+    Ok(Connection::Upgrade(
+        FragmentCollector::new(ws),
+        session_id.to_string(),
+    ))
 }
 
 pub fn subscribe(
@@ -133,25 +136,25 @@ pub fn subscribe(
                 State::Disconnected => {
                     let Ok(connection) = connect(&pin, &server, &firstname, &lastname).await else {
                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                        output.send(Event::Reconnect).await.unwrap();
+                        _ = output.send(Event::Reconnect).await;
                         continue;
                     };
 
                     match connection {
                         Connection::Upgrade(ws, session) => {
-                            output.send(Event::Connected).await.unwrap();
-                            sender.send(WsMessage::SetId(session)).await.unwrap();
+                            _ = output.send(Event::Connected).await;
+                            _ = sender.send(WsMessage::SetId(session)).await;
                             state = State::Connected(ws);
                         }
                         Connection::InvalidPin | Connection::ServerError => {
-                            sender.send(WsMessage::Cancel).await.unwrap();
-                            output.send(Event::ServerError).await.unwrap();
-                            return;
+                            _ = sender.send(WsMessage::Cancel).await;
+                            _ = output.send(Event::ServerError).await;
+                            // return;
                         }
                     }
                 }
                 State::Connected(ws) => match handle_message(ws).await {
-                    Event::Received(ws_msg) => sender.send(ws_msg).await.unwrap(),
+                    Event::Received(ws_msg) => _ = sender.send(ws_msg).await,
                     Event::Reconnect => state = State::Disconnected,
                     event => _ = output.send(event).await,
                 },
@@ -199,11 +202,18 @@ async fn process_screenshots(server: String, mut receiver: mpsc::Receiver<WsMess
                 session = id;
                 continue;
             }
-            WsMessage::CaptureScreen { frame_type } => match frame_type.unwrap() {
-                FrameType::Alpha => screen::take_screenshot(true, cur_img),
-                FrameType::Beta | FrameType::Unspecified => screen::take_screenshot(false, cur_img),
+            WsMessage::CaptureScreen { frame_type } => match frame_type {
+                FrameType::Alpha => screen::take_screenshot(true, cur_img.as_ref()),
+                FrameType::Beta | FrameType::Unspecified => {
+                    screen::take_screenshot(false, cur_img.as_ref())
+                }
             },
             _ => unreachable!(),
+        };
+
+        let Ok(file_part) = file_part else {
+            eprintln!("ERROR: unable to produce screenshot err={file_part:?}");
+            continue;
         };
 
         let path = format!(
