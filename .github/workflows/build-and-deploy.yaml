@@ -1,7 +1,5 @@
 name: Build and deploy
 
-concurrency:
-
 on:
   push:
     branches:
