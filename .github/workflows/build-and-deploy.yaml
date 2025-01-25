@@ -1,23 +1,26 @@
-name: Build Openbox
+name: Build and deploy
+
+concurrency:
 
 on:
   push:
     branches:
       - develop
       - main
+    paths:
+      - '.github/workflows/build-and-deploy.yaml'
+      - '.github/workflows/build-docker.yaml'
+      - 'cicd/**'
+      - 'instructor-client/**'
+      - 'nginx/**'
+      - 'openbox/**'
+      - 'server/**'
   pull_request:
     branches:
       - develop
       - main
   workflow_dispatch:
-  paths:
-    - '.github/workflows/build-and-deploy.yaml'
-    - '.github/workflows/build-docker.yaml'
-    - 'cicd/**'
-    - 'instructor-client/**'
-    - 'nginx/**'
-    - 'openbox/**'
-    - 'server/**'
+
 jobs:
   openbox-determine-version:
     runs-on: ubuntu-22.04
@@ -100,6 +103,9 @@ jobs:
     uses: ./.github/workflows/build-docker.yaml
 
   deploy-to-oravm:
+    concurrency:
+      group: deploy-to-oravm-group
+      cancel-in-progress: true
     needs: [openbox-linux, openbox-macos, openbox-windows, app-docker-images]
     if: github.ref == 'refs/heads/develop'
     name: Deploy Franklyn
