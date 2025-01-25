@@ -10,7 +10,14 @@ on:
       - develop
       - main
   workflow_dispatch:
-
+  paths:
+    - '.github/workflows/build-and-deploy.yaml'
+    - '.github/workflows/build-docker.yaml'
+    - 'cicd/**'
+    - 'instructor-client/**'
+    - 'nginx/**'
+    - 'openbox/**'
+    - 'server/**'
 jobs:
   openbox-determine-version:
     runs-on: ubuntu-22.04

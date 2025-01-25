@@ -400,6 +400,30 @@ See also: https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob
 See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/examinee/ExamineeDto.java[ExamineeDto]
 * *Additional Notes*: N/A
 
+====== Get video jobs of exam
+* *Path*: `/exams/{id}/videojobs`
+* *Method*: `GET`
+* *Description*: Get all video jobs which belong to the given exam
+* *Request format*: `Path param`
+* *Request structure*: `/exams/{id}/videojobs` where `{id}` is a valid numeric ID of an exam
+* *Response format*: `JSON`
+* *Response structure*:
++
+[source, json]
+----
+[
+    {
+      "job_id": number,
+      "examinee_id": number | null,
+      "exam_id": number,
+      "status": "QUEUED", "ONGOING" | "DONE" | "FAILED" | "DELETED",
+    },
+    ...
+]
+----
+See also https://github.com/2324-4bhif-syp/2324-4bhif-syp-project-franklyn/blob/feat/multi-client-capabilities/server/src/main/java/at/htl/franklyn/server/feature/examinee/ExamineeDto.java[ExamineeDto]
+* *Additional Notes*: N/A
+
 ===== Manage Recordings
 The manage Recordings interface is a `REST` resource of franklyn-server used for various actions needed for generating videos, retrieving screenshots and more.
 
