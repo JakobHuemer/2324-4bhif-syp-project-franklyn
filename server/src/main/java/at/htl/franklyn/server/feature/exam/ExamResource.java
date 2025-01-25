@@ -4,6 +4,9 @@ import at.htl.franklyn.server.common.ExceptionFilter;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
 import at.htl.franklyn.server.feature.examinee.ExamineeService;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationService;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobDto;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobRepository;
+import at.htl.franklyn.server.feature.telemetry.video.VideoJobType;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
@@ -33,6 +36,9 @@ public class ExamResource {
 
     @Inject
     ParticipationService participationService;
+
+    @Inject
+    VideoJobRepository videoJobRepository;
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -131,6 +137,36 @@ public class ExamResource {
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
                     Log.errorf("Could not get examinees of exam %d. (Reason: %s)", id, e.getMessage());
                     return new WebApplicationException("Unable to get examinees", Response.Status.INTERNAL_SERVER_ERROR);
+                });
+    }
+
+    @GET
+    @Path("{id}/videojobs")
+    @WithSession
+    public Uni<Response> getVideoJobsOfExam(@PathParam("id") long id) {
+        return examService.exists(id)
+                .onItem().transform(exists -> exists ? id : null)
+                .onItem().ifNull().failWith(
+                        new WebApplicationException(
+                                String.format("No exam with the id %d could be found!", id),
+                                Response.Status.NOT_FOUND
+                        )
+                )
+                .onItem().transformToUni(ignored -> videoJobRepository.getVideoJobsOfExam(id))
+                .onItem().transform(vjs -> vjs
+                        .stream()
+                        .map(job -> new VideoJobDto(
+                            job.getId(),
+                            job.getState(),
+                            job.getExam().getId(),
+                            job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null)
+                        )
+                        .toList()
+                )
+                .onItem().transform(videoJobs -> Response.ok(videoJobs).build())
+                .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
+                    Log.errorf("Could not get video jobs of exam %d. (Reason: %s)", id, e.getMessage());
+                    return new WebApplicationException("Unable to get video jobs", Response.Status.INTERNAL_SERVER_ERROR);
                 });
     }
 

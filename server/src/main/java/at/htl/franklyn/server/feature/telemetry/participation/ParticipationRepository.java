@@ -15,8 +15,7 @@ public class ParticipationRepository implements PanacheRepositoryBase<Participat
                 """
                         select p From Participation p where p.exam.id = ?2 and p.examinee.id = ?1
                         """, examineeId, examId)
-                .list()
-                .onItem().transform(i -> i.stream().findFirst().orElse(null));
+                .firstResult();
     }
 
     public Uni<Participation> findByIdWithExam(UUID sessionID) {

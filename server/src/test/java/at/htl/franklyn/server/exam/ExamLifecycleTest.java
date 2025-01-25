@@ -609,6 +609,120 @@ public class ExamLifecycleTest {
     }
 
     @Test
+    @Order(1201)
+    void test_startBatchVideoGeneration_ok(){
+        // Arrange
+
+        // Act: Start video job
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-exam/%d/video/generate-all", createdExam.id()));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.ACCEPTED);
+        VideoJobDto jobDto = createResponse.then()
+                .log().body()
+                .extract().as(VideoJobDto.class);
+        assertThat(jobDto)
+                .isNotNull();
+        assertThat(jobDto.state())
+                .isEqualTo(VideoJobState.QUEUED);
+    }
+
+    @Test
+    @Order(1202)
+    void test_startSingleVideoGenerationWithInvalidExaminee_ok() {
+        // Arrange
+
+        // Act: Start video job
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-user/%d/%d/video/generate", -120, createdExam.id()));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(1203)
+    void test_startSingleVideoGenerationWithInvalidExam_ok() {
+        // Arrange
+
+        // Act: Start video job
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-user/%d/%d/video/generate", joinedExamineeId, -10));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(1204)
+    void test_startBatchVideoGenerationWithInvalidExam_ok(){
+        // Arrange
+
+        // Act: Start video job
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-exam/%d/video/generate-all", -110));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(1205)
+    void test_getAllVideoJobsOfExam_ok(){
+        // Arrange
+
+        // Act
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/exams")
+                .when()
+                .get(String.format("/%d/videojobs", createdExam.id()));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+        VideoJobDto[] jobDtos = createResponse.then()
+                .log().body()
+                .extract().as(VideoJobDto[].class);
+        assertThat(jobDtos)
+                .hasSize(2);
+    }
+
+    @Test
+    @Order(1206)
+    void test_getAllVideoJobsOfInvalidExam_ok(){
+        // Arrange
+
+        // Act
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/exams")
+                .when()
+                .get(String.format("/%d/videojobs", -1));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.NOT_FOUND);
+    }
+
+    @Test
     @Order(1300)
     void test_simpleDeleteTelemetryOfExam_ok() {
         // Arrange

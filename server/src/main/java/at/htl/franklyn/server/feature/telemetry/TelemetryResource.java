@@ -23,6 +23,7 @@ import org.jboss.resteasy.reactive.RestForm;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Paths;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Path("/telemetry")
@@ -210,7 +211,18 @@ public class TelemetryResource {
                         )
                 )
                 .chain(ignored -> videoJobService.queueVideoJob(userId, examId))
-                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState(), job.getExam().getId(), job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null))
+                .onFailure(NoSuchElementException.class).transform(e -> {
+                    Log.warnf("Could not generate video for (exam: %s, user: %s) (Reason: %s)", examId, userId, e.getMessage());
+                    return new WebApplicationException(
+                            "Unable to generate video", Response.Status.BAD_REQUEST
+                    );
+                })
+                .onItem().transform(job -> new VideoJobDto(
+                        job.getId(),
+                        job.getState(),
+                        job.getExam().getId(),
+                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null)
+                )
                 .onItem().transform(job -> {
                     String location = uriInfo.getBaseUriBuilder()
                             .path(TelemetryResource.class)
@@ -241,7 +253,18 @@ public class TelemetryResource {
                         )
                 )
                 .chain(ignored -> videoJobService.queueBatchVideoJob(examId))
-                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState(), job.getExam().getId(), job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null))
+                .onFailure(NoSuchElementException.class).transform(e -> {
+                    Log.warnf("Could not generate video for exam: %s (Reason: %s)", examId, e.getMessage());
+                    return new WebApplicationException(
+                            "Unable to generate videos", Response.Status.BAD_REQUEST
+                    );
+                })
+                .onItem().transform(job -> new VideoJobDto(
+                        job.getId(),
+                        job.getState(),
+                        job.getExam().getId(),
+                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null)
+                )
                 .onItem().transform(job -> {
                     String location = uriInfo.getBaseUriBuilder()
                             .path(TelemetryResource.class)

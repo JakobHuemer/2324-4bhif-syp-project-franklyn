@@ -11,6 +11,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.NoSuchElementException;
 
 @ApplicationScoped
 public class VideoJobService {
@@ -41,7 +42,7 @@ public class VideoJobService {
             Long examId
     ) {
         return participationRepository.getByExamAndExaminee(userId, examId)
-                .onItem().ifNull().fail()
+                .onItem().ifNull().failWith(new NoSuchElementException("Can not find participation of exam and examinee"))
                 .chain(participation ->
                         videoJobRepository.persistAndFlush(
                                 new VideoJob(
@@ -60,7 +61,7 @@ public class VideoJobService {
             Long examId
     ) {
         return examRepository.findById(examId)
-                .onItem().ifNull().fail()
+                .onItem().ifNull().failWith(new NoSuchElementException("Can not find exam provided"))
                 .chain(exam ->
                         videoJobRepository.persistAndFlush(
                                 new VideoJob(

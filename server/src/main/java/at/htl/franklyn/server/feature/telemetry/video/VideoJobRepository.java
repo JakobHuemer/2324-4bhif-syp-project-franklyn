@@ -38,6 +38,4 @@ public class VideoJobRepository implements PanacheRepository<VideoJob> {
                 """, examId)
                 .list();
     }
-
-
 }
