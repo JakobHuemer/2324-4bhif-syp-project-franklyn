@@ -565,6 +565,10 @@ public class ExamLifecycleTest {
                 .extract().as(VideoJobDto.class);
         assertThat(jobDto)
                 .isNotNull();
+        assertThat(jobDto.createdAt())
+                .isNotNull();
+        assertThat(jobDto.finishedAt())
+                .isNull();
 
         // Act: Poll for job progress
         do {
@@ -586,6 +590,8 @@ public class ExamLifecycleTest {
         // Assert
         assertThat(jobDto.state())
                 .isEqualTo(VideoJobState.DONE);
+        assertThat(jobDto.finishedAt())
+                .isNotNull();
 
 
         // Act: Download video job artifact
@@ -630,6 +636,10 @@ public class ExamLifecycleTest {
                 .isNotNull();
         assertThat(jobDto.state())
                 .isEqualTo(VideoJobState.QUEUED);
+        assertThat(jobDto.createdAt())
+                .isNotNull();
+        assertThat(jobDto.finishedAt())
+                .isNull();
     }
 
     @Test

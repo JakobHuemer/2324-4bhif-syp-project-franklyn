@@ -50,6 +50,13 @@ public class VideoJob {
     }, optional = true)
     private Examinee examinee;
 
+    @NotNull(message = "created timestamp can not be null!")
+    @Column(name = "VJ_CREATED_AT", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "VJ_FINISHED_AT", nullable = true)
+    private LocalDateTime finishedAt;
+
     @Size(
             message = "Artifact path must have a length between "
                     + Limits.FILE_PATH_LENGTH_MIN + " and "
@@ -63,12 +70,14 @@ public class VideoJob {
     public VideoJob() {
     }
 
-    public VideoJob(LocalDateTime queueTimestamp, VideoJobState state, VideoJobType type, Exam exam, Examinee examinee, String artifactPath) {
+    public VideoJob(LocalDateTime queueTimestamp, VideoJobState state, VideoJobType type, Exam exam, Examinee examinee, LocalDateTime createdAt, LocalDateTime finishedAt, String artifactPath) {
         this.queueTimestamp = queueTimestamp;
         this.state = state;
         this.type = type;
         this.exam = exam;
         this.examinee = examinee;
+        this.createdAt = createdAt;
+        this.finishedAt = finishedAt;
         this.artifactPath = artifactPath;
     }
 
@@ -126,5 +135,21 @@ public class VideoJob {
 
     public void setArtifactPath(String artifactPath) {
         this.artifactPath = artifactPath;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getFinishedAt() {
+        return finishedAt;
+    }
+
+    public void setFinishedAt(LocalDateTime finishedAt) {
+        this.finishedAt = finishedAt;
     }
 }

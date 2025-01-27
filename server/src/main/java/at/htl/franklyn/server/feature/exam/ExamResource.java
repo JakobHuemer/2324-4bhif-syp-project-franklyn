@@ -159,7 +159,9 @@ public class ExamResource {
                             job.getId(),
                             job.getState(),
                             job.getExam().getId(),
-                            job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null)
+                            job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null,
+                            job.getCreatedAt(),
+                            job.getFinishedAt())
                         )
                         .toList()
                 )

@@ -147,7 +147,14 @@ public class TelemetryResource {
                                 Response.Status.NOT_FOUND
                         )
                 )
-                .onItem().transform(job -> new VideoJobDto(job.getId(), job.getState(), job.getExam().getId(), job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null))
+                .onItem().transform(job -> new VideoJobDto(
+                        job.getId(),
+                        job.getState(),
+                        job.getExam().getId(),
+                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null,
+                        job.getCreatedAt(),
+                        job.getFinishedAt())
+                )
                 .onItem().transform(dto -> Response.ok(dto).build());
     }
 
@@ -221,7 +228,9 @@ public class TelemetryResource {
                         job.getId(),
                         job.getState(),
                         job.getExam().getId(),
-                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null)
+                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null,
+                        job.getCreatedAt(),
+                        job.getFinishedAt())
                 )
                 .onItem().transform(job -> {
                     String location = uriInfo.getBaseUriBuilder()
@@ -263,7 +272,9 @@ public class TelemetryResource {
                         job.getId(),
                         job.getState(),
                         job.getExam().getId(),
-                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null)
+                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null,
+                        job.getCreatedAt(),
+                        job.getFinishedAt())
                 )
                 .onItem().transform(job -> {
                     String location = uriInfo.getBaseUriBuilder()

@@ -51,6 +51,8 @@ public class VideoJobService {
                                         VideoJobType.SINGLE,
                                         participation.getExam(),
                                         participation.getExaminee(),
+                                        LocalDateTime.now(),
+                                        null,
                                         null
                                 )
                         )
@@ -69,6 +71,8 @@ public class VideoJobService {
                                         VideoJobState.QUEUED,
                                         VideoJobType.BATCH,
                                         exam,
+                                        null,
+                                        LocalDateTime.now(),
                                         null,
                                         null
                                 )

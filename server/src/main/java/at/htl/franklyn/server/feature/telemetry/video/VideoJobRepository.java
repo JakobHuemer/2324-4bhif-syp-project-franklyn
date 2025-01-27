@@ -4,6 +4,7 @@ import io.quarkus.hibernate.reactive.panache.PanacheRepository;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @ApplicationScoped
@@ -24,12 +25,20 @@ public class VideoJobRepository implements PanacheRepository<VideoJob> {
     }
 
     public Uni<Void> completeJob(long jobId, String artifactPath) {
-        return update("state = ?1, artifactPath = ?3 where id = ?2", VideoJobState.DONE, jobId, artifactPath)
-                .replaceWithVoid();
+        return update("state = ?1, artifactPath = ?3, finishedAt = ?4 where id = ?2",
+                VideoJobState.DONE,
+                jobId,
+                artifactPath,
+                LocalDateTime.now()
+            ).replaceWithVoid();
     }
 
     public Uni<Void> failJob(long jobId) {
-        return update("state = ?1 where id = ?2", VideoJobState.FAILED, jobId).replaceWithVoid();
+        return update("state = ?1, finishedAt = ?3 where id = ?2",
+                VideoJobState.FAILED,
+                jobId,
+                LocalDateTime.now()
+        ).replaceWithVoid();
     }
 
     public Uni<List<VideoJob>> getVideoJobsOfExam(long examId) {
