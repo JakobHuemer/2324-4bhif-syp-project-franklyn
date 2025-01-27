@@ -3,9 +3,7 @@ import {CommonModule, Location} from '@angular/common';
 import {RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 import {environment} from "../../env/environment";
 import {StoreService} from "./services/store.service";
-import {ExamineeService} from "./services/examinee.service";
 import {set} from "./model";
-import {WebApiService} from "./services/web-api.service";
 import {ScheduleService} from "./services/schedule.service";
 import {FormsModule} from "@angular/forms";
 import {ToastComponent} from "./components/entity-components/toast/toast.component";
@@ -18,7 +16,6 @@ import {ToastComponent} from "./components/entity-components/toast/toast.compone
 })
 export class AppComponent {
   protected store = inject(StoreService).store;
-  protected examineeSvc = inject(ExamineeService);
   protected location = inject(Location);
   protected scheduleSvc = inject(ScheduleService);
 

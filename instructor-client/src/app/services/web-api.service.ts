@@ -373,7 +373,21 @@ export class WebApiService {
 
   public deleteExamByIdFromServer(id: number): void {
     this.httpClient.delete(
-      `${environment.serverBaseUrl}/exams/${id}`,
+      `${environment.serverBaseUrl}/exams/${id}/`,
+      {headers: this.headers})
+      .subscribe({
+        next: (response) => {
+          console.log(response); // as tooltip
+          this.getExamsFromServer();
+        },
+        error: (error) => {
+          console.log(error); // as tooltip
+        }
+      });
+  }
+  public deleteExamTelemetryByIdFromServer(id: number): void {
+    this.httpClient.delete(
+      `${environment.serverBaseUrl}/exams/${id}/telemetry`,
       {headers: this.headers})
       .subscribe({
         next: (response) => {

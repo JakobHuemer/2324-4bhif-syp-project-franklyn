@@ -2,7 +2,8 @@ import {Component, inject, Input} from '@angular/core';
 import {ExamService} from "../../../services/exam.service";
 import {RouterLink, RouterLinkActive} from "@angular/router";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
-import {Exam, ExamState} from "../../../model";
+import {Exam, ExamState, set} from "../../../model";
+import {StoreService} from "../../../services/store.service";
 
 @Component({
     selector: 'app-exam-dashboard',
@@ -17,6 +18,8 @@ import {Exam, ExamState} from "../../../model";
 })
 export class ExamDashboardComponent {
   protected examSvc = inject(ExamService);
+  protected readonly ExamState = ExamState;
+  protected readonly store = inject(StoreService).store;
 
   @Input() exam: Exam | undefined;
 
@@ -71,5 +74,23 @@ export class ExamDashboardComponent {
     }
   }
 
-  protected readonly ExamState = ExamState;
+  setResetText(resetText: string) {
+    set(model => {
+      model.resetText = resetText;
+    });
+  }
+
+  resetTextIsWantedText() {
+    if (this.exam === undefined)
+      return true;
+    else return this.store.value.resetText !== this.exam.title;
+  }
+
+  deleteExam() {
+    this.examSvc.deleteExam(this.exam?.id);
+  }
+
+  deleteExamTelemetry() {
+    this.examSvc.deleteExamTelemetry(this.exam?.id);
+  }
 }

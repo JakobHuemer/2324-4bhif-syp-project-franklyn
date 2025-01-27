@@ -213,6 +213,16 @@
         Videos
       </a>
 
+      @if (exam.state !== ExamState.ONGOING) {
+        <button
+          type="button"
+          class="btn btn-danger button-width"
+          data-bs-toggle="modal"
+          data-bs-target="#decide-delete-modal">
+          Delete
+        </button>
+      }
+
       @if (exam.state === ExamState.CREATED) {
         <button
           (click)="setCurExam()"
@@ -232,6 +242,159 @@
           Patrol Mode
         </a>
       }
+    </div>
+  </div>
+
+  <div
+    class="modal fade"
+    id="decide-delete-modal"
+    tabindex="-1"
+    aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5">Choose between the exam deletion modes!</h1>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close">
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            <b>Do you want to delete:</b> <br>
+            - the exam and all its recorded videos and screenshots, <br>
+            <b>or do you want to only</b> <br>
+            - delete all its recorded videos and screenshots (telemetry).
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            (click)="setResetText('')"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-danger"
+            data-bs-toggle="modal"
+            data-bs-target="#delete-exam-modal"
+            data-bs-dismiss="modal">
+            Delete Exam
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-danger"
+            data-bs-toggle="modal"
+            data-bs-target="#delete-exam-telemetry-modal"
+            data-bs-dismiss="modal">
+            Delete Telemetry
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    class="modal fade"
+    id="delete-exam-modal"
+    tabindex="-1"
+    aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5">Delete Exam</h1>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close">
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Please proceed with caution!
+            By proceeding, you will delete the <b>exam and all its
+            screenshots and videos</b>. If you continue, you will
+            no longer have access to any videos that have been
+            recorded thus far.
+          </p>
+          <p class="fw-bold">Please confirm by typing '{{exam.title}}' in the box below and then pressing the reset button.</p>
+          <input #resetText
+                 type="text"
+                 class="form-control"
+                 placeholder="{{exam.title}}"
+                 (keyup)="setResetText(resetText.value)">
+        </div>
+        <div class="modal-footer">
+          <button
+            (click)="setResetText('')"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal">
+            Cancel
+          </button>
+          <button
+            (click)="deleteExam()"
+            class="btn btn-danger"
+            [disabled]="resetTextIsWantedText()"
+            data-bs-dismiss="modal">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    class="modal fade"
+    id="delete-exam-telemetry-modal"
+    tabindex="-1"
+    aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5">Delete Exam Telemetry</h1>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close">
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Please proceed with caution!
+            By proceeding, you will delete <b>all screenshots and videos.</b>
+            If you continue, you will no longer have access to any
+            videos that have been recorded thus far.
+          </p>
+          <p class="fw-bold">Please confirm by typing '{{exam.title}}' in the box below and then pressing the reset button.</p>
+          <input #resetText2
+                 type="text"
+                 class="form-control"
+                 placeholder="{{exam.title}}"
+                 (keyup)="setResetText(resetText2.value)">
+        </div>
+        <div class="modal-footer">
+          <button
+            (click)="setResetText('')"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal">
+            Cancel
+          </button>
+          <button
+            (click)="deleteExamTelemetry()"
+            class="btn btn-danger"
+            [disabled]="resetTextIsWantedText()"
+            data-bs-dismiss="modal">
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 }
