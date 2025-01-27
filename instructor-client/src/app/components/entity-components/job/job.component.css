@@ -1,10 +1,14 @@
-.job-label-width {
-  width: 6vw;
+.job-label-style {
+  width: 30%;
 }
 
-.job-message-width {
-  width: 16vw;
-  display: block;
+.job-message-style {
+  width: 70%;
+}
+
+span {
+  width: 100%;
+  overflow-wrap: break-word;
 }
 
 td {
