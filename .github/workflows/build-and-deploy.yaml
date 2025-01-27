@@ -29,6 +29,10 @@ jobs:
             export feat="srv_prod"; 
           elif test "${{ github.ref_name }}" = "develop"; then 
             export feat="srv_ci";
+          elif echo "${{ github.ref_name }}" | grep -q "^release/"; then
+            export feat="srv_prod";
+          elif echo "${{ github.ref_name }}" | grep -q "^rc/"; then
+            export feat="srv_staging";
           else 
             export feat="default";
           fi
