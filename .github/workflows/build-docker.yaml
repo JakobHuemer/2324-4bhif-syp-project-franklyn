@@ -35,9 +35,9 @@ jobs:
           elif test "${{ github.ref_name }}" = "develop"; then 
             export tag=":dev";
           elif echo "${{ github.ref_name }}" | grep -q "^release/"; then
-            export tag=$(echo "${{ github.ref_name }}" | sed "s/release\///");
+            export tag=:$(echo "${{ github.ref_name }}" | sed "s/release\///");
           elif echo "${{ github.ref_name }}" | grep -q "^rc/"; then
-            export tag=$(echo "${{ github.ref_name }}" | sed "s/rc\///")-rc;
+            export tag=:$(echo "${{ github.ref_name }}" | sed "s/rc\///")-rc;
           else 
             export tag="";
           fi
@@ -78,9 +78,9 @@ jobs:
           elif test "${{ github.ref_name }}" = "develop"; then 
             export tag=":dev";
           elif echo "${{ github.ref_name }}" | grep -q "^release/"; then
-            export tag=$(echo "${{ github.ref_name }}" | sed "s/release\///");
+            export tag=:$(echo "${{ github.ref_name }}" | sed "s/release\///");
           elif echo "${{ github.ref_name }}" | grep -q "^rc/"; then
-            export tag=$(echo "${{ github.ref_name }}" | sed "s/rc\///")-rc;
+            export tag=:$(echo "${{ github.ref_name }}" | sed "s/rc\///")-rc;
           else 
             export tag="";
           fi
