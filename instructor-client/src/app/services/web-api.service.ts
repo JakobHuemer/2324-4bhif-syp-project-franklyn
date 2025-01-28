@@ -53,15 +53,11 @@ export class WebApiService {
   //region Job-WebApi calls
 
   getAllExamVideos(examId: number): void {
-    this.httpClient.post<JobDto>(
+    this.httpClient.post(
       `${environment.serverBaseUrl}/telemetry/by-exam/${examId}/video/generate-all`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(
-          jobDto,
-          examId,
-          undefined
-        ),
+        "next": () => this.getAllJobsForExam(examId),
         "error": (err) => console.error(err),
       });
   }
@@ -70,113 +66,89 @@ export class WebApiService {
     examId: number,
     examineeId: number
   ): void {
-    this.httpClient.post<JobDto>(
+    this.httpClient.post(
       `${environment.serverBaseUrl}/telemetry/by-user/${examineeId}/${examId}/video/generate`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(
-          jobDto,
-          examId,
-          examineeId
-        ),
+        "next": () => this.getAllJobsForExam(examId),
         "error": (err) => console.error(err),
       });
   }
 
-  getJobStatus(jobId: number) {
-    this.httpClient.get<JobDto>(
-      `${environment.serverBaseUrl}/telemetry/jobs/video/${jobId}`,
+  getAllJobsForExam(curExamId: number) {
+    this.httpClient.get<JobDto[]>(
+      `${environment.serverBaseUrl}/exams/${curExamId}/videojobs`,
       {headers: this.headers})
       .subscribe({
-        "next": (jobDto) => this.manageJob(jobDto, undefined, undefined),
+        "next": (jobDto) => {
+          set((model) => {
+            model.jobServiceModel.jobs = this.sortJobs(
+              jobDto.map(
+                (jDto) => {
+                  let jobState: JobState = JobState.QUEUED;
+
+                  switch (jDto.state) {
+                    case "ONGOING":
+                      jobState = JobState.ONGOING;
+                      break;
+                    case "FAILED":
+                      jobState = JobState.FAILED;
+                      break;
+                    case "DONE":
+                      jobState = JobState.DONE;
+                      break;
+                    case "DELETED":
+                      jobState = JobState.DELETED;
+                      break;
+                  }
+
+                  let finishedAt: Date | undefined;
+
+                  if (jDto.finished_at !== null) {
+                    finishedAt =
+                      new Date(
+                        new Date(jDto.finished_at)
+                          .getTime() + 60 * 60 * 1000
+                      );
+                  }
+
+                  let job: Job = {
+                    id: jDto.id,
+                    state: jobState,
+                    examId: curExamId,
+                    examineeId: jDto.examinee_id,
+                    createdAt: new Date(
+                      new Date(jDto.created_at)
+                        .getTime() + 60 * 60 * 1000
+                    ),
+                    finishedAt: finishedAt,
+                  };
+
+                  return job;
+                }
+              )
+            );
+          });
+        },
         "error": (err) => console.error(err),
       });
   }
 
-  private manageJob(
-    job: JobDto,
-    examId: number | undefined,
-    examineeId: number | undefined
-  ): void {
-    set((model) => {
-      let jobState: JobState = JobState.QUEUED;
+  private sortJobs(jobs: Job[]): Job[] {
+    return jobs
+      .sort((a, b) => {
+        let aTime = a.finishedAt ? a.finishedAt : a.createdAt;
+        let bTime = b.finishedAt ? b.finishedAt : b.createdAt;
 
-      switch (job.state) {
-        case "ONGOING":
-          jobState = JobState.ONGOING;
-          break;
-        case "FAILED":
-          jobState = JobState.FAILED;
-          break;
-        case "DONE":
-          jobState = JobState.DONE;
-          break;
-        case "DELETED":
-          jobState = JobState.DELETED;
-          break;
-      }
-
-      let index = model.jobServiceModel.jobs
-        .findIndex(j => j.id === job.id);
-
-      if (index === -1) {
-        let myExamId: number;
-
-        if (examId === undefined) {
-          let foundExamId = model.jobServiceModel.jobs
-            .find(j => j.id === job.id)?.examId;
-
-          if (foundExamId === undefined) {
-            // SHOULD NOT HAPPEN
-            console.error('examId is undefined');
-            examId = -1;
-          } else {
-            myExamId = foundExamId;
-          }
+        if (aTime < bTime) {
+          return 1;
+        } else if (aTime === bTime) {
+          return (a.id < b.id ? 1 : -1);
         } else {
-          myExamId = examId;
+          return -1;
         }
-
-        model.jobServiceModel.jobs.push({
-          id: job.id,
-          state: jobState,
-          examId: myExamId!,
-          examineeId: examineeId,
-        });
-        model.jobServiceModel.jobLogs.push({
-          jobId: job.id,
-          state: jobState,
-          message: 'started job with id' + job.id,
-          timestamp: new Date(Date.now()),
-        });
-      } else {
-        if (jobState !== model.jobServiceModel.jobs[index].state) {
-          model.jobServiceModel.jobs[index].state = jobState;
-          model.jobServiceModel.jobLogs.push({
-            jobId: model.jobServiceModel.jobs[index].id,
-            state: jobState,
-            message: `Job with id ${model.jobServiceModel.jobs[index].id} has the status: ${this.jobStateToString(jobState)}`,
-            timestamp: new Date(Date.now())
-          });
-        }
-      }
-    });
-  }
-
-  jobStateToString(state: JobState): string {
-    switch (state) {
-      case JobState.QUEUED:
-        return "Queued";
-      case JobState.ONGOING:
-        return "Ongoing";
-      case JobState.DONE:
-        return "Done";
-      case JobState.DELETED:
-        return "Deleted";
-      default:
-        return "Failed";
-    }
-  }
+      });
+  };
 
   //endregion
 
@@ -385,6 +357,7 @@ export class WebApiService {
         }
       });
   }
+
   public deleteExamTelemetryByIdFromServer(id: number): void {
     this.httpClient.delete(
       `${environment.serverBaseUrl}/exams/${id}/telemetry`,

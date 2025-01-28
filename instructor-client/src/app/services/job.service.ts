@@ -17,13 +17,18 @@ export class JobService {
       distinctUntilChanged()
     ).subscribe({
       next: () => {
-        set(model => {
-          model.jobServiceModel.jobs = [];
-          model.jobServiceModel.jobLogs = [];
-        });
+        this.getAllJobs();
       },
       error: err => console.error(err)
     });
+  }
+
+  getAllJobs() {
+    if (this.store.value.videoViewerModel.curExamId !== undefined) {
+      this.webApi.getAllJobsForExam(
+        this.store.value.videoViewerModel.curExamId
+      );
+    }
   }
 
   getAllExamVideos(exam: Exam): void {
@@ -38,11 +43,5 @@ export class JobService {
       exam.id,
       examinee.id
     );
-  }
-
-  updateAllJobs(): void {
-    store.value.jobServiceModel.jobs.forEach(job => {
-      this.webApi.getJobStatus(job.id);
-    });
   }
 }

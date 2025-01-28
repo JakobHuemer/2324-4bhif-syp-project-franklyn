@@ -1,9 +1,9 @@
 import {Component, inject, Input} from '@angular/core';
-import {Exam, Examinee, ExamState, Job, JobLog, JobState, set} from "../../../model";
+import {Job, JobState, set} from "../../../model";
 import {StoreService} from "../../../services/store.service";
-import {distinctUntilChanged, filter, map, Observable} from "rxjs";
 import {AsyncPipe, DatePipe} from "@angular/common";
 import {environment} from "../../../../../env/environment";
+import {distinctUntilChanged, map} from "rxjs";
 
 @Component({
   selector: 'app-job',
@@ -15,62 +15,44 @@ import {environment} from "../../../../../env/environment";
   styleUrl: './job.component.css'
 })
 export class JobComponent {
-  @Input() jobLog: JobLog | undefined;
+  @Input() job: Job | undefined;
 
   protected store = inject(StoreService).store;
-  protected job: Observable<{
-    job: Job,
-    exam: Exam | undefined,
-    examinee: Examinee | undefined,
-  } | undefined> = inject(StoreService)
-    .store
+  protected exam = this.store
     .pipe(
-      map(model => {
-        let j = model.jobServiceModel.jobs
-          .filter(j => j.id === this.jobLog?.jobId)
-          .at(0);
+      map(model => model.examDashboardModel.exams
+        .filter(e => e.id === this.job?.examId)
+        .at(0)
+      ),
+      distinctUntilChanged()
+    );
 
-        let exam = model.examDashboardModel
-          .exams.find(e => e.id === j?.examId);
-
-        let examinee = model.videoViewerModel
-          .examinees.find(e => e.id === j?.examineeId);
-
-        return {
-          job: j,
-          exam: exam,
-          examinee: examinee,
-        };
-      }),
-      filter(j => j.job !== undefined),
-      map(j => ({
-        job: j.job!,
-        exam: j.exam,
-        examinee: j.examinee,
-      })),
+  protected examinee = this.store
+    .pipe(
+      map(model => model.videoViewerModel.examinees
+        .filter(e => e.id === this.job?.examineeId)
+        .at(0)
+      ),
       distinctUntilChanged()
     );
 
   showVideoOfExaminee() {
-    let job = this.store.value.jobServiceModel.jobs
-      .find(j => j.id === this.jobLog?.jobId);
-
-    if (job !== undefined) {
-      let examinee = this.store.value
+    if (this.job !== undefined) {
+      let vidExaminee = this.store.value
         .videoViewerModel
         .examinees
-        .find(e => e.id === job.examineeId);
+        .find(e => e.id === this.job!.examineeId);
 
       set((model) => {
-        model.videoViewerModel.examinee = examinee;
-        model.videoViewerModel.jobId = job?.id;
+        model.videoViewerModel.examinee = vidExaminee;
+        model.videoViewerModel.jobId = this.job!.id;
         model.patrolModeModel.cacheBuster.cachebustNum++;
       })
     }
   }
 
   getDownloadUrl(): string {
-    return `${environment.serverBaseUrl}/telemetry/jobs/video/${this.jobLog?.jobId}/download`;
+    return `${environment.serverBaseUrl}/telemetry/jobs/video/${this.job?.id}/download`;
   }
 
   protected readonly JobState = JobState;

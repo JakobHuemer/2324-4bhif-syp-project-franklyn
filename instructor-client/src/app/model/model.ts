@@ -78,7 +78,6 @@ const initialState: Model = {
   },
   jobServiceModel: {
     jobs: [],
-    jobLogs: [],
   },
   toastModel: {
     toasts: []
