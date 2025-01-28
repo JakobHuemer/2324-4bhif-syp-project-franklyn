@@ -98,4 +98,16 @@ export class ExamService {
     this.webApi.completeExamByIdFromServer(myExamId);
     this.webApi.getExamsFromServer();
   }
+
+  deleteExam(examId: number | undefined): void {
+    if (examId !== undefined) {
+      this.webApi.deleteExamByIdFromServer(examId);
+    }
+  }
+
+  deleteExamTelemetry(examId: number | undefined): void {
+    if (examId !== undefined) {
+      this.webApi.deleteExamTelemetryByIdFromServer(examId);
+    }
+  }
 }

@@ -1,74 +1,74 @@
 @if (jobLog !== undefined && (job | async)?.job !== undefined) {
   <div class="text-bg-light w-100 card p-2" role="group">
-    <table>
+    <table class="w-100">
       <tr class="w-100">
-        <td>
+        <td class="job-label-style">
           <span class="fw-bold">
             Job:
           </span>
         </td>
-        <td>
-          <span class="text-start job-message-width">
+        <td class="job-message-style">
+          <span class="text-start">
             {{(job | async)?.job!.id}}
           </span>
         </td>
       </tr>
       <tr>
-        <td>
+        <td class="job-label-style">
           <span class="fw-bold">
             Exam:
           </span>
         </td>
-        <td>
+        <td class="job-message-style">
           @if ((job | async)?.exam) {
-            <span class="text-start job-message-width">
+            <span class="text-start job-message-style">
               {{(job | async)!.exam!.title}}
             </span>
           }
         </td>
       </tr>
       @if ((job | async)?.examinee !== undefined) {
-        <tr>
-          <td>
+        <tr class="w-100">
+          <td class="job-label-style">
           <span class="fw-bold">
             Examinee:
           </span>
           </td>
-          <td>
+          <td class="job-message-style">
             @if ((job | async)?.examinee) {
-              <span class="text-start job-message-width">
+              <span class="text-start w-100">
               {{(job | async)!.examinee!.firstname}} {{(job | async)!.examinee!.lastname}}
             </span>
             }
           </td>
         </tr>
       }
-      <tr>
-        <td>
+      <tr class="w-100">
+        <td class="job-label-style">
           <span class="fw-bold">
             Time:
           </span>
         </td>
-        <td>
-          <span class="text-start job-message-width">
+        <td class="job-message-style">
+          <span class="text-start job-message-style">
             {{(jobLog.timestamp | date: 'yyyy-MM-dd HH:mm:ss')}}
           </span>
         </td>
       </tr>
-      <tr>
-        <td>
+      <tr class="w-100">
+        <td class="job-label-style">
           <span class="fw-bold">
             Msg:
           </span>
         </td>
-        <td>
-          <span class="text-start job-message-width me-1">{{jobLog.message}}</span>
+        <td class="job-message-style">
+          <span class="text-start w-100 me-1">{{jobLog.message}}</span>
         </td>
       </tr>
 
       @if (jobLog.state === JobState.DONE) {
-        <tr>
-          <td class="job-label-width">
+        <tr class="w-100">
+          <td class="job-label-style">
             <div class="btn-group w-100" role="group">
               <a
                 href="{{getDownloadUrl()}}"
