@@ -177,6 +177,10 @@ public class ExamService {
                             ? Uni.join().all(results).andCollectFailures()
                             : Uni.createFrom().voidItem();
                 })
+                .chain(ignored -> examRepository.update("state = ?1 where id = ?2",
+                        ExamState.DELETED,
+                        e.getId())
+                )
                 .replaceWithVoid();
     }
 

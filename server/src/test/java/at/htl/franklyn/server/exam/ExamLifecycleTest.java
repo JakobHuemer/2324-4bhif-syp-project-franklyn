@@ -749,6 +749,34 @@ public class ExamLifecycleTest {
     }
 
     @Test
+    @Order(1301)
+    void test_GetExamAfterTelemetryDeletion_ok() {
+        // Arrange
+
+        // Act
+        Response response = given()
+                .basePath(BASE_URL)
+                .when()
+                .get(Long.toString(createdExam.id()));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+
+        ExamInfoDto actualExam = response.then()
+                .log().body()
+                .extract().as(ExamInfoDto.class);
+
+        assertThat(actualExam)
+                .usingRecursiveComparison()
+                .ignoringFieldsOfTypes(LocalDateTime.class, ExamState.class)
+                .isEqualTo(createdExam);
+
+        assertThat(actualExam.state())
+                .isEqualTo(ExamState.DELETED);
+    }
+
+    @Test
     @Order(1400)
     void test_simpleDeleteExam_ok() {
         // Arrange
