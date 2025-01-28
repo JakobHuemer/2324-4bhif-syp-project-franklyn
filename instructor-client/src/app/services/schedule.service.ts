@@ -75,7 +75,7 @@ export class ScheduleService {
       this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = window.setInterval(() => {
         this.examineeRepo.updateScreenshots();
         this.examRepo.reloadAllExams();
-        this.jobSvc.updateAllJobs();
+        this.jobSvc.getAllJobs();
 
         if (this.store.value.patrolModeModel.curExamId) {
           // Do not check if exam ongoing since we also want to get

@@ -1,4 +1,4 @@
-@if (jobLog !== undefined && (job | async)?.job !== undefined) {
+@if (job !== undefined) {
   <div class="text-bg-light w-100 card p-2" role="group">
     <table class="w-100">
       <tr class="w-100">
@@ -9,7 +9,7 @@
         </td>
         <td class="job-message-style">
           <span class="text-start">
-            {{(job | async)?.job!.id}}
+            {{job.id}}
           </span>
         </td>
       </tr>
@@ -20,14 +20,14 @@
           </span>
         </td>
         <td class="job-message-style">
-          @if ((job | async)?.exam) {
+          @if ((exam | async)) {
             <span class="text-start job-message-style">
-              {{(job | async)!.exam!.title}}
+              {{(exam | async)!.title}}
             </span>
           }
         </td>
       </tr>
-      @if ((job | async)?.examinee !== undefined) {
+      @if ((examinee | async) !== undefined) {
         <tr class="w-100">
           <td class="job-label-style">
           <span class="fw-bold">
@@ -35,44 +35,44 @@
           </span>
           </td>
           <td class="job-message-style">
-            @if ((job | async)?.examinee) {
-              <span class="text-start w-100">
-              {{(job | async)!.examinee!.firstname}} {{(job | async)!.examinee!.lastname}}
+            <span class="text-start w-100">
+              {{(examinee | async)!.firstname}} {{(examinee | async)!.lastname}}
             </span>
-            }
           </td>
         </tr>
       }
       <tr class="w-100">
         <td class="job-label-style">
           <span class="fw-bold">
-            Time:
+            Created:
           </span>
         </td>
         <td class="job-message-style">
           <span class="text-start job-message-style">
-            {{(jobLog.timestamp | date: 'yyyy-MM-dd HH:mm:ss')}}
+            {{(job.createdAt | date: 'yyyy-MM-dd HH:mm:ss')}}
           </span>
         </td>
       </tr>
       <tr class="w-100">
         <td class="job-label-style">
           <span class="fw-bold">
-            Msg:
+            Finished:
           </span>
         </td>
         <td class="job-message-style">
-          <span class="text-start w-100 me-1">{{jobLog.message}}</span>
+          <span class="text-start job-message-style">
+            {{(job.finishedAt | date: 'yyyy-MM-dd HH:mm:ss')}}
+          </span>
         </td>
       </tr>
 
-      @if (jobLog.state === JobState.DONE) {
+      @if (job.state === JobState.DONE) {
         <tr class="w-100">
           <td class="job-label-style">
             <div class="btn-group w-100" role="group">
               <a
                 href="{{getDownloadUrl()}}"
-                download="{{(job | async)?.examinee?.firstname}}-{{(job | async)?.examinee?.lastname}}.zip"
+                download="{{(examinee | async)?.firstname}}-{{(examinee | async)?.lastname}}.zip"
                 class="btn btn-primary w-50 d-flex align-items-center justify-content-center"
                 role="button">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-download d-flex align-items-center justify-content-center" viewBox="0 0 16 16">
@@ -80,7 +80,7 @@
                   <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
                 </svg>
               </a>
-              @if ((job | async)?.examinee !== undefined) {
+              @if ((examinee | async) !== undefined) {
                 <button
                   (click)="showVideoOfExaminee()"
                   class="btn btn-secondary w-50 d-flex align-items-center justify-content-center">
