@@ -140,16 +140,19 @@ impl<'a> Openbox<'a> {
     fn login_view(&self) -> Element<Message> {
         let pin_input = text_input("pin", &self.pin)
             .on_input(Message::PinChanged)
+            .on_submit(Message::ConnectKb)
             .width(300)
             .padding(10);
 
         let firstname_input = text_input("firstname", &self.firstname)
             .on_input(Message::FirstnameChanged)
+            .on_submit(Message::ConnectKb)
             .width(300)
             .padding(10);
 
         let lastname_input = text_input("lastname", &self.lastname)
             .on_input(Message::LastnameChanged)
+            .on_submit(Message::ConnectKb)
             .width(300)
             .padding(10);
 
