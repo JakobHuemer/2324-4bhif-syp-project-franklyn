@@ -59,6 +59,7 @@ endif::backend-html5[]
 ** "Karteileichen" löschen können
 * Video Viewer wieder oben darstellen
 * Ein- und Auslogzeiten für einzelne Schüler im Video Viewer
+* Tests sollen zu ihrem, bei der Test-Erstellung, eingetragenen Zeitpunkt durchgeführt werden, solange der Test noch nicht gestartet wurde.
 
 
 * *Sprint bis:*
