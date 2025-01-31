@@ -31,6 +31,17 @@
             Patrol-Mode
           </a>
         </li>
+        <!--Video-Viewer-->
+        <li class="nav-item"
+            routerLinkActive="active"
+            (click)="changeRoute()">
+          <a class="nav-link"
+             [class.active]="location.path() === '/test-overview/video-viewer'"
+             routerLink="test-overview/video-viewer"
+             (click)="changeRoute()">
+            Video-Viewer
+          </a>
+        </li>
         <!--Metrics-Dashboard-->
         <li class="nav-item"
             routerLinkActive="active"
