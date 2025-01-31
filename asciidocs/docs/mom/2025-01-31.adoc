@@ -1,0 +1,78 @@
+= 03. Mehrtestfähigkeit Sprint-Planning 2025-01-31
+Arwed Schnalzenberger
+1.0, 2025-01-31: sprint planning
+ifndef::imagesdir[:imagesdir: images]
+:icons: font
+:sectnums:    // Nummerierung der Überschriften / section numbering
+:toc: left
+
+//Need this blank line after ifdef, don't know why...
+ifdef::backend-html5[]
+
+// https://fontawesome.com/v4.7.0/icons/
+icon:file-text-o[link=https://raw.githubusercontent.com/htl-leonding-college/asciidoctor-docker-template/master/asciidocs/{docname}.adoc] ‏ ‏ ‎
+icon:github-square[link=https://github.com/htl-leonding-college/asciidoctor-docker-template] ‏ ‏ ‎
+icon:home[link=https://htl-leonding.github.io/]
+endif::backend-html5[]
+
+.Teilnehmer (alphabetisch)
+|===
+|anwesend |Verteiler
+
+|Aberger C.
+|Aberger C.
+
+|Aichinger T.
+|Aichinger T.
+
+|Cvijić L.
+|Cvijić L.
+
+|Schludermann J.
+|Schludermann J.
+
+|Schnalzenberger A.
+|Schnalzenberger A.
+
+|Stütz T.
+|Stütz T.
+|===
+
+.Ort und Zeit
+[cols=2*]
+|===
+|Ort
+|SYP-Unterricht
+
+|von-bis
+|31.01.2025, 4. EH
+
+|Dauer
+| 15 min
+|===
+
+== Besprochene Themen
+
+* Problem:
+** 2 Schüler loggen sich mit demselben Namen ein
+** Einzelne Telemetries löschen können
+** "Karteileichen" löschen können
+* Video Viewer wieder oben darstellen
+* Ein- und Auslogzeiten für einzelne Schüler im Video Viewer
+
+
+* *Sprint bis:*
+**
+
+== Vereinbarungen und Entscheidungen
+
+.Was wurde vereinbart?
+[%autowidth]
+|===
+|wer |macht was |bis wann
+
+|TODO
+|
+|
+
+|===
