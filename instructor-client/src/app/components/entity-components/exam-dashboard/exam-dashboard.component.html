@@ -219,7 +219,7 @@
           class="btn btn-danger button-width"
           data-bs-toggle="modal"
           data-bs-target="#decide-delete-modal">
-          Delete
+          Delete Exam ...
         </button>
       }
 
@@ -253,7 +253,7 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h1 class="modal-title fs-5">Choose between the exam deletion modes!</h1>
+          <h1 class="modal-title fs-5">Choose how to delete exam!</h1>
           <button
             type="button"
             class="btn-close"
@@ -262,12 +262,8 @@
           </button>
         </div>
         <div class="modal-body">
-          <p>
-            <b>Do you want to delete:</b> <br>
-            - the exam and all its recorded videos and screenshots, <br>
-            <b>or do you want to only</b> <br>
-            - delete all its recorded videos and screenshots (telemetry).
-          </p>
+          <p><strong>Delete Exam:</strong> Removes the exam and all related videos and screenshots.</p>
+          <p><strong>Delete Telemetry:</strong> Removes only the videos and screenshots while keeping the exam data.</p>
         </div>
         <div class="modal-footer">
           <button
@@ -283,7 +279,7 @@
             data-bs-toggle="modal"
             data-bs-target="#delete-exam-modal"
             data-bs-dismiss="modal">
-            Delete Exam
+            Exam ...
           </button>
 
           <button
@@ -292,7 +288,7 @@
             data-bs-toggle="modal"
             data-bs-target="#delete-exam-telemetry-modal"
             data-bs-dismiss="modal">
-            Delete Telemetry
+            Telemetry ...
           </button>
         </div>
       </div>
