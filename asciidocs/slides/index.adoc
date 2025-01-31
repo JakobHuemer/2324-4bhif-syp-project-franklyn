@@ -39,7 +39,7 @@ endif::[]
 ** Anpassung an neue backend API
 ** Alpha/Beta frames
 ** rewrite + dependency update
-* WIP: Anpassung Instructor-Client an Mehrtestfähigkeit
+* Anpassung des Instructor-Clients an die Mehrtestfähigkeit
 
 [.font-xx-large]
 === Implementierungsstatus

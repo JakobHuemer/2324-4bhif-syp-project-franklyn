@@ -10,18 +10,6 @@ public class ExamineeService {
     ExamineeRepostiory examineeRepostiory;
 
     /**
-     * Checks weather or not an examinee with the given firstname and lastname exists
-     * @param firstname firstname of the examinee
-     * @param lastname lastname of the examinee
-     * @return true - in case the examinee exists otherwise false
-     */
-    public Uni<Boolean> exists(String firstname, String lastname) {
-        return examineeRepostiory
-                .count("from Examinee where firstname = ?1 and lastname = ?2", firstname, lastname)
-                .onItem().transform(c -> c != 0);
-    }
-
-    /**
      * Depending on whether an examinee with the given first and last name exists or not this function either:
      * 1) Creates a new examinee and returns it
      * 2) queries the examinee from the db and returns it

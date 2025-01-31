@@ -1,4 +1,4 @@
-package at.htl.franklyn.server.exam;
+package at.htl.franklyn.server;
 
 import at.htl.franklyn.server.feature.exam.ExamDto;
 import at.htl.franklyn.server.feature.exam.ExamInfoDto;
@@ -38,6 +38,7 @@ public class ExamLifecycleTest {
     private static ExamInfoDto createdExam;
     private static String userSession;
     private static long joinedExamineeId;
+    private static VideoJobDto batchJobDto;
 
     @Test
     @Order(0)
@@ -247,6 +248,39 @@ public class ExamLifecycleTest {
 
     @Test
     @Order(401)
+    void test_repeatedShouldResultInSameUser_ok() {
+        // Arrange
+        ExamineeDto examineeDto = new ExamineeDto(
+                "Test",
+                "User",
+                false, // value of is_connected does not matter on connection and is ignored
+                0L
+        );
+
+        // Act
+        Response response = given()
+                .contentType(ContentType.JSON)
+                .body(examineeDto)
+                .basePath(BASE_URL)
+                .when()
+                .log().body()
+                .post(String.format("%s/%s", JOIN_URL, createdExam.pin()));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.CREATED);
+
+        assertThat(response.header("Location"))
+                .matches(".*connect/.*");
+
+        String[] parts = response.header("Location").split("/");
+
+        assertThat(parts[parts.length -1])
+                .isEqualTo(userSession);
+    }
+
+    @Test
+    @Order(401)
     void test_getConnectionStateOfJoinedExaminee_ok() {
         // Arrange
         ExamineeDto expectedExaminee = new ExamineeDto(
@@ -444,7 +478,7 @@ public class ExamLifecycleTest {
 
     @Test
     @Order(801)
-    void testuploadBadlySizedBeta_ok() {
+    void test_uploadBadlySizedBeta_ok() {
         // Arrange
         ClassLoader classLoader = getClass().getClassLoader();
         File file = new File(Objects.requireNonNull(classLoader.getResource("beta-frame-1x1.png")).getFile());
@@ -611,7 +645,74 @@ public class ExamLifecycleTest {
                 .isNotNull();
         assertThat(video)
                 .isNotEmpty();
+    }
 
+    @Test
+    @Order(1210)
+    void test_downloadBatchVideo_ok() throws InterruptedException {
+        // Arrange
+
+        // Act: Start video job
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-exam/%d/video/generate-all", createdExam.id()));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.ACCEPTED);
+        VideoJobDto jobDto = createResponse.then()
+                .log().body()
+                .extract().as(VideoJobDto.class);
+        assertThat(jobDto)
+                .isNotNull();
+        assertThat(jobDto.createdAt())
+                .isNotNull();
+        assertThat(jobDto.finishedAt())
+                .isNull();
+
+        // Act: Poll for job progress
+        do {
+            Response pollResponse = given()
+                    .contentType(ContentType.JSON)
+                    .basePath("/telemetry")
+                    .when()
+                    .get(String.format("/jobs/video/%d", jobDto.id()));
+            assertThat(pollResponse.statusCode())
+                    .isEqualTo(RestResponse.StatusCode.OK);
+            jobDto = pollResponse.then()
+                    .log().body()
+                    .extract().as(VideoJobDto.class);
+
+            // Delay before requesting again
+            Thread.sleep(500);
+        } while(jobDto.state() == VideoJobState.QUEUED || jobDto.state() == VideoJobState.ONGOING);
+
+        // Assert
+        assertThat(jobDto.state())
+                .isEqualTo(VideoJobState.DONE);
+        assertThat(jobDto.finishedAt())
+                .isNotNull();
+
+
+        // Act: Download video job artifact
+        Response downloadResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .get(String.format("/jobs/video/%d/download", jobDto.id()));
+
+        // Assert
+        assertThat(downloadResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+
+        byte[] videosZip = downloadResponse.asByteArray();
+
+        assertThat(videosZip)
+                .isNotNull();
+        assertThat(videosZip)
+                .isNotEmpty();
     }
 
     @Test
@@ -640,10 +741,38 @@ public class ExamLifecycleTest {
                 .isNotNull();
         assertThat(jobDto.finishedAt())
                 .isNull();
+
+        batchJobDto = jobDto;
     }
 
     @Test
     @Order(1202)
+    void test_getStatusOfBatchVideoGeneration_ok(){
+        // Arrange
+
+        // Act: Start video job
+        Response pollResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .get(String.format("/jobs/video/%d", batchJobDto.id()));
+
+        // Assert
+        assertThat(pollResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.OK);
+        VideoJobDto jobDto = pollResponse.then()
+                .log().body()
+                .extract().as(VideoJobDto.class);
+        assertThat(jobDto)
+                .isNotNull();
+        assertThat(jobDto.createdAt())
+                .isNotNull();
+        assertThat(jobDto.finishedAt())
+                .isNull();
+    }
+
+    @Test
+    @Order(1203)
     void test_startSingleVideoGenerationWithInvalidExaminee_ok() {
         // Arrange
 
@@ -660,7 +789,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(1203)
+    @Order(1204)
     void test_startSingleVideoGenerationWithInvalidExam_ok() {
         // Arrange
 
@@ -677,7 +806,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(1204)
+    @Order(1205)
     void test_startBatchVideoGenerationWithInvalidExam_ok(){
         // Arrange
 
@@ -694,7 +823,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(1205)
+    @Order(1206)
     void test_getAllVideoJobsOfExam_ok(){
         // Arrange
 
@@ -716,7 +845,7 @@ public class ExamLifecycleTest {
     }
 
     @Test
-    @Order(1206)
+    @Order(1207)
     void test_getAllVideoJobsOfInvalidExam_ok(){
         // Arrange
 
@@ -729,6 +858,62 @@ public class ExamLifecycleTest {
 
         // Assert
         assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.NOT_FOUND);
+    }
+
+    @Test
+    @Order(1208)
+    void test_downloadVideoArtifactTooEarly_ok() {
+        // Arrange
+
+        // Act: Start video job
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-user/%d/%d/video/generate", joinedExamineeId, createdExam.id()));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.ACCEPTED);
+        VideoJobDto jobDto = createResponse.then()
+                .log().body()
+                .extract().as(VideoJobDto.class);
+        assertThat(jobDto)
+                .isNotNull();
+        assertThat(jobDto.createdAt())
+                .isNotNull();
+        assertThat(jobDto.finishedAt())
+                .isNull();
+
+        // NOTE: This request should fail. In extremely unlikely cases where the server
+        // manages to generate the video in lightning speed this test might fail
+        // Act: Download video job artifact
+        Response downloadResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .get(String.format("/jobs/video/%d/download", jobDto.id()));
+
+        // Assert
+        assertThat(downloadResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(1209)
+    void test_downloadVideoArtifactOfInvalidVideoJob_ok() {
+        // Arrange
+
+        // Act: Download video job artifact
+        Response downloadResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .get(String.format("/jobs/video/%d/download", -1));
+
+        // Assert
+        assertThat(downloadResponse.statusCode())
                 .isEqualTo(RestResponse.StatusCode.NOT_FOUND);
     }
 
@@ -750,7 +935,23 @@ public class ExamLifecycleTest {
 
     @Test
     @Order(1301)
-    void test_GetExamAfterTelemetryDeletion_ok() {
+    void test_repeatExamTelemetryDeletionShouldBeOk_ok() {
+        // Arrange
+
+        // Act
+        Response response = given()
+                .basePath(BASE_URL)
+                .when()
+                .delete(String.format("%d/telemetry", createdExam.id()));
+
+        // Assert
+        assertThat(response.statusCode())
+                .isEqualTo(RestResponse.StatusCode.NO_CONTENT);
+    }
+
+    @Test
+    @Order(1302)
+    void test_getExamAfterTelemetryDeletion_ok() {
         // Arrange
 
         // Act
