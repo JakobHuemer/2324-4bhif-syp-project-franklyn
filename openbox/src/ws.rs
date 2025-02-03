@@ -179,24 +179,6 @@ pub async fn handle_message(ws: &mut FragmentCollector<TokioIo<Upgraded>>) -> Ev
 
     match msg.opcode {
         OpCode::Ping => {
-            // Get the current time
-            let start = SystemTime::now();
-
-            // Calculate the duration since the UNIX epoch
-            let duration = start.duration_since(UNIX_EPOCH).expect("Time went backwards");
-
-            // Get total seconds and milliseconds
-            let total_seconds = duration.as_secs();
-            let milliseconds = duration.subsec_millis();
-
-            // Calculate hours, minutes, and seconds
-            let hours = (total_seconds / 3600) % 24;
-            let minutes = (total_seconds / 60) % 60;
-            let seconds = total_seconds % 60;
-
-            // Format the timestamp
-            let formatted_timestamp = format!("{:02}:{:02}:{:02}.{:03}", hours, minutes, seconds, milliseconds);
-            println!("Received ping: {}", formatted_timestamp);
             let _ = ws.write_frame(Frame::pong(msg.payload)).await;
             return Event::Connected;
         },
@@ -213,7 +195,7 @@ pub async fn handle_message(ws: &mut FragmentCollector<TokioIo<Upgraded>>) -> Ev
                 Ok(msg) => Event::Received(msg),
             }
         }
-        _ => return Event::Disconnect,
+        _ => Event::Connected,
     }
 }
 

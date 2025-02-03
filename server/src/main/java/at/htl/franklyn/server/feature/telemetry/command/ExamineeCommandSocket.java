@@ -77,7 +77,6 @@ public class ExamineeCommandSocket {
     @WithTransaction
     public Uni<Void> onPongMessage(WebSocketConnection connection, Buffer data) {
         String participationId = connection.pathParam("participationId");
-        Log.infof("Received pong of %s", participationId);
         return stateService.insertConnectedIfOngoing(participationId, true);
     }
 
@@ -91,7 +90,6 @@ public class ExamineeCommandSocket {
                     List<Uni<Void>> results = openConnections
                             .stream()
                             .map(c -> {
-                                Log.infof("Sending ping to %s", c.pathParam("participationId"));
                                 return c.sendPing(magic);
                             })
                             .toList();
@@ -181,9 +179,9 @@ public class ExamineeCommandSocket {
         }
 
         return Uni.join()
-                .all(participants)
-                .usingConcurrencyOf(1)
-                .andCollectFailures()
+                    .all(participants)
+                    .usingConcurrencyOf(1)
+                    .andCollectFailures()
                 .onFailure().recoverWithNull()
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .replaceWithVoid();
