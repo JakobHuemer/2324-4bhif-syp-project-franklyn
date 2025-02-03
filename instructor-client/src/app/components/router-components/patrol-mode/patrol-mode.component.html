@@ -9,6 +9,8 @@
               Pin: {{(curExam | async)!.pin}}
               <br>
               Schüleranzahl: {{(curExam | async)!.amountOfExaminees}}
+              <br>
+              Online: {{amountOfExamineesOnline()}} | Offline: {{amountOfExamineesOffline()}}
             </p>
             <h6 class="fw-bold text-center">Examinees</h6>
             <app-examinee-list></app-examinee-list>

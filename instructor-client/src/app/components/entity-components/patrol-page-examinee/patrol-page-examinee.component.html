@@ -5,13 +5,13 @@
       class="btn w-100"
       [class]="getActivity()">
       <span class="examinee-btn-label w-100">
-        {{examinee.firstname}} {{examinee.lastname}}
+        {{examinee.lastname}} {{examinee.firstname}}
       </span>
     </button>
   }
 
   @if (examinee && showImage) {
-    <h3>{{examinee.firstname}} {{examinee.lastname}}</h3>
+    <h3>{{examinee.lastname}} {{examinee.firstname}}</h3>
 
     <img src="{{getScreenshotAddress()}}" alt="Screenshot of {{examinee.firstname}} {{examinee.lastname}}'s screen">
   }

@@ -87,4 +87,20 @@ export class PatrolModeComponent {
       }
     });
   }
+
+  amountOfExamineesOnline() {
+    return this.store.value
+      .patrolModeModel
+      .examinees
+      .filter(e => e.isConnected)
+      .length;
+  }
+
+  amountOfExamineesOffline() {
+    return this.store.value
+      .patrolModeModel
+      .examinees
+      .filter(e => !e.isConnected)
+      .length;
+  }
 }
