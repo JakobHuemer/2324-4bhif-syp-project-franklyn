@@ -16,6 +16,9 @@ import jakarta.inject.Inject;
 import org.hibernate.reactive.mutiny.Mutiny;
 import org.quartz.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @ApplicationScoped
 public class ScreenshotJobManager {
     private static final String FRANKLYN_SCREENSHOT_JOB_GROUP = "franklynScreenshotJobGroup";
@@ -93,17 +96,35 @@ public class ScreenshotJobManager {
             Context context = VertxContext.getOrCreateDuplicatedContext(vertx);
             VertxContextSafetyToggle.setContextSafe(context, true);
             context.runOnContext(event -> {
-                sf.withSession(session -> participationRepository
+                sf.withSession(session ->
+                    participationRepository
                         .getParticipationsOfExam(examId)
-                        .toMulti()
-                        .flatMap(list -> Multi.createFrom().iterable(list))
-                        .onItem().transformToUniAndConcatenate(participation ->
-                                commandSocket.requestFrame(participation.getId(), FrameType.UNSPECIFIED)
-                                        .onFailure().recoverWithNull())
-                        // Chain must stay on same thread to avoid killing hibernate or else we get a
-                        // "Detected use of the reactive Session from a different Thread"
+                        .chain(participations -> {
+                            List<Uni<Void>> results = new ArrayList<>();
+                            for (var participation : participations) {
+                                results.add(
+                                    commandSocket.requestFrame(
+                                        participation.getId(),
+                                        FrameType.UNSPECIFIED
+                                    )
+                                    .onFailure().recoverWithNull()
+                                    .emitOn(r -> context.runOnContext(ignored -> r.run()))
+                                );
+                            }
+
+                            // Uni.join().all(...) can only be called with non-empty lists
+                            return !results.isEmpty()
+                                    ? Uni.join()
+                                        .all(results)
+                                        .andCollectFailures()
+                                        .emitOn(r -> context.runOnContext(ignored -> r.run()))
+                                    : Uni.createFrom()
+                                        .voidItem()
+                                        .emitOn(r -> context.runOnContext(ignored -> r.run()));
+                        })
                         .emitOn(r -> context.runOnContext(ignored -> r.run()))
-                        .toUni())
+                )
+                .emitOn(r -> context.runOnContext(ignored -> r.run()))
                 .subscribe().with(ignored -> {});
             });
         }
