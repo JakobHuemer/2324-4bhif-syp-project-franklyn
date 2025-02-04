@@ -22,6 +22,13 @@ export class ScheduleService {
     ).subscribe(() => {
       this.startUpdateDataScheduleInterval();
     })
+
+    this.store.pipe(
+      map(model => model.scheduleServiceModel.timer.patrolSpeed),
+      distinctUntilChanged()
+    ).subscribe(() => {
+      this.startPatrolInterval();
+    })
   }
 
   //region stop intervals

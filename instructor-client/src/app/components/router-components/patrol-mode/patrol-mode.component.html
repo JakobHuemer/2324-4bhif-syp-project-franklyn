@@ -43,7 +43,11 @@
     </label>
   </div>
 
-  <div class="text-center align-self-center">
+  <div
+    class="text-center align-self-center pointer-hover"
+    type="button"
+    data-bs-toggle="modal"
+    data-bs-target="#change-patrol-speed-modal">
     <label>
       Patrol speed: {{store.value.scheduleServiceModel.timer.patrolSpeed}} sec
     </label>
@@ -80,3 +84,47 @@
     </button>
   </div>
 </div>
+
+<div
+  class="modal fade"
+  id="change-patrol-speed-modal"
+  tabindex="-1"
+  aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5">Change the patrol-speed</h1>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close">
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Patrol speed in seconds:
+        </p>
+        <input #patrolSpeedInput
+               type="number"
+               class="form-control"
+               value="{{store.value.scheduleServiceModel.timer.patrolSpeed}}">
+      </div>
+      <div class="modal-footer">
+        <button
+          class="btn btn-secondary"
+          data-bs-dismiss="modal">
+          Cancel
+        </button>
+
+        <button
+          (click)="setPatrolSpeed(patrolSpeedInput.value)"
+          class="btn btn-success"
+          data-bs-dismiss="modal">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+

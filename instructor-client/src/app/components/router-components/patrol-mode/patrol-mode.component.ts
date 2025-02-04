@@ -1,4 +1,4 @@
-import {Component, inject, OnDestroy} from '@angular/core';
+import {Component, inject} from '@angular/core';
 import {StoreService} from "../../../services/store.service";
 import {ExamineeListComponent} from "../../entity-lists/examinee-list/examinee-list.component";
 import {FormsModule} from "@angular/forms";
@@ -102,5 +102,15 @@ export class PatrolModeComponent {
       .examinees
       .filter(e => !e.isConnected)
       .length;
+  }
+
+  setPatrolSpeed(value: string) {
+    let val = Number(value);
+
+    if (!Number.isNaN(val) && val > 0) {
+      set((model) => {
+        model.scheduleServiceModel.timer.patrolSpeed = val;
+      });
+    }
   }
 }
