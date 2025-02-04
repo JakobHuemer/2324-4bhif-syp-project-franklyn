@@ -4,7 +4,6 @@ import {set} from "../model";
 import {ExamineeService} from "./examinee.service";
 import {distinctUntilChanged, map} from "rxjs";
 import {WebApiService} from "./web-api.service";
-import {ExamService} from "./exam.service";
 import {JobService} from "./job.service";
 
 @Injectable({
@@ -13,7 +12,6 @@ import {JobService} from "./job.service";
 export class ScheduleService {
   private store = inject(StoreService).store;
   private examineeRepo = inject(ExamineeService);
-  private examRepo = inject(ExamService);
   protected webApi = inject(WebApiService);
   protected jobSvc = inject(JobService);
 
@@ -74,7 +72,6 @@ export class ScheduleService {
     if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
       this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = window.setInterval(() => {
         this.examineeRepo.updateScreenshots();
-        this.examRepo.reloadAllExams();
         this.jobSvc.getAllJobs();
 
         if (this.store.value.patrolModeModel.curExamId) {
@@ -82,14 +79,6 @@ export class ScheduleService {
           // examinees for the video viewer when the exam is not ongoing
           this.webApi.getExamineesFromServer(
             this.store.value.patrolModeModel.curExamId
-          );
-        }
-
-        if (this.store.value.videoViewerModel.curExamId) {
-          // Do not check if exam ongoing since we also want to get
-          // examinees for the video viewer when the exam is not ongoing
-          this.webApi.getExamineesFromServer(
-            this.store.value.videoViewerModel.curExamId
           );
         }
       }, this.store.value.scheduleServiceModel.timer.nextClientTimeMilliseconds);

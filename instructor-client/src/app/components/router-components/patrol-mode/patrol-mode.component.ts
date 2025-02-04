@@ -88,7 +88,7 @@ export class PatrolModeComponent {
     });
   }
 
-  amountOfExamineesOnline() {
+  amountOfExamineesOnline(): number {
     return this.store.value
       .patrolModeModel
       .examinees
@@ -96,7 +96,7 @@ export class PatrolModeComponent {
       .length;
   }
 
-  amountOfExamineesOffline() {
+  amountOfExamineesOffline(): number {
     return this.store.value
       .patrolModeModel
       .examinees
