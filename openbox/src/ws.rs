@@ -1,6 +1,6 @@
 use anyhow::Result;
-use bytes::Bytes;
-use fastwebsockets::{handshake, FragmentCollector, Frame, Payload};
+use bytes::{Bytes, BytesMut};
+use fastwebsockets::{handshake, FragmentCollector, Frame, OpCode, Payload};
 use futures::{SinkExt, StreamExt};
 use http_body_util::Empty;
 use hyper::header::{CONNECTION, UPGRADE};
@@ -13,6 +13,7 @@ use reqwest::multipart::Form;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::future::Future;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::net::TcpStream;
 use tokio::task;
 
@@ -111,7 +112,8 @@ pub async fn connect(
         .header("Sec-WebSocket-Version", "13")
         .body(Empty::<Bytes>::new())?;
 
-    let (ws, _) = handshake::client(&SpawnExecutor, req, stream).await?;
+    let (mut ws, _) = handshake::client(&SpawnExecutor, req, stream).await?;
+    ws.set_auto_pong(false);
     Ok(Connection::Upgrade(
         FragmentCollector::new(ws),
         session_id.to_string(),
@@ -175,6 +177,14 @@ pub async fn handle_message(ws: &mut FragmentCollector<TokioIo<Upgraded>>) -> Ev
         }
     };
 
+    match msg.opcode {
+        OpCode::Ping => {
+            let _ = ws.write_frame(Frame::pong(msg.payload)).await;
+            return Event::Connected;
+        },
+        _ => {}
+    }
+
     match msg.payload {
         Payload::Bytes(buf) => {
             let raw = buf.iter().map(|&b| b as char).collect::<String>();
@@ -185,7 +195,7 @@ pub async fn handle_message(ws: &mut FragmentCollector<TokioIo<Upgraded>>) -> Ev
                 Ok(msg) => Event::Received(msg),
             }
         }
-        _ => return Event::Disconnect,
+        _ => Event::Connected,
     }
 }
 

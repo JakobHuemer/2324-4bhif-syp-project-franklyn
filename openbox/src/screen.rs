@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Error, Result};
 use image::{ImageFormat, Rgba, RgbaImage};
 use reqwest::multipart::Part;
 
@@ -6,12 +6,38 @@ pub fn take_screenshot(
     expect_alpha: bool,
     cur: Option<&RgbaImage>,
 ) -> (Result<Part>, RgbaImage, &'static str) {
-    let image = xcap::Monitor::all()
-        .expect("ERROR: could not access monitors")
-        .first()
-        .expect("ERROR: no monitors found")
-        .capture_image()
-        .expect("ERROR: unable to take screenshot");
+    let monitors = match xcap::Monitor::all() {
+        Ok(m) => m,
+        Err(e) => {
+            return (
+                Err(e.into()),
+                RgbaImage::from_pixel(0, 0, Rgba([0, 0, 0, 0])),
+                "beta",
+            )
+        }
+    };
+
+    let monitor = match monitors.first() {
+        None => {
+            return (
+                Err(Error::msg("no monitor found")),
+                RgbaImage::from_pixel(0, 0, Rgba([0, 0, 0, 0])),
+                "beta",
+            )
+        }
+        Some(m) => m,
+    };
+
+    let image = match monitor.capture_image() {
+        Ok(img) => img,
+        Err(e) => {
+            return (
+                Err(e.into()),
+                RgbaImage::from_pixel(0, 0, Rgba([0, 0, 0, 0])),
+                "beta",
+            )
+        }
+    };
 
     if expect_alpha {
         return (image_to_file_part(&image), image, "alpha");

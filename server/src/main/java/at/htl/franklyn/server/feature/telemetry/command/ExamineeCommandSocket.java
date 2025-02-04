@@ -19,6 +19,7 @@ import io.vertx.core.buffer.Buffer;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,36 +86,60 @@ public class ExamineeCommandSocket {
         final Buffer magic = Buffer.buffer(new byte[]{4, 9, 1});
         Context ctx = Vertx.currentContext();
         return cleanupDeadExaminees()
-                .chain(ignored -> Multi.createFrom().iterable(
-                                        openConnections.stream().map(c -> c.sendPing(magic)).toList()
-                                )
-                                .onItem().transformToUniAndConcatenate(u -> u)
-                                .toUni())
+                .chain(ignored -> {
+                    List<Uni<Void>> results = openConnections
+                            .stream()
+                            .map(c -> {
+                                return c.sendPing(magic);
+                            })
+                            .toList();
+
+                    // Uni.join().all(...) can only be called with non-empty lists
+                    return !results.isEmpty()
+                            ? Uni.join()
+                                .all(results)
+                                .andCollectFailures()
+                                .emitOn(r -> ctx.runOnContext(v -> r.run()))
+                            : Uni.createFrom().voidItem()
+                                .emitOn(r -> ctx.runOnContext(v -> r.run()));
+                })
+                .replaceWithVoid()
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
     }
 
     public Uni<Void> cleanupDeadExaminees() {
         return stateService.getTimedoutParticipants(clientTimeoutSeconds)
-                .onItem().transformToMulti(p -> Multi.createFrom().iterable(p))
-                .onItem().transform(pId -> {
-                    WebSocketConnection s = openConnections
+                .chain(examineeIds -> {
+                    List<Uni<Void>> results = examineeIds
                             .stream()
-                            .filter(c -> c.pathParam("participationId").equals(pId))
-                            .findFirst()
-                            .orElse(null);
+                            .map(pId -> {
+                                WebSocketConnection s = openConnections
+                                        .stream()
+                                        .filter(c -> c.pathParam("participationId").equals(pId))
+                                        .findFirst()
+                                        .orElse(null);
 
-                    Log.infof("Disconnecting %s (Reason: Timed out)", pId);
+                                Log.infof("Disconnecting %s (Reason: Timed out)", pId);
 
-                    return Uni.join().all(
-                            stateService.insertConnectedIfOngoing(pId, false),
-                            s != null && s.isOpen() ? s.close() : Uni.createFrom().voidItem()
-                    ).andFailFast().replaceWithVoid();
+                                return Uni.join().all(
+                                        stateService.insertConnectedIfOngoing(pId, false),
+                                        s != null && s.isOpen() ? s.close() : Uni.createFrom().voidItem()
+                                ).andCollectFailures().replaceWithVoid();
+                            })
+                            .toList();
+
+                    // Uni.join().all(...) can only be called with non-empty lists
+                    return !results.isEmpty()
+                            ? Uni.join()
+                                .all(results)
+                                .andCollectFailures()
+                            : Uni.createFrom().voidItem();
                 })
-                .onItem().transformToUniAndConcatenate(a -> a)
-                .toUni();
+                .replaceWithVoid();
     }
 
     public Uni<Void> requestFrame(UUID participationId, FrameType type) {
+        Context ctx = Vertx.currentContext();
         return Uni.createFrom()
                 .item(connections.get(participationId.toString()))
                 .onItem().ifNull()
@@ -124,9 +149,13 @@ public class ExamineeCommandSocket {
                 .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
                 .onItem()
                 .transformToUni(conn ->
-                            conn.sendText(new RequestScreenshotCommand(new RequestScreenshotPayload(type)))
-                            .onFailure().invoke(e -> Log.error("Send failed:", e))
-                );
+                        conn.sendText(new RequestScreenshotCommand(new RequestScreenshotPayload(type)))
+                                .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
+                                .onFailure().retry().atMost(2)
+                                .ifNoItem().after(Duration.ofMillis(1000)).fail()
+                                .onFailure().invoke(e -> Log.error("Send failed:", e))
+                )
+                .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
     }
 
     public Uni<Void> broadcastDisconnect(List<UUID> participationIds) {
@@ -150,9 +179,9 @@ public class ExamineeCommandSocket {
         }
 
         return Uni.join()
-                .all(participants)
-                .usingConcurrencyOf(1)
-                .andCollectFailures()
+                    .all(participants)
+                    .usingConcurrencyOf(1)
+                    .andCollectFailures()
                 .onFailure().recoverWithNull()
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .replaceWithVoid();
