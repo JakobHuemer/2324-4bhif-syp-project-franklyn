@@ -7,6 +7,7 @@ import {CreateExam, SchoolUnit, set} from "../../../model";
 import {ExamService} from "../../../services/exam.service";
 import {distinctUntilChanged, map} from "rxjs";
 import {SchoolUnitService} from "../../../services/school-unit.service";
+import {ToastService} from "../../../services/toast.service";
 
 @Component({
     selector: 'app-create-exam',
@@ -22,6 +23,7 @@ export class CreateExamComponent implements AfterViewInit{
   private examSvc = inject(ExamService);
   private schoolUnitSvc = inject(SchoolUnitService);
   private readonly cdRef = inject(ChangeDetectorRef);
+  private readonly toastSvc = inject(ToastService);
 
   protected readonly environment = environment;
 
@@ -391,10 +393,19 @@ export class CreateExamComponent implements AfterViewInit{
   }
 
   protected async createTestBtnClicked(): Promise<void> {
+    // reset response text colour
+    this.textColourForCreateExamResponse = "";
+
     // save exam
     let exam: CreateExam = this.store.value
       .createTestModel
       .createExam;
+
+    this.toastSvc.addToast(
+      "Started creating the exam",
+      `Started creating the exam '${this.store.value.createTestModel.createExam.title}.`,
+      "info"
+    );
 
     (await this.examSvc.createNewExam(exam)).subscribe({
       next: (exam) => {

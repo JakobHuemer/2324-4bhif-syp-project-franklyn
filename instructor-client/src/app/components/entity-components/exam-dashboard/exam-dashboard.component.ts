@@ -4,6 +4,7 @@ import {RouterLink, RouterLinkActive} from "@angular/router";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
 import {Exam, ExamState, set} from "../../../model";
 import {StoreService} from "../../../services/store.service";
+import {ToastService} from "../../../services/toast.service";
 
 @Component({
     selector: 'app-exam-dashboard',
@@ -20,6 +21,7 @@ export class ExamDashboardComponent {
   protected examSvc = inject(ExamService);
   protected readonly ExamState = ExamState;
   protected readonly store = inject(StoreService).store;
+  protected readonly toastSvc = inject(ToastService);
 
   @Input() exam: Exam | undefined;
 
@@ -88,9 +90,21 @@ export class ExamDashboardComponent {
 
   deleteExam() {
     this.examSvc.deleteExam(this.exam?.id);
+
+    this.toastSvc.addToast(
+      "Started deleting exam",
+      `Started deleting the exam '${this.exam?.title}.`,
+      "info"
+    );
   }
 
   deleteExamTelemetry() {
     this.examSvc.deleteExamTelemetry(this.exam?.id);
+
+    this.toastSvc.addToast(
+      "Started deleting exam",
+      `Started deleting the telemetry of the exam: '${this.exam?.title}.`,
+      "info"
+    );
   }
 }
