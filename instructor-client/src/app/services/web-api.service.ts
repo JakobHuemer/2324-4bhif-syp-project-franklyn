@@ -172,13 +172,18 @@ export class WebApiService {
               return examinee;
             })
             .sort((a, b) => {
-              if (a.lastname > b.lastname) {
-                return 1;
-              } else if (a.lastname === b.lastname) {
-                return (a.firstname > b.firstname ? 1 : -1);
-              } else {
-                return -1;
+              if (a.isConnected !== b.isConnected) {
+                return a.isConnected ? 1 : -1;
               }
+
+              const lastNameComparison = a.lastname
+                .localeCompare(b.lastname);
+
+              if (lastNameComparison !== 0) {
+                return lastNameComparison;
+              }
+
+              return a.firstname.localeCompare(b.firstname);
             });
         }),
         "error": (err) => console.error(err),
