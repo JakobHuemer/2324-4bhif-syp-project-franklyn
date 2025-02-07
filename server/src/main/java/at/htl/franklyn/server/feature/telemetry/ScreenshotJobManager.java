@@ -72,7 +72,7 @@ public class ScreenshotJobManager {
 
         return found
                 ? Uni.createFrom().voidItem()
-                : Uni.createFrom().failure(new RuntimeException("Could not complete Exam. No job active"));
+                : Uni.createFrom().failure(new IllegalStateException("Could not complete Exam. No job active"));
     }
 
     public static class ScreenshotJob implements Job {

@@ -131,7 +131,12 @@ public class ExamService {
                         ExamState.DONE,
                         LocalDateTime.now(),
                         e.getId())
-                .chain(affectedRows -> screenshotJobManager.stopScreenshotJob(e))
+                .chain(affectedRows -> screenshotJobManager
+                        .stopScreenshotJob(e)
+                        // Failure is because the screenshot job is no longer active
+                        // make sure this is not a fatal error, otherwise the exam can never be stopped
+                        .onFailure(IllegalStateException.class).recoverWithNull()
+                )
                 .chain(ignored -> participationRepository.getParticipationsOfExam(e))
                 .call(participations -> {
                     List<UUID> pIds = participations.stream().map(Participation::getId).toList();
