@@ -8,7 +8,9 @@ import jakarta.validation.constraints.PastOrPresent;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "F_CONNECTION_STATE")
+@Table(name = "F_CONNECTION_STATE", indexes = {
+        @Index(name = "cs_timestamp_idx", columnList = "cs_ping_timestamp")
+})
 @SqlResultSetMappings({
         @SqlResultSetMapping(
                 name = "timeoutMapping",
@@ -21,18 +23,20 @@ import java.time.LocalDateTime;
         @NamedNativeQuery(
             name = "ConnectionState.getTimedoutParticipants",
             query = """
-            select p.p_id::text as PAR_ID_RESULT
-            from f_participation p join f_connection_state cs on (p.p_id = cs.cs_participation_id)
-                join f_exam e on (p.p_exam = e.e_id)
-            where cs.cs_is_connected = true
-                and e.e_state = 1 -- Exam State: Ongoing
-                and cs.cs_ping_timestamp = (
-                    select max(cs2.cs_ping_timestamp)
-                        from f_connection_state cs2
-                        where cs.cs_participation_id = cs2.cs_participation_id
-                )
-                and EXTRACT(EPOCH FROM (NOW() at time zone 'utc' - cs.cs_ping_timestamp at time zone 'utc')) >= ?1
-            """,
+                    with latest_connection as (
+                        select distinct on (cs_participation_id)
+                            cs_participation_id, cs_is_connected, cs_ping_timestamp
+                        from f_connection_state
+                        order by cs_participation_id, cs_ping_timestamp desc
+                    )
+                    select p.p_id::text as par_id_result
+                    from f_participation p
+                             join latest_connection cs on p.p_id = cs.cs_participation_id
+                             join f_exam e on p.p_exam = e.e_id
+                    where cs.cs_is_connected = true
+                        and e.e_state = 1 -- exam state: ongoing
+                      and extract(epoch from (now() - cs.cs_ping_timestamp)) >= ?1 
+                    """,
             resultClass = String.class,
             resultSetMapping = "timeoutMapping"
         )
