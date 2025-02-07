@@ -6,6 +6,20 @@ pub fn take_screenshot(
     expect_alpha: bool,
     cur: Option<&RgbaImage>,
 ) -> (Result<Part>, RgbaImage, &'static str) {
+    if cfg!(feature = "no_screencap") {
+        let img = RgbaImage::from_pixel(
+            1920,
+            1080,
+            Rgba([255, 0, 0, 255])
+        );
+
+        if expect_alpha {
+            return (image_to_file_part(&img), img, "alpha");
+        } else {
+            return (image_to_file_part(&img), img, "beta");
+        }
+    }
+
     let monitors = match xcap::Monitor::all() {
         Ok(m) => m,
         Err(e) => {

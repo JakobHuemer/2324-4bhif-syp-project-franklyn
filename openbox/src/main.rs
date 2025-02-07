@@ -7,6 +7,8 @@ use iced::{
     Center, Element, Subscription, Task, Theme,
 };
 use openbox::ws::Event;
+use clap::Parser;
+use std::process;
 
 const _PROD_URL: &str = "franklyn3.htl-leonding.ac.at:8080";
 const _STAGING_URL: &str = "franklyn3a.htl-leonding.ac.at:8080";
@@ -14,6 +16,20 @@ const _CI_URL: &str = "franklyn.ddns.net:8080";
 const _DEV_URL: &str = "localhost:8080";
 
 const IS_VALID_RANGE: std::ops::RangeInclusive<usize> = 2..=50usize;
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long, value_parser = validate_pin)]
+    pin: Option<String>,
+    #[arg(short, long, value_parser = validate_name_length)]
+    fname: Option<String>,
+    #[arg(short, long, value_parser = validate_name_length)]
+    lname: Option<String>,
+    #[arg(short, long)]
+    autologin: bool,
+}
 
 #[derive(Debug, Clone)]
 enum Message {
@@ -46,12 +62,17 @@ struct Openbox<'a> {
 }
 
 impl<'a> Openbox<'a> {
-    fn new() -> (Self, Task<Message>) {
+    fn new(
+        pin: String,
+        firstname: String,
+        lastname: String,
+        autologin: bool
+    ) -> (Self, Task<Message>) {
         (
             Self {
-                pin: String::new(),
-                firstname: String::new(),
-                lastname: String::new(),
+                pin,
+                firstname,
+                lastname,
                 server_address: if cfg!(feature = "srv_prod") {
                     _PROD_URL
                 } else if cfg!(feature = "srv_staging") {
@@ -61,17 +82,21 @@ impl<'a> Openbox<'a> {
                 } else {
                     _DEV_URL
                 },
-                state: State::Login,
+                state: if autologin {
+                    State::Connected
+                } else {
+                    State::Login
+                },
             },
             Task::none(),
         )
     }
 
     fn is_input_valid(&self) -> bool {
-        self.pin.len() == 3
+        validate_pin(&self.pin).is_ok()
             && self.pin.parse::<u16>().is_ok()
-            && IS_VALID_RANGE.contains(&self.firstname.len())
-            && IS_VALID_RANGE.contains(&self.lastname.len())
+            && validate_name_length(&self.firstname).is_ok()
+            && validate_name_length(&self.lastname).is_ok()
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
@@ -110,7 +135,7 @@ impl<'a> Openbox<'a> {
                 self.firstname.clone(),
                 self.lastname.clone(),
             )
-            .map(Message::Ev),
+                .map(Message::Ev),
             _ => Subscription::none(),
         };
 
@@ -124,7 +149,7 @@ impl<'a> Openbox<'a> {
             State::Connected => self.connected_view(),
             State::Reconnecting => self.reconnection_view(),
         })
-        .into()
+            .into()
     }
 
     fn logo_view(&self) -> Element<Message> {
@@ -133,8 +158,8 @@ impl<'a> Openbox<'a> {
                 .style(|_| openbox::theme::LogoTheme::default().to_style()),
             text("KLYN").size(70),
         ]
-        .align_y(Center)
-        .into()
+            .align_y(Center)
+            .into()
     }
 
     fn login_view(&self) -> Element<Message> {
@@ -162,8 +187,8 @@ impl<'a> Openbox<'a> {
                 .align_y(alignment::Vertical::Center)
                 .align_x(alignment::Horizontal::Center),
         )
-        .width(300)
-        .padding([0, 20]);
+            .width(300)
+            .padding([0, 20]);
 
         if self.is_input_valid() {
             button = button.on_press(Message::Connect);
@@ -176,9 +201,9 @@ impl<'a> Openbox<'a> {
             lastname_input,
             button
         ]
-        .spacing(10)
-        .align_x(Center)
-        .into()
+            .spacing(10)
+            .align_x(Center)
+            .into()
     }
 
     fn connected_view(&self) -> Element<Message> {
@@ -190,9 +215,9 @@ impl<'a> Openbox<'a> {
             ]
             .spacing(20)
         ]
-        .spacing(20)
-        .align_x(Center)
-        .into()
+            .spacing(20)
+            .align_x(Center)
+            .into()
     }
 
     fn reconnection_view(&self) -> Element<Message> {
@@ -202,9 +227,9 @@ impl<'a> Openbox<'a> {
                 .size(20)
                 .color(color!(0xFF0000))
         ]
-        .spacing(20)
-        .align_x(Center)
-        .into()
+            .spacing(20)
+            .align_x(Center)
+            .into()
     }
 
     fn invalid_pin_view(&self) -> Element<Message> {
@@ -214,9 +239,9 @@ impl<'a> Openbox<'a> {
                 .size(20)
                 .color(color!(0xFF0000))
         ]
-        .spacing(20)
-        .align_x(Center)
-        .into()
+            .spacing(20)
+            .align_x(Center)
+            .into()
     }
 
     fn theme(&self) -> Theme {
@@ -224,9 +249,53 @@ impl<'a> Openbox<'a> {
     }
 }
 
+fn validate_pin(s: &str) -> Result<String, String> {
+    if s.len() == 3 && s.parse::<u16>().is_ok() {
+        Ok(s.to_string())
+    } else {
+        Err(String::from("PIN must be exactly 3 digits (Including leading zeros)."))
+    }
+}
+
+fn validate_name_length(s: &str) -> Result<String, String> {
+    if IS_VALID_RANGE.contains(&s.len()) {
+        Ok(s.to_string())
+    } else {
+        Err(String::from(
+            format!(
+                "Name must be between {} and {} characters long.",
+                IS_VALID_RANGE.start(),
+                IS_VALID_RANGE.end()
+            )
+        ))
+    }
+}
+
 pub fn main() -> iced::Result {
+    let args = Args::parse();
+
+    if args.autologin {
+        args.pin.as_ref().or_else(|| {
+            eprintln!("PIN must be set for autologin");
+            process::exit(1)
+        });
+        args.fname.as_ref().or_else(|| {
+            eprintln!("firstname must be set for autologin");
+            process::exit(1)
+        });
+        args.lname.as_ref().or_else(|| {
+            eprintln!("lastname must be set for autologin");
+            process::exit(1)
+        });
+    }
+
     iced::application("Openbox", Openbox::update, Openbox::view)
         .theme(Openbox::theme)
         .subscription(Openbox::subscription)
-        .run_with(Openbox::new)
+        .run_with(move || Openbox::new(
+            args.pin.unwrap_or(String::new()),
+            args.fname.unwrap_or(String::new()),
+            args.lname.unwrap_or(String::new()),
+            args.autologin
+        ))
 }
