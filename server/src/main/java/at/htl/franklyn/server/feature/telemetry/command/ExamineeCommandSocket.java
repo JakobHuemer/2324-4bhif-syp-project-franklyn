@@ -89,9 +89,14 @@ public class ExamineeCommandSocket {
                 .chain(ignored -> {
                     List<Uni<Void>> results = openConnections
                             .stream()
-                            .map(c -> {
-                                return c.sendPing(magic);
-                            })
+                            .map(c ->
+                                    c.sendPing(magic)
+                                            .onFailure().invoke(e -> Log.warnf(
+                                                    "Ping request to %s failed! Is the server overloaded? (Reason: %s)",
+                                                    c.pathParam("participationId"),
+                                                    e.getMessage()
+                                            ))
+                            )
                             .toList();
 
                     // Uni.join().all(...) can only be called with non-empty lists
@@ -160,7 +165,7 @@ public class ExamineeCommandSocket {
                                 .ifNoItem().after(Duration.ofMillis(1000)).fail()
                                 .onFailure().invoke(e ->
                                         Log.warnf(
-                                                "Screenshot request to %s failed (Reason: %s)",
+                                                "Screenshot request to %s failed! Is the server overloaded? (Reason: %s)",
                                                 conn.pathParam("participationId"),
                                                 e.getMessage()
                                         )
@@ -179,6 +184,12 @@ public class ExamineeCommandSocket {
                         var connection = openConnections.findByConnectionId(connectionId);
                         if (connection.isPresent()) {
                             return connection.get().sendText(new DisconnectClientCommand())
+                                    .onFailure().invoke(e ->
+                                        Log.warnf( "Disconnect request to %s failed! The client might already be unreachable (Reason: %s)",
+                                                connection.get().pathParam("participationId"),
+                                                e.getMessage()
+                                        )
+                                    )
                                     .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
                         }
                     }
