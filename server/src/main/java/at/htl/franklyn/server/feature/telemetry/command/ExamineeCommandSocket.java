@@ -80,7 +80,7 @@ public class ExamineeCommandSocket {
         return stateService.insertConnectedIfOngoing(participationId, true);
     }
 
-    @Scheduled(every = "{websocket.ping.interval}")
+    @Scheduled(every = "{websocket.ping.interval}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     @WithTransaction
     public Uni<Void> broadcastPing() {
         final Buffer magic = Buffer.buffer(new byte[]{4, 9, 1});
