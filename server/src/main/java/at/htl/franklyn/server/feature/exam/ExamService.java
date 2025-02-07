@@ -10,6 +10,8 @@ import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import at.htl.franklyn.server.feature.telemetry.video.VideoJobRepository;
 import at.htl.franklyn.server.feature.telemetry.video.VideoJobService;
+import io.quarkus.logging.Log;
+import io.quarkus.websockets.next.WebSocketConnection;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -150,32 +152,35 @@ public class ExamService {
     public Uni<Void> deleteTelemetry(Exam e) {
         return videoJobRepository.getVideoJobsOfExam(e.getId())
                 .onItem().transformToUni(vjs -> {
-                    List<Uni<Void>> results = new ArrayList<>();
-                    for (var videoJob : vjs) {
-                        results.add(videoJobService.deleteVideoJob(videoJob.getId()));
-                    }
+                    // make sure db insertion happens sequentially. for more information see here:
+                    // https://github.com/hibernate/hibernate-reactive/issues/1607
+                    Uni<Void> result = Uni.createFrom().voidItem();
 
-                    // Uni.join().all(...) can only be called with non-empty lists
-                    return !results.isEmpty()
-                            ? Uni.join().all(results).andCollectFailures()
-                            : Uni.createFrom().voidItem();
-                })
-                .chain(ignored -> participationRepository.getParticipationsOfExam(e))
-                .chain(p -> {
-                    List<Uni<Void>> results = new ArrayList<>();
-                    for (var participation : p) {
-                        results.add(
-                                connectionStateRepository.deleteStatesOfParticipation(participation)
-                                        .onItem()
-                                        .transformToUni(v -> imageService.deleteAllFramesOfParticipation(participation))
-                                        .onItem().transformToUni(v -> participationRepository.delete(participation))
+                    for (var videoJob : vjs) {
+                        result = result.call(ignored ->
+                                videoJobService.deleteVideoJob(videoJob.getId())
+                                        .onFailure().recoverWithNull()
                         );
                     }
 
-                    // Uni.join().all(...) can only be called with non-empty lists
-                    return !results.isEmpty()
-                            ? Uni.join().all(results).andCollectFailures()
-                            : Uni.createFrom().voidItem();
+                    return result;
+                })
+                .chain(ignored -> participationRepository.getParticipationsOfExam(e))
+                .chain(p -> {
+                    // make sure db insertion happens sequentially. for more information see here:
+                    // https://github.com/hibernate/hibernate-reactive/issues/1607
+                    Uni<Void> result = Uni.createFrom().voidItem();
+
+                    for (Participation participation : p) {
+                        result = result.call(ignored ->
+                                connectionStateRepository.deleteStatesOfParticipation(participation)
+                                        .call(v -> imageService.deleteAllFramesOfParticipation(participation))
+                                        .call(v -> participationRepository.delete(participation))
+                                        .onFailure().recoverWithNull()
+                        );
+                    }
+
+                    return result;
                 })
                 .chain(ignored -> examRepository.update("state = ?1 where id = ?2",
                         ExamState.DELETED,

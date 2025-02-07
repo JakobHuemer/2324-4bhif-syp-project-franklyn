@@ -100,27 +100,24 @@ public class ScreenshotJobManager {
                     participationRepository
                         .getParticipationsOfExam(examId)
                         .chain(participations -> {
-                            List<Uni<Void>> results = new ArrayList<>();
+                            // make sure operations happen sequentially. for more information see here:
+                            // https://github.com/hibernate/hibernate-reactive/issues/1607
+                            Uni<Void> result = Uni.createFrom().voidItem();
+
                             for (var participation : participations) {
-                                results.add(
-                                    commandSocket.requestFrame(
-                                        participation.getId(),
-                                        FrameType.UNSPECIFIED
-                                    )
-                                    .onFailure().recoverWithNull()
-                                    .emitOn(r -> context.runOnContext(ignored -> r.run()))
+                                result = result.call(ignored ->
+                                        commandSocket.requestFrame(
+                                                participation.getId(),
+                                                FrameType.UNSPECIFIED
+                                        )
+                                        .onFailure().recoverWithNull()
+                                        .emitOn(r -> context.runOnContext(ignored2 -> r.run()))
                                 );
                             }
 
-                            // Uni.join().all(...) can only be called with non-empty lists
-                            return !results.isEmpty()
-                                    ? Uni.join()
-                                        .all(results)
-                                        .andCollectFailures()
-                                        .emitOn(r -> context.runOnContext(ignored -> r.run()))
-                                    : Uni.createFrom()
-                                        .voidItem()
-                                        .emitOn(r -> context.runOnContext(ignored -> r.run()));
+                            return result
+                                    .onFailure().recoverWithNull()
+                                    .emitOn(r -> context.runOnContext(ignored2 -> r.run()));
                         })
                         .emitOn(r -> context.runOnContext(ignored -> r.run()))
                 )

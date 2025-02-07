@@ -108,52 +108,64 @@ public class ExamineeCommandSocket {
     }
 
     public Uni<Void> cleanupDeadExaminees() {
+        Context ctx = Vertx.currentContext();
         return stateService.getTimedoutParticipants(clientTimeoutSeconds)
                 .chain(examineeIds -> {
-                    List<Uni<Void>> results = examineeIds
-                            .stream()
-                            .map(pId -> {
-                                WebSocketConnection s = openConnections
-                                        .stream()
-                                        .filter(c -> c.pathParam("participationId").equals(pId))
-                                        .findFirst()
-                                        .orElse(null);
+                    // make sure db insertion happens sequentially. for more information see here:
+                    // https://github.com/hibernate/hibernate-reactive/issues/1607
+                    Uni<Void> result = Uni.createFrom().voidItem();
 
-                                Log.infof("Disconnecting %s (Reason: Timed out)", pId);
+                    for (String pId : examineeIds) {
+                        WebSocketConnection s = openConnections
+                                .stream()
+                                .filter(c -> c.pathParam("participationId").equals(pId))
+                                .findFirst()
+                                .orElse(null);
 
-                                return Uni.join().all(
-                                        stateService.insertConnectedIfOngoing(pId, false),
-                                        s != null && s.isOpen() ? s.close() : Uni.createFrom().voidItem()
-                                ).andCollectFailures().replaceWithVoid();
-                            })
-                            .toList();
+                        Log.infof("Disconnecting %s (Reason: Timed out)", pId);
 
-                    // Uni.join().all(...) can only be called with non-empty lists
-                    return !results.isEmpty()
-                            ? Uni.join()
-                                .all(results)
-                                .andCollectFailures()
-                            : Uni.createFrom().voidItem();
-                })
-                .replaceWithVoid();
+                        result = result.call(ignored ->
+                                stateService.insertConnectedIfOngoing(pId, false)
+                                        .onFailure().retry().atMost(2) // retry when database insert fails
+                                        .call(ignored2 ->
+                                                s != null && s.isOpen()
+                                                        ? s.close()
+                                                        : Uni.createFrom().voidItem()
+                                        )
+                                        .onFailure().recoverWithNull() // No hard failure if one disconnect fails
+                                        .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()))
+                        );
+                    }
+
+                    return result
+                            .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
+                }).replaceWithVoid();
     }
 
     public Uni<Void> requestFrame(UUID participationId, FrameType type) {
         Context ctx = Vertx.currentContext();
+        final RequestScreenshotCommand screenshotCommand =
+                new RequestScreenshotCommand(new RequestScreenshotPayload(type));
         return Uni.createFrom()
                 .item(connections.get(participationId.toString()))
                 .onItem().ifNull()
-                .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
+                    .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
                 .onItem().transform(connId -> openConnections.findByConnectionId(connId).orElse(null))
                 .onItem().ifNull()
-                .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
-                .onItem()
-                .transformToUni(conn ->
-                        conn.sendText(new RequestScreenshotCommand(new RequestScreenshotPayload(type)))
+                    .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
+                .chain(conn ->
+                        conn.sendText(screenshotCommand)
                                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                                 .onFailure().retry().atMost(2)
                                 .ifNoItem().after(Duration.ofMillis(1000)).fail()
-                                .onFailure().invoke(e -> Log.error("Send failed:", e))
+                                .onFailure().invoke(e ->
+                                        Log.warnf(
+                                                "Screenshot request to %s failed (Reason: %s)",
+                                                conn.pathParam("participationId"),
+                                                e.getMessage()
+                                        )
+                                )
+                                .onFailure().recoverWithNull()
                 )
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
     }
@@ -179,9 +191,9 @@ public class ExamineeCommandSocket {
         }
 
         return Uni.join()
-                    .all(participants)
-                    .usingConcurrencyOf(1)
-                    .andCollectFailures()
+                .all(participants)
+                .usingConcurrencyOf(1)
+                .andCollectFailures()
                 .onFailure().recoverWithNull()
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .replaceWithVoid();
