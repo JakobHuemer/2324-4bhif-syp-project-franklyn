@@ -14,6 +14,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.InputStream;
@@ -119,27 +120,12 @@ public class ImageService {
                                             Paths.get(alphaFrameImageEntity.getPath()).toFile()
                                     );
 
-                                    int width = lastAlphaFrame.getWidth();
-                                    int height = lastAlphaFrame.getHeight();
-                                    BufferedImage betaFrame = new BufferedImage(
-                                            width,
-                                            height,
-                                            BufferedImage.TYPE_INT_ARGB
-                                    );
+                                    Graphics2D g = lastAlphaFrame.createGraphics();
+                                    g.setComposite(AlphaComposite.SrcOver);
+                                    g.drawImage(newClientFrame, 0, 0, null);
+                                    g.dispose();
 
-                                    for (int y = 0; y < height; y++) {
-                                        for (int x = 0; x < width; x++) {
-                                            int alphaRGB = lastAlphaFrame.getRGB(x, y);
-                                            int diffRGB = newClientFrame.getRGB(x, y);
-
-                                            if (0 != diffRGB) {
-                                                betaFrame.setRGB(x, y, diffRGB);
-                                            } else {
-                                                betaFrame.setRGB(x, y, alphaRGB);
-                                            }
-                                        }
-                                    }
-                                    return betaFrame;
+                                    return lastAlphaFrame;
                                 }));
                     } else {
                         return Uni.createFrom().item(newClientFrame);
