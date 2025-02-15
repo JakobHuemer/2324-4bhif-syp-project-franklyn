@@ -26,9 +26,10 @@ public class ScreenshotRequestManager extends ThrottledRequestManager<Screenshot
     int maximumConcurrentRequests;
     @ConfigProperty(name = "screenshots.upload-timeout", defaultValue = "1500")
     int uploadTimeoutMs;
+    @ConfigProperty(name = "screenshots.always-allow-uploads", defaultValue = "false")
+    boolean alwaysAllowUploads;
 
     ConcurrentHashMap<UUID, CompletableFuture<Void>> forcedAlphaRequests = new ConcurrentHashMap<>();
-
 
     public void onStartup(@Observes StartupEvent ev) {
         init(maximumConcurrentRequests, uploadTimeoutMs, ClientData.class);
@@ -51,6 +52,13 @@ public class ScreenshotRequestManager extends ThrottledRequestManager<Screenshot
         CompletableFuture<Void> alphaCompletion = forcedAlphaRequests.remove(client);
         if(alphaCompletion != null) {
             alphaCompletion.complete(null);
+            return true;
+        }
+
+        // Currently only used in unit tests
+        // since those do not actually connect a websocket client but still upload images and build videos
+        // since this class is non-deterministic it is very hard to test it otherwise, better ideas are welcome
+        if (alwaysAllowUploads) {
             return true;
         }
 
