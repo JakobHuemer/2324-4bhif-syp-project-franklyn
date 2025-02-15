@@ -64,7 +64,7 @@ public class ImageService {
                 .findByIdWithExam(session)
                 .onItem().ifNull().failWith(new RuntimeException("Session not found"))
                 .invoke(Unchecked.consumer(particpation -> {
-                            var uploadAllowed = screenshotRequestManager.notifyScreenshotReceived(
+                            var uploadAllowed = screenshotRequestManager.notifyClientRequestReceived(
                                     particpation.getId()
                             );
                             if (!uploadAllowed) {

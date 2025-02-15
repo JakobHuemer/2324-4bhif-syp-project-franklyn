@@ -3,28 +3,20 @@ package at.htl.franklyn.server.feature.telemetry;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateService;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
+import io.quarkus.runtime.StartupEvent;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
-import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicLong;
 
 @ApplicationScoped
-public class PingPongRequestManager {
-    private static class ClientData {
-        UUID participationId;
-        Long lastPingTimestampMillis;
-    }
-    private static class PingTimeoutException extends Exception { }
+public class PingPongRequestManager extends ThrottledRequestManager<PingPongRequestManager.ClientData, UUID> {
+    protected static class ClientData extends ThrottledRequestManager.ClientDataBase<UUID> { }
 
     @Inject
     ExamineeCommandSocket commandSocket;
@@ -36,167 +28,53 @@ public class PingPongRequestManager {
     @ConfigProperty(name = "websocket.client-timeout-millis", defaultValue = "2000")
     int pingTimeoutMs;
     @ConfigProperty(name = "websocket.ping.max-concurrent-requests", defaultValue = "10")
-    int maximumConcurrentRequests;
+    int maxRequests;
 
-    ConcurrentHashMap<UUID, CompletableFuture<Void>> activeRequests = new ConcurrentHashMap<>();
-    ConcurrentHashSet<UUID> clientsStagedForRemoval = new ConcurrentHashSet<>();
-    ConcurrentLinkedQueue<ClientData> clients = new ConcurrentLinkedQueue<>();
-    // 64bit number containing the important state for this class
-    // first 32 bits -> number of currently active requests
-    // second 32 bits -> number of available clients waiting to be processed
-    AtomicLong state = new AtomicLong(0);
-
-    public void registerClient(UUID client) {
-        ClientData data = new ClientData();
-        data.participationId = client;
-        data.lastPingTimestampMillis = null;
-
-        clients.add(data);
-        addClient();
-
-        tryScheduleNext();
+    public void onStartup(@Observes StartupEvent ev) {
+        init(maxRequests, pingTimeoutMs, ClientData.class);
     }
 
-    public void unregisterClient(UUID client) {
-        clientsStagedForRemoval.add(client);
+    @Override
+    public ClientData registerClient(UUID id) {
+        return super.registerClient(id);
     }
 
-    public void notifyClientPongReceived(UUID client) {
-        CompletableFuture<Void> requestCompletion = activeRequests.remove(client);
-        if (requestCompletion != null) {
-            requestCompletion.complete(null);
-        }
+    @Override
+    public void unregisterClient(UUID id) {
+        super.unregisterClient(id);
     }
 
-    private boolean tryScheduleNext() {
-        if (!reserveClientAndRequest()) {
-            return false;
-        }
+    @Override
+    public boolean notifyClientRequestReceived(UUID client) {
+        return super.notifyClientRequestReceived(client);
+    }
 
-        // We are 100% sure to have a client and one request available
-        ClientData user = clients.poll();
-        assert user != null; // somebody broke contract and accessed clients without state
-
-        long wait = user.lastPingTimestampMillis != null
-                ? Math.max(pingIntervalMs - (System.currentTimeMillis() - user.lastPingTimestampMillis), 1)
+    @Override
+    protected long calculateWaitMillis(ClientData client) {
+        return client.lastResponseTimestampMillis != null
+                ? Math.max(pingIntervalMs - (System.currentTimeMillis() - client.lastResponseTimestampMillis), 1)
                 : 1;
+    }
 
-        // Dispatch Uni which pings and handles the result
+    @Override
+    protected Uni<Void> request(ClientData client) {
+        return commandSocket.sendPing(client.id);
+    }
+
+    @Override
+    protected Uni<Void> handleResponse(ClientData client, boolean clientReached) {
         Context ctx = Vertx.currentContext();
-        Uni.createFrom()
-                .voidItem()
-                .onItem().delayIt().by(Duration.ofMillis(wait))
-                .chain(ignored -> {
-                    CompletableFuture<Void> requestCompletion = new CompletableFuture<>();
-                    activeRequests.put(user.participationId, requestCompletion);
-                    return commandSocket.sendPing(user.participationId)
-                            .chain(ignored2 -> Uni.createFrom().completionStage(requestCompletion))
-                            .onItem().transform(ignored2 -> true)
-                            .ifNoItem().after(Duration.ofMillis(pingTimeoutMs)).failWith(PingTimeoutException::new)
-                            .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()));
-                })
-                .onFailure(PingTimeoutException.class).recoverWithItem(false)
+        return insertConnectionState(client.id, clientReached)
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
-                .call(isConnected -> insertConnectionState(user.participationId, isConnected))
-                .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
-                .call(isConnected ->
-                        isConnected
+                .chain(ignored -> clientReached
                                 ? Uni.createFrom().voidItem()
-                                : commandSocket.timeoutDisconnect(user.participationId).emitOn(r -> ctx.runOnContext(ignored -> r.run()))
-                )
-                .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
-                .onFailure().recoverWithNull()
-                .invoke(ignored -> {
-                    if (clientsStagedForRemoval.contains(user.participationId)) {
-                        releaseRequest();
-                    } else {
-                        user.lastPingTimestampMillis = System.currentTimeMillis();
-                        clients.add(user);
-                        releaseClientAndRequest();
-                    }
-                })
-                .subscribe().with(ignored -> {
-                    // reschedule, we want to (possibly) get the client at the front,
-                    // not the one we already have (at the back)
-                    tryScheduleNext();
-                });
-
-        return true;
+                                : commandSocket.timeoutDisconnect(client.id)
+                                        .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()))
+                );
     }
 
     @WithTransaction
     Uni<Void> insertConnectionState(UUID pId, boolean state) {
         return stateService.insertConnectedIfOngoing(pId, state);
-    }
-
-    private boolean reserveClientAndRequest() {
-        // https://stackoverflow.com/a/50278620
-        while (true) {
-            long currentState = state.get();
-            int availableClients = getAvailableClients(currentState);
-            int activeRequests = getActiveRequests(currentState);
-            if (availableClients - 1 < 0 || activeRequests + 1 > maximumConcurrentRequests) {
-                return false;
-            }
-            long newState = setAvailableClients(currentState, availableClients - 1);
-            newState = setActiveRequests(newState, activeRequests + 1);
-            if (state.compareAndSet(currentState, newState)) {
-                return true;
-            }
-        }
-    }
-
-    private boolean releaseClientAndRequest() {
-        // https://stackoverflow.com/a/50278620
-        while (true) {
-            long currentState = state.get();
-            int availableClients = getAvailableClients(currentState);
-            int activeRequests = getActiveRequests(currentState);
-            assert activeRequests - 1 >= 0;
-            long newState = setAvailableClients(currentState, availableClients + 1);
-            newState = setActiveRequests(newState, activeRequests - 1);
-            if (state.compareAndSet(currentState, newState)) {
-                return true;
-            }
-        }
-    }
-
-    private void addClient() {
-        // https://stackoverflow.com/a/50278620
-        while (true) {
-            long currentState = state.get();
-            int availableClients = getAvailableClients(currentState);
-            if (state.compareAndSet(currentState, setAvailableClients(currentState, availableClients + 1))) {
-                return;
-            }
-        }
-    }
-
-    private void releaseRequest() {
-        // https://stackoverflow.com/a/50278620
-        while (true) {
-            long currentState = state.get();
-            int activeRequests = getActiveRequests(currentState);
-            assert activeRequests - 1 >= 0;
-            if (state.compareAndSet(currentState, setActiveRequests(currentState, activeRequests - 1))) {
-                return;
-            }
-        }
-    }
-
-    private int getActiveRequests(long state) {
-        return (int) ((state & 0xFFFFFFFF00000000L) >> 32);
-    }
-
-    private long setActiveRequests(long state, int requests) {
-        return ((state & 0x00000000FFFFFFFFL) | (((long) requests) << 32));
-    }
-
-    private int getAvailableClients(long state) {
-        return (int) (state & 0x00000000FFFFFFFFL);
-    }
-
-    private long setAvailableClients(long state, int clients) {
-        return ((state & 0xFFFFFFFF00000000L) | ((long) clients));
     }
 }

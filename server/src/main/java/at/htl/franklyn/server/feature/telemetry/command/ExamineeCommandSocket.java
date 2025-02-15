@@ -94,7 +94,7 @@ public class ExamineeCommandSocket {
     public void onPongMessage(WebSocketConnection connection, Buffer data) {
         String participationId = connection.pathParam("participationId");
         try {
-            pingRequestManager.notifyClientPongReceived(UUID.fromString(participationId));
+            pingRequestManager.notifyClientRequestReceived(UUID.fromString(participationId));
         } catch (IllegalArgumentException ignored) {}
     }
 
