@@ -3,7 +3,6 @@ package at.htl.franklyn.server.feature.telemetry;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateService;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
-import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
@@ -11,7 +10,6 @@ import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.context.ManagedExecutor;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -55,13 +53,11 @@ public class PingPongRequestManager {
 
         clients.add(data);
         addClient();
-        Log.infof("client %s registered", client);
 
         tryScheduleNext();
     }
 
     public void unregisterClient(UUID client) {
-        Log.infof("client %s unregistered", client);
         clientsStagedForRemoval.add(client);
     }
 
@@ -74,7 +70,6 @@ public class PingPongRequestManager {
 
     private boolean tryScheduleNext() {
         if (!reserveClientAndRequest()) {
-            Log.infof("Reserving client and request failed ):");
             return false;
         }
 
@@ -86,16 +81,12 @@ public class PingPongRequestManager {
                 ? Math.max(pingIntervalMs - (System.currentTimeMillis() - user.lastPingTimestampMillis), 1)
                 : 1;
 
-        Log.infof("Scheduling with wait: %d ms", wait);
-
         // Dispatch Uni which pings and handles the result
         Context ctx = Vertx.currentContext();
         Uni.createFrom()
                 .voidItem()
                 .onItem().delayIt().by(Duration.ofMillis(wait))
-                .invoke(test -> Log.infof("Delay done"))
                 .chain(ignored -> {
-                    Log.infof("Pinging %s", user.participationId);
                     CompletableFuture<Void> requestCompletion = new CompletableFuture<>();
                     activeRequests.put(user.participationId, requestCompletion);
                     return commandSocket.sendPing(user.participationId)
@@ -125,7 +116,6 @@ public class PingPongRequestManager {
                     }
                 })
                 .subscribe().with(ignored -> {
-                    Log.infof("Rescheduling! Result: %b", ignored);
                     // reschedule, we want to (possibly) get the client at the front,
                     // not the one we already have (at the back)
                     tryScheduleNext();
@@ -136,7 +126,6 @@ public class PingPongRequestManager {
 
     @WithTransaction
     Uni<Void> insertConnectionState(UUID pId, boolean state) {
-        Log.infof("Inserting connection state");
         return stateService.insertConnectedIfOngoing(pId, state);
     }
 

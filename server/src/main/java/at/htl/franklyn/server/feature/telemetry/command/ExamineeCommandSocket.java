@@ -56,7 +56,7 @@ public class ExamineeCommandSocket {
                     .onItem().invoke(participation -> {
                         if (participation != null) {
                             connections.put(participationId, connection.id());
-                            screenshotRequestManager.registerStudent(parsedId, participation.getExam().getScreencaptureInterval());
+                            screenshotRequestManager.registerClient(parsedId, participation.getExam().getScreencaptureInterval());
                             pingRequestManager.registerClient(parsedId);
                             Log.infof("%s has connected.", participationId);
                         } else {
@@ -77,7 +77,7 @@ public class ExamineeCommandSocket {
         connections.remove(participationId);
         try {
             var uuid = UUID.fromString(participationId);
-            screenshotRequestManager.unregisterStudent(uuid);
+            screenshotRequestManager.unregisterClient(uuid);
             pingRequestManager.unregisterClient(uuid);
         } catch (IllegalArgumentException ignored) { }
         return stateService.insertConnectedIfOngoing(participationId, false);

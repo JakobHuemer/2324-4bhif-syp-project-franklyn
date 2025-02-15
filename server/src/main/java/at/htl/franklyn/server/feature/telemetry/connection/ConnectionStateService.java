@@ -22,7 +22,6 @@ public class ConnectionStateService {
     ParticipationRepository participationRepository;
 
     public Uni<Void> insertConnectedIfOngoing(UUID participationId, boolean state) {
-        Log.infof("Inserting connection stati in service");
         Context ctx = Vertx.currentContext();
         return participationRepository
                 .findByIdWithExam(participationId)

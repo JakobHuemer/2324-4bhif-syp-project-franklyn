@@ -2,87 +2,73 @@ package at.htl.franklyn.server.feature.telemetry;
 
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
-import io.quarkus.logging.Log;
-import io.quarkus.runtime.StartupEvent;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.context.ManagedExecutor;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 @ApplicationScoped
 public class ScreenshotRequestManager {
-    private static class UserInterval {
-        public long wantedIntervalSeconds;
-        public Long lastScreenshotTimestamp;
+    private static class ClientData {
+        UUID participationId;
+        public long wantedIntervalMs;
+        public Long lastScreenshotTimestampMillis;
     }
+    private static class ScreenshotTimeoutException extends Exception { }
 
-    @Inject
-    ManagedExecutor executor;
     @Inject
     ExamineeCommandSocket commandSocket;
 
     @ConfigProperty(name = "screenshots.max-concurrent-requests", defaultValue = "1")
-    int maxConcurrentRequests;
+    int maximumConcurrentRequests;
     @ConfigProperty(name = "screenshots.upload-timeout", defaultValue = "1500")
     int uploadTimeoutMs;
 
-    final int MIN_WAIT_MS = 250;
-
-    AtomicBoolean isRunning = new AtomicBoolean(false);
-
-    // participation id, capture interval
-    ConcurrentHashMap<UUID, UserInterval> userIntervals = new ConcurrentHashMap<>();
-    ConcurrentLinkedQueue<UUID> queuedUsers = new ConcurrentLinkedQueue<>();
     ConcurrentHashMap<UUID, CompletableFuture<Void>> activeRequests = new ConcurrentHashMap<>();
     ConcurrentHashMap<UUID, CompletableFuture<Void>> forcedAlphaRequests = new ConcurrentHashMap<>();
+    ConcurrentHashSet<UUID> clientsStagedForRemoval = new ConcurrentHashSet<>();
+    ConcurrentLinkedQueue<ClientData> clients = new ConcurrentLinkedQueue<>();
+    // 64bit number containing the important state for this class
+    // first 32 bits -> number of currently active requests
+    // second 32 bits -> number of available clients waiting to be processed
+    AtomicLong state = new AtomicLong(0);
 
-    public void onStartup(@Observes StartupEvent ev) {
-        // TODO: Load from database?
+    public void registerClient(UUID client, long screenshotIntervalSeconds) {
+        ClientData data = new ClientData();
+        data.participationId = client;
+        data.wantedIntervalMs = screenshotIntervalSeconds * 1000;
+        data.lastScreenshotTimestampMillis = null;
+
+        clients.add(data);
+        addClient();
+
+        tryScheduleNext();
     }
 
-    public void registerStudent(UUID participationId, long intervalSeconds) {
-        var interval = new UserInterval();
-        interval.wantedIntervalSeconds = intervalSeconds;
-        interval.lastScreenshotTimestamp = null;
-
-        userIntervals.put(participationId, interval);
-        queuedUsers.add(participationId);
-        if (!isRunning.compareAndExchangeRelease(false, true)) {
-            executor.execute(this::processRequests);
-        }
+    public void unregisterClient(UUID client) {
+        clientsStagedForRemoval.add(client);
     }
 
-    public void unregisterStudent(UUID participationId) {
-        userIntervals.remove(participationId);
-        queuedUsers.remove(participationId);
-    }
-
-    public boolean notifyStudentScreenshot(UUID participationID) {
-        var normalCompletable = activeRequests.remove(participationID);
-        var forcedAlphaCompletable = forcedAlphaRequests.remove(participationID);
-        if (normalCompletable == null && forcedAlphaCompletable == null) {
+    public boolean notifyScreenshotReceived(UUID client) {
+        CompletableFuture<Void> requestCompletion = activeRequests.remove(client);
+        CompletableFuture<Void> alphaCompletion = forcedAlphaRequests.remove(client);
+        if (requestCompletion == null && alphaCompletion == null) {
             return false;
         }
 
-        if (normalCompletable != null) {
-            normalCompletable.complete(null);
+        if (requestCompletion != null) {
+            requestCompletion.complete(null);
         }
-        if (forcedAlphaCompletable != null) {
-            forcedAlphaCompletable.complete(null);
+        if (alphaCompletion != null) {
+            alphaCompletion.complete(null);
         }
         return true;
     }
@@ -96,63 +82,118 @@ public class ScreenshotRequestManager {
                 .onFailure().recoverWithNull();
     }
 
-    private void processRequests() {
-        List<Uni<Void>> requests = new ArrayList<>(maxConcurrentRequests);
-        List<UUID> processedUsers = new ArrayList<>(maxConcurrentRequests);
-        while (!Thread.currentThread().isInterrupted()) {
-            long start = System.currentTimeMillis();
-            for (int i = 0; i < maxConcurrentRequests; i++) {
-                UUID user = queuedUsers.poll();
+    private boolean tryScheduleNext() {
+        if (!reserveClientAndRequest()) {
+            return false;
+        }
 
-                if (user != null) {
-                    processedUsers.add(user);
-                    UserInterval userInterval = userIntervals.get(user);
-                    // start uploadTimeout ms sooner to counteract duration of upload a bit
-                    if (userInterval.lastScreenshotTimestamp == null
-                            || System.currentTimeMillis() - userInterval.lastScreenshotTimestamp >= userInterval.wantedIntervalSeconds * 1000 - uploadTimeoutMs) {
-                        CompletableFuture<Void> screenshotUploadComplete = new CompletableFuture<>();
-                        activeRequests.put(user, screenshotUploadComplete);
-                        requests.add(
-                                commandSocket
-                                        .requestFrame(user, FrameType.UNSPECIFIED)
-                                        .chain(ignored -> Uni.createFrom().completionStage(screenshotUploadComplete))
-                                        .invoke(ignored -> {
-                                            userInterval.lastScreenshotTimestamp = System.currentTimeMillis();
-                                        })
-                                        .onFailure().recoverWithNull()
-                        );
+        // We are 100% sure to have a client and one request available
+        ClientData user = clients.poll();
+        assert user != null; // somebody broke contract and accessed clients without state
+
+        long wait = user.lastScreenshotTimestampMillis != null
+                ? Math.max(user.wantedIntervalMs - (System.currentTimeMillis() - user.lastScreenshotTimestampMillis), 1)
+                : 1;
+
+        // Dispatch Uni which pings and handles the result
+        Uni.createFrom()
+                .voidItem()
+                .onItem().delayIt().by(Duration.ofMillis(wait))
+                .chain(ignored -> {
+                    CompletableFuture<Void> screenshotUploadComplete = new CompletableFuture<>();
+                    activeRequests.put(user.participationId, screenshotUploadComplete);
+                    return commandSocket.requestFrame(user.participationId, FrameType.UNSPECIFIED)
+                            .chain(ignored2 -> Uni.createFrom().completionStage(screenshotUploadComplete))
+                            .onItem().transform(ignored2 -> true)
+                            .ifNoItem().after(Duration.ofMillis(uploadTimeoutMs)).failWith(ScreenshotTimeoutException::new);
+                })
+                .onFailure(ScreenshotTimeoutException.class).recoverWithItem(false)
+                .invoke(ignored -> {
+                    if (clientsStagedForRemoval.contains(user.participationId)) {
+                        releaseRequest();
+                    } else {
+                        user.lastScreenshotTimestampMillis = System.currentTimeMillis();
+                        clients.add(user);
+                        releaseClientAndRequest();
                     }
-                }
+                })
+                .subscribe().with(ignored -> {
+                    // reschedule, we want to (possibly) get the client at the front,
+                    // not the one we already have (at the back)
+                    tryScheduleNext();
+                });
+
+        return true;
+    }
+
+    private boolean reserveClientAndRequest() {
+        // https://stackoverflow.com/a/50278620
+        while (true) {
+            long currentState = state.get();
+            int availableClients = getAvailableClients(currentState);
+            int activeRequests = getActiveRequests(currentState);
+            if (availableClients - 1 < 0 || activeRequests + 1 > maximumConcurrentRequests) {
+                return false;
             }
-
-            queuedUsers.addAll(processedUsers);
-            processedUsers.clear();
-
-            if (!requests.isEmpty()) {
-                try {
-                    Uni.join()
-                            .all(requests)
-                            .andCollectFailures()
-                            .onFailure().recoverWithNull()
-                            .await()
-                            .atMost(Duration.ofMillis(uploadTimeoutMs));
-                } catch (Exception ignored) {} // timeout exception is ignored
-
-                activeRequests.clear(); // make sure timed out requests are sorted out
-                requests.clear();
-            }
-
-            long end = System.currentTimeMillis();
-
-            if (end - start < MIN_WAIT_MS) {
-                Uni.createFrom()
-                        .voidItem()
-                        .onItem()
-                        .delayIt()
-                        .by(Duration.ofMillis(MIN_WAIT_MS - (end- start)))
-                        .await()
-                        .indefinitely();
+            long newState = setAvailableClients(currentState, availableClients - 1);
+            newState = setActiveRequests(newState, activeRequests + 1);
+            if (state.compareAndSet(currentState, newState)) {
+                return true;
             }
         }
+    }
+
+    private boolean releaseClientAndRequest() {
+        // https://stackoverflow.com/a/50278620
+        while (true) {
+            long currentState = state.get();
+            int availableClients = getAvailableClients(currentState);
+            int activeRequests = getActiveRequests(currentState);
+            assert activeRequests - 1 >= 0;
+            long newState = setAvailableClients(currentState, availableClients + 1);
+            newState = setActiveRequests(newState, activeRequests - 1);
+            if (state.compareAndSet(currentState, newState)) {
+                return true;
+            }
+        }
+    }
+
+    private void addClient() {
+        // https://stackoverflow.com/a/50278620
+        while (true) {
+            long currentState = state.get();
+            int availableClients = getAvailableClients(currentState);
+            if (state.compareAndSet(currentState, setAvailableClients(currentState, availableClients + 1))) {
+                return;
+            }
+        }
+    }
+
+    private void releaseRequest() {
+        // https://stackoverflow.com/a/50278620
+        while (true) {
+            long currentState = state.get();
+            int activeRequests = getActiveRequests(currentState);
+            assert activeRequests - 1 >= 0;
+            if (state.compareAndSet(currentState, setActiveRequests(currentState, activeRequests - 1))) {
+                return;
+            }
+        }
+    }
+
+    private int getActiveRequests(long state) {
+        return (int) ((state & 0xFFFFFFFF00000000L) >> 32);
+    }
+
+    private long setActiveRequests(long state, int requests) {
+        return ((state & 0x00000000FFFFFFFFL) | (((long) requests) << 32));
+    }
+
+    private int getAvailableClients(long state) {
+        return (int) (state & 0x00000000FFFFFFFFL);
+    }
+
+    private long setAvailableClients(long state, int clients) {
+        return ((state & 0xFFFFFFFF00000000L) | ((long) clients));
     }
 }
