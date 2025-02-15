@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ScreenshotRequestManager {
     private static class UserInterval {
         public long wantedIntervalSeconds;
-        public LocalDateTime lastScreenshotTimestamp;
+        public Long lastScreenshotTimestamp;
     }
 
     @Inject
@@ -40,11 +40,9 @@ public class ScreenshotRequestManager {
     @ConfigProperty(name = "screenshots.upload-timeout", defaultValue = "1500")
     int uploadTimeoutMs;
 
-    final int MIN_WAIT = 250;
+    final int MIN_WAIT_MS = 250;
 
     AtomicBoolean isRunning = new AtomicBoolean(false);
-    AtomicLong additionalDelaySum = new AtomicLong(0);
-    AtomicLong additionalDelayMeasurements = new AtomicLong(0);
 
     // participation id, capture interval
     ConcurrentHashMap<UUID, UserInterval> userIntervals = new ConcurrentHashMap<>();
@@ -99,8 +97,6 @@ public class ScreenshotRequestManager {
     }
 
     private void processRequests() {
-        // todo calculate sleep to next screenshot with some avg
-        // nothing available 1s
         List<Uni<Void>> requests = new ArrayList<>(maxConcurrentRequests);
         List<UUID> processedUsers = new ArrayList<>(maxConcurrentRequests);
         while (!Thread.currentThread().isInterrupted()) {
@@ -113,7 +109,7 @@ public class ScreenshotRequestManager {
                     UserInterval userInterval = userIntervals.get(user);
                     // start uploadTimeout ms sooner to counteract duration of upload a bit
                     if (userInterval.lastScreenshotTimestamp == null
-                            || ChronoUnit.SECONDS.between(userInterval.lastScreenshotTimestamp, LocalDateTime.now()) >= userInterval.wantedIntervalSeconds - uploadTimeoutMs) {
+                            || System.currentTimeMillis() - userInterval.lastScreenshotTimestamp >= userInterval.wantedIntervalSeconds * 1000 - uploadTimeoutMs) {
                         CompletableFuture<Void> screenshotUploadComplete = new CompletableFuture<>();
                         activeRequests.put(user, screenshotUploadComplete);
                         requests.add(
@@ -121,13 +117,7 @@ public class ScreenshotRequestManager {
                                         .requestFrame(user, FrameType.UNSPECIFIED)
                                         .chain(ignored -> Uni.createFrom().completionStage(screenshotUploadComplete))
                                         .invoke(ignored -> {
-                                            var delay = ChronoUnit.SECONDS.between(userInterval.lastScreenshotTimestamp, LocalDateTime.now());
-                                            var delaySum = additionalDelaySum.addAndGet(Math.max(delay, 0));
-                                            var measurements = additionalDelayMeasurements.incrementAndGet();
-                                            if (measurements % 1000 == 0) {
-                                                Log.infof("Average additional delay: %d", (double)delaySum / measurements);
-                                            }
-                                            userInterval.lastScreenshotTimestamp = LocalDateTime.now();
+                                            userInterval.lastScreenshotTimestamp = System.currentTimeMillis();
                                         })
                                         .onFailure().recoverWithNull()
                         );
@@ -154,12 +144,12 @@ public class ScreenshotRequestManager {
 
             long end = System.currentTimeMillis();
 
-            if (end - start < MIN_WAIT) {
+            if (end - start < MIN_WAIT_MS) {
                 Uni.createFrom()
                         .voidItem()
                         .onItem()
                         .delayIt()
-                        .by(Duration.ofMillis(MIN_WAIT - (end- start)))
+                        .by(Duration.ofMillis(MIN_WAIT_MS - (end- start)))
                         .await()
                         .indefinitely();
             }
