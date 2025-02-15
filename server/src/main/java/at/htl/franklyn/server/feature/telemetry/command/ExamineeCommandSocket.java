@@ -1,10 +1,12 @@
 package at.htl.franklyn.server.feature.telemetry.command;
 
+import at.htl.franklyn.server.feature.telemetry.ScreenshotRequestManager;
 import at.htl.franklyn.server.feature.telemetry.command.disconnect.DisconnectClientCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotPayload;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateService;
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
+import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationService;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
@@ -17,6 +19,7 @@ import io.vertx.core.Context;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import jakarta.inject.Inject;
+import net.bytebuddy.pool.TypePool;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Duration;
@@ -30,10 +33,13 @@ public class ExamineeCommandSocket {
     ConnectionStateService stateService;
 
     @Inject
-    ParticipationService participationService;
+    ParticipationRepository participationRepository;
 
     @Inject
     OpenConnections openConnections;
+
+    @Inject
+    ScreenshotRequestManager screenshotRequestManager;
 
     @ConfigProperty(name = "websocket.client-timeout-seconds")
     int clientTimeoutSeconds;
@@ -44,18 +50,23 @@ public class ExamineeCommandSocket {
     @OnOpen
     @WithSession
     public Uni<Void> onOpen(WebSocketConnection connection, @PathParam("participationId") String participationId) {
-        return participationService.exists(participationId)
-                .onItem().invoke(exists -> {
-                    if (exists) {
-                        connections.put(participationId, connection.id());
-                        Log.infof("%s has connected.", participationId);
-                    } else {
-                        // TODO: Close connection for unauthorized people?
-                        Log.warnf("An invalid participation id was sent (%s). Is someone tampering with the client?",
-                                participationId);
-                    }
-                })
-                .replaceWithVoid();
+        try {
+            var parsedId = UUID.fromString(participationId);
+            return participationRepository.findByIdWithExam(parsedId)
+                    .onItem().invoke(participation -> {
+                        if (participation != null) {
+                            connections.put(participationId, connection.id());
+                            screenshotRequestManager.registerStudent(parsedId, participation.getExam().getScreencaptureInterval());
+                            Log.infof("%s has connected.", participationId);
+                        } else {
+                            // TODO: Close connection for unauthorized people?
+                            Log.warnf("An invalid participation id was sent (%s). Is someone tampering with the client?",
+                                    participationId);
+                        }
+                    })
+                    .replaceWithVoid();
+        } catch (IllegalArgumentException ignored) { }
+        return Uni.createFrom().voidItem();
     }
 
     @OnClose
@@ -63,6 +74,9 @@ public class ExamineeCommandSocket {
     public Uni<Void> onClose(@PathParam("participationId") String participationId) {
         Log.infof("%s has lost connection.", participationId);
         connections.remove(participationId);
+        try {
+            screenshotRequestManager.unregisterStudent(UUID.fromString(participationId));
+        } catch (IllegalArgumentException ignored) { }
         return stateService.insertConnectedIfOngoing(participationId, false);
     }
 

@@ -1,6 +1,7 @@
 package at.htl.franklyn.server.feature.telemetry.image;
 
 import at.htl.franklyn.server.feature.exam.ExamState;
+import at.htl.franklyn.server.feature.telemetry.ScreenshotRequestManager;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
@@ -40,6 +41,9 @@ public class ImageService {
     ExamineeCommandSocket commandSocket;
 
     @Inject
+    ScreenshotRequestManager screenshotRequestManager;
+
+    @Inject
     Vertx vertx;
 
     private Path getScreenshotFolderPath(UUID session) {
@@ -59,6 +63,15 @@ public class ImageService {
                 // fail if participation with given session does not exist
                 .findByIdWithExam(session)
                 .onItem().ifNull().failWith(new RuntimeException("Session not found"))
+                .invoke(Unchecked.consumer(particpation -> {
+                            var uploadAllowed = screenshotRequestManager.notifyStudentScreenshot(
+                                    particpation.getId()
+                            );
+                            if (!uploadAllowed) {
+                                throw new RuntimeException("Upload not allowed");
+                            }
+                        })
+                )
                 // Fail if exam is not ongoing
                 .onItem().transform(participation ->
                         participation.getExam().getState() == ExamState.ONGOING
@@ -96,22 +109,21 @@ public class ImageService {
                     if (type == FrameType.BETA) {
                         return imageRepository.find(
                                         """
-                                        participation.id = ?1 \
-                                        and captureTimestamp = (\
-                                            select max(captureTimestamp) from Image i \
-                                                where i.participation.id = ?1 and frameType = ?2\
-                                        ) and frameType = ?2
-                                        """,
+                                                participation.id = ?1 \
+                                                and captureTimestamp = (\
+                                                    select max(captureTimestamp) from Image i \
+                                                        where i.participation.id = ?1 and frameType = ?2\
+                                                ) and frameType = ?2
+                                                """,
                                         session,
                                         FrameType.ALPHA
                                 )
                                 .firstResult()
                                 .onItem().ifNull().failWith(Unchecked.supplier(() -> {
                                     // Request new alpha frame so the next client frame can be processed
-                                    commandSocket
-                                            .requestFrame(session, FrameType.ALPHA)
-                                            .subscribe()
-                                            .with(v -> Log.warnf("No alpha frame found for %s. A new one has been requested", session));
+                                    Log.warnf("No alpha frame found for %s. A new one will be requested", session);
+                                    screenshotRequestManager.forceRequestNewAlpha(session)
+                                            .subscribe().with(v -> {});
                                     throw new IllegalStateException("Can not store beta frame without previous alpha");
                                 }))
                                 .onItem()
