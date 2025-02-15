@@ -68,13 +68,14 @@ public class ScreenshotRequestManager extends ThrottledRequestManager<Screenshot
     @Override
     protected long calculateWaitMillis(ClientData client) {
         return client.lastResponseTimestampMillis != null
-                ? Math.max(client.wantedIntervalMs - (System.currentTimeMillis() - client.lastResponseTimestampMillis), 1)
+                ? Math.max((client.wantedIntervalMs - (System.currentTimeMillis() - client.lastResponseTimestampMillis)) - uploadTimeoutMs, 1)
                 : 1;
     }
 
     @Override
     protected Uni<Void> request(ClientData client) {
-        return commandSocket.requestFrame(client.id, FrameType.UNSPECIFIED);
+        return commandSocket.requestFrame(client.id, FrameType.UNSPECIFIED)
+                .onFailure().recoverWithNull();
     }
 
     @Override

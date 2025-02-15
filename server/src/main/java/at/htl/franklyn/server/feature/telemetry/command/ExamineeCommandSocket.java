@@ -147,8 +147,6 @@ public class ExamineeCommandSocket {
                 .chain(conn ->
                         conn.sendText(screenshotCommand)
                                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
-                                .onFailure().retry().atMost(2)
-                                .ifNoItem().after(Duration.ofMillis(1000)).fail()
                                 .onFailure().invoke(e ->
                                         Log.warnf(
                                                 "Screenshot request to %s failed! Is the server overloaded? (Reason: %s)",

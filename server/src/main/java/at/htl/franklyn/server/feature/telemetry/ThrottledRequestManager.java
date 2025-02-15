@@ -16,7 +16,9 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
         K id;
         Long lastResponseTimestampMillis;
     }
-    private static class ResponseTimeoutException extends Exception { }
+
+    private static class ResponseTimeoutException extends Exception {
+    }
 
     private int maximumConcurrentRequests;
     private int requestTimeoutMilliseconds;
@@ -66,7 +68,9 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
     }
 
     protected abstract long calculateWaitMillis(T client);
+
     protected abstract Uni<Void> request(T client);
+
     protected abstract Uni<Void> handleResponse(T client, boolean clientReached);
 
     private boolean tryScheduleNext() {
@@ -85,6 +89,7 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
         Uni.createFrom()
                 .voidItem()
                 .onItem().delayIt().by(Duration.ofMillis(wait))
+                .onFailure().recoverWithNull()
                 .chain(ignored -> {
                     CompletableFuture<Void> requestCompletion = new CompletableFuture<>();
                     activeRequests.put(user.id, requestCompletion);
@@ -95,7 +100,7 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
                             .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()));
                 })
                 .onFailure(ResponseTimeoutException.class).recoverWithItem(false)
-                .chain(clientReached -> handleResponse(user, clientReached))
+                .chain(clientReached -> handleResponse(user, clientReached).onFailure().recoverWithNull())
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .onFailure().recoverWithNull()
                 .invoke(ignored -> {
@@ -107,11 +112,15 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
                         releaseClientAndRequest();
                     }
                 })
-                .subscribe().with(ignored -> {
-                    // reschedule, we want to (possibly) get the client at the front,
-                    // not the one we already have (at the back)
-                    tryScheduleNext();
-                });
+                .onFailure().recoverWithNull()
+                .subscribe().with(
+                        ignored -> {
+                            // reschedule, we want to (possibly) get the client at the front,
+                            // not the one we already have (at the back)
+                            tryScheduleNext();
+                        },
+                        e -> {}
+                );
 
         return true;
     }

@@ -52,13 +52,14 @@ public class PingPongRequestManager extends ThrottledRequestManager<PingPongRequ
     @Override
     protected long calculateWaitMillis(ClientData client) {
         return client.lastResponseTimestampMillis != null
-                ? Math.max(pingIntervalMs - (System.currentTimeMillis() - client.lastResponseTimestampMillis), 1)
+                ? Math.max((pingIntervalMs - (System.currentTimeMillis() - client.lastResponseTimestampMillis)) - pingTimeoutMs, 1)
                 : 1;
     }
 
     @Override
     protected Uni<Void> request(ClientData client) {
-        return commandSocket.sendPing(client.id);
+        return commandSocket.sendPing(client.id)
+                .onFailure().recoverWithNull();
     }
 
     @Override
