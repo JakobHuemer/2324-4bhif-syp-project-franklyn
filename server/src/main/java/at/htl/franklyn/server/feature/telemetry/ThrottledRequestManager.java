@@ -68,9 +68,7 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
     }
 
     protected abstract long calculateWaitMillis(T client);
-
     protected abstract Uni<Void> request(T client);
-
     protected abstract Uni<Void> handleResponse(T client, boolean clientReached);
 
     private boolean tryScheduleNext() {
@@ -79,10 +77,10 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
         }
 
         // We are 100% sure to have a client and one request available
-        T user = clients.poll();
-        assert user != null; // somebody broke contract and accessed clients without state
+        T client = clients.poll();
+        assert client != null; // somebody broke contract and accessed clients without state
 
-        long wait = Math.max(calculateWaitMillis(user), 1);
+        long wait = Math.max(calculateWaitMillis(client), 1);
 
         // Dispatch Uni which pings and handles the result
         Context ctx = Vertx.currentContext();
@@ -92,37 +90,36 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
                 .onFailure().recoverWithNull()
                 .chain(ignored -> {
                     CompletableFuture<Void> requestCompletion = new CompletableFuture<>();
-                    activeRequests.put(user.id, requestCompletion);
-                    return request(user)
+                    activeRequests.put(client.id, requestCompletion);
+                    return request(client)
                             .chain(ignored2 -> Uni.createFrom().completionStage(requestCompletion))
                             .onItem().transform(ignored2 -> true)
                             .ifNoItem().after(Duration.ofMillis(requestTimeoutMilliseconds)).failWith(ResponseTimeoutException::new)
                             .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()));
                 })
                 .onFailure(ResponseTimeoutException.class).recoverWithItem(false)
-                .chain(clientReached -> handleResponse(user, clientReached).onFailure().recoverWithNull())
+                .chain(clientReached -> handleResponse(client, clientReached).onFailure().recoverWithNull())
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .onFailure().recoverWithNull()
-                .invoke(ignored -> {
-                    if (clientsStagedForRemoval.contains(user.id)) {
-                        releaseRequest();
-                    } else {
-                        user.lastResponseTimestampMillis = System.currentTimeMillis();
-                        clients.add(user);
-                        releaseClientAndRequest();
-                    }
-                })
-                .onFailure().recoverWithNull()
                 .subscribe().with(
-                        ignored -> {
-                            // reschedule, we want to (possibly) get the client at the front,
-                            // not the one we already have (at the back)
-                            tryScheduleNext();
-                        },
-                        e -> {}
+                        ignored -> releaseAndReschedule(client),
+                        ignored -> releaseAndReschedule(client)
                 );
 
         return true;
+    }
+
+    private void releaseAndReschedule(T client) {
+        if (clientsStagedForRemoval.remove(client.id)) {
+            releaseRequest();
+        } else {
+            client.lastResponseTimestampMillis = System.currentTimeMillis();
+            clients.add(client);
+            releaseClientAndRequest();
+        }
+        // reschedule, we want to (possibly) get the client at the front,
+        // not the one we already have (at the back)
+        tryScheduleNext();
     }
 
     private boolean reserveClientAndRequest() {
