@@ -22,6 +22,10 @@ public class ConnectionStateService {
     ParticipationRepository participationRepository;
 
     public Uni<Void> insertConnectedIfOngoing(UUID participationId, boolean state) {
+        return insertConnectedIfOngoing(participationId, state, LocalDateTime.now());
+    }
+
+    public Uni<Void> insertConnectedIfOngoing(UUID participationId, boolean state, LocalDateTime timestamp) {
         Context ctx = Vertx.currentContext();
         return participationRepository
                 .findByIdWithExam(participationId)
@@ -32,7 +36,7 @@ public class ConnectionStateService {
                 )
                 .onItem().ifNotNull()
                 .transform(participation -> new ConnectionState(
-                        LocalDateTime.now(),
+                        timestamp,
                         participation,
                         state
                 ))

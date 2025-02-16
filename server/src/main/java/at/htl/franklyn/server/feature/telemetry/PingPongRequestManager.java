@@ -12,6 +12,7 @@ import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -76,6 +77,8 @@ public class PingPongRequestManager extends ThrottledRequestManager<PingPongRequ
 
     @WithTransaction
     Uni<Void> insertConnectionState(UUID pId, boolean state) {
-        return stateService.insertConnectedIfOngoing(pId, state);
+        LocalDateTime pingTimestamp = LocalDateTime.now();
+        state = !isStagedForRemoval(pId) && state;
+        return stateService.insertConnectedIfOngoing(pId, state, pingTimestamp);
     }
 }

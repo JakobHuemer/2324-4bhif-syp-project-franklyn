@@ -67,6 +67,10 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
         return false;
     }
 
+    protected boolean isStagedForRemoval(K id) {
+        return clientsStagedForRemoval.contains(id);
+    }
+
     protected abstract long calculateWaitMillis(T client);
     protected abstract Uni<Void> request(T client);
     protected abstract Uni<Void> handleResponse(T client, boolean clientReached);
@@ -98,7 +102,11 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
                             .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()));
                 })
                 .onFailure(ResponseTimeoutException.class).recoverWithItem(false)
-                .chain(clientReached -> handleResponse(client, clientReached).onFailure().recoverWithNull())
+                .chain(clientReached -> handleResponse(
+                                client,
+                                clientReached
+                        ).onFailure().recoverWithNull()
+                )
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .onFailure().recoverWithNull()
                 .subscribe().with(
