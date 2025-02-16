@@ -2,6 +2,7 @@ package at.htl.franklyn.server.feature.telemetry.connection;
 
 import at.htl.franklyn.server.feature.exam.ExamState;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
+import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
@@ -20,14 +21,14 @@ public class ConnectionStateService {
     @Inject
     ParticipationRepository participationRepository;
 
-    public Uni<Void> insertConnectedIfOngoing(String participationId, boolean state) {
+    public Uni<Void> insertConnectedIfOngoing(UUID participationId, boolean state) {
         Context ctx = Vertx.currentContext();
         return participationRepository
-                .findByIdWithExam(UUID.fromString(participationId))
+                .findByIdWithExam(participationId)
                 .onItem().ifNotNull().transform(participation ->
-                    participation.getExam().getState() == ExamState.ONGOING
-                            ? participation
-                            : null
+                        participation.getExam().getState() == ExamState.ONGOING
+                                ? participation
+                                : null
                 )
                 .onItem().ifNotNull()
                 .transform(participation -> new ConnectionState(
@@ -42,6 +43,10 @@ public class ConnectionStateService {
                 // In order to counteract this, we pin the emission to the vertx thread hibernate wants
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                 .replaceWithVoid();
+    }
+
+    public Uni<Void> insertConnectedIfOngoing(String participationId, boolean state) {
+        return insertConnectedIfOngoing(UUID.fromString(participationId), state);
     }
 
     public Uni<List<String>> getTimedoutParticipants(int timeout) {

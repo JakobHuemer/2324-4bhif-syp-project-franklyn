@@ -1,10 +1,13 @@
 package at.htl.franklyn.server.feature.telemetry.command;
 
+import at.htl.franklyn.server.feature.telemetry.PingPongRequestManager;
+import at.htl.franklyn.server.feature.telemetry.ScreenshotRequestManager;
 import at.htl.franklyn.server.feature.telemetry.command.disconnect.DisconnectClientCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotCommand;
 import at.htl.franklyn.server.feature.telemetry.command.screenshot.RequestScreenshotPayload;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateService;
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
+import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationService;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
@@ -17,6 +20,7 @@ import io.vertx.core.Context;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import jakarta.inject.Inject;
+import net.bytebuddy.pool.TypePool;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Duration;
@@ -30,13 +34,15 @@ public class ExamineeCommandSocket {
     ConnectionStateService stateService;
 
     @Inject
-    ParticipationService participationService;
+    ParticipationRepository participationRepository;
 
     @Inject
     OpenConnections openConnections;
 
-    @ConfigProperty(name = "websocket.client-timeout-seconds")
-    int clientTimeoutSeconds;
+    @Inject
+    ScreenshotRequestManager screenshotRequestManager;
+    @Inject
+    PingPongRequestManager pingRequestManager;
 
     // Key: Session Id, Value: ConnectionId
     private final ConcurrentHashMap<String, String> connections = new ConcurrentHashMap<>();
@@ -44,18 +50,24 @@ public class ExamineeCommandSocket {
     @OnOpen
     @WithSession
     public Uni<Void> onOpen(WebSocketConnection connection, @PathParam("participationId") String participationId) {
-        return participationService.exists(participationId)
-                .onItem().invoke(exists -> {
-                    if (exists) {
-                        connections.put(participationId, connection.id());
-                        Log.infof("%s has connected.", participationId);
-                    } else {
-                        // TODO: Close connection for unauthorized people?
-                        Log.warnf("An invalid participation id was sent (%s). Is someone tampering with the client?",
-                                participationId);
-                    }
-                })
-                .replaceWithVoid();
+        try {
+            var parsedId = UUID.fromString(participationId);
+            return participationRepository.findByIdWithExam(parsedId)
+                    .onItem().invoke(participation -> {
+                        if (participation != null) {
+                            connections.put(participationId, connection.id());
+                            screenshotRequestManager.registerClient(parsedId, participation.getExam().getScreencaptureInterval());
+                            pingRequestManager.registerClient(parsedId);
+                            Log.infof("%s has connected.", participationId);
+                        } else {
+                            // TODO: Close connection for unauthorized people?
+                            Log.warnf("An invalid participation id was sent (%s). Is someone tampering with the client?",
+                                    participationId);
+                        }
+                    })
+                    .replaceWithVoid();
+        } catch (IllegalArgumentException ignored) { }
+        return Uni.createFrom().voidItem();
     }
 
     @OnClose
@@ -63,6 +75,11 @@ public class ExamineeCommandSocket {
     public Uni<Void> onClose(@PathParam("participationId") String participationId) {
         Log.infof("%s has lost connection.", participationId);
         connections.remove(participationId);
+        try {
+            var uuid = UUID.fromString(participationId);
+            screenshotRequestManager.unregisterClient(uuid);
+            pingRequestManager.unregisterClient(uuid);
+        } catch (IllegalArgumentException ignored) { }
         return stateService.insertConnectedIfOngoing(participationId, false);
     }
 
@@ -74,77 +91,46 @@ public class ExamineeCommandSocket {
     }
 
     @OnPongMessage
-    @WithTransaction
-    public Uni<Void> onPongMessage(WebSocketConnection connection, Buffer data) {
+    public void onPongMessage(WebSocketConnection connection, Buffer data) {
         String participationId = connection.pathParam("participationId");
-        return stateService.insertConnectedIfOngoing(participationId, true);
+        try {
+            pingRequestManager.notifyClientRequestReceived(UUID.fromString(participationId));
+        } catch (IllegalArgumentException ignored) {}
     }
 
-    @Scheduled(every = "{websocket.ping.interval}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
-    @WithTransaction
-    public Uni<Void> broadcastPing() {
+    public Uni<Void> sendPing(UUID client) {
         final Buffer magic = Buffer.buffer(new byte[]{4, 9, 1});
-        Context ctx = Vertx.currentContext();
-        return cleanupDeadExaminees()
-                .chain(ignored -> {
-                    List<Uni<Void>> results = openConnections
-                            .stream()
-                            .map(c ->
-                                    c.sendPing(magic)
-                                            .onFailure().invoke(e -> Log.warnf(
-                                                    "Ping request to %s failed! Is the server overloaded? (Reason: %s)",
-                                                    c.pathParam("participationId"),
-                                                    e.getMessage()
-                                            ))
-                            )
-                            .toList();
-
-                    // Uni.join().all(...) can only be called with non-empty lists
-                    return !results.isEmpty()
-                            ? Uni.join()
-                                .all(results)
-                                .andCollectFailures()
-                                .emitOn(r -> ctx.runOnContext(v -> r.run()))
-                            : Uni.createFrom().voidItem()
-                                .emitOn(r -> ctx.runOnContext(v -> r.run()));
-                })
-                .replaceWithVoid()
-                .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
+        WebSocketConnection c = openConnections
+                .stream()
+                .filter(conn -> conn.pathParam("participationId").equals(client.toString()))
+                .findFirst()
+                .orElse(null);
+        if (c != null) {
+            return c.sendPing(magic)
+                    .onFailure().invoke(e -> Log.warnf(
+                            "Ping request to %s failed! Is the server overloaded? (Reason: %s)",
+                            client,
+                            e.getMessage()
+                    ));
+        } else {
+            return Uni.createFrom().voidItem();
+        }
     }
 
-    public Uni<Void> cleanupDeadExaminees() {
-        Context ctx = Vertx.currentContext();
-        return stateService.getTimedoutParticipants(clientTimeoutSeconds)
-                .chain(examineeIds -> {
-                    // make sure db insertion happens sequentially. for more information see here:
-                    // https://github.com/hibernate/hibernate-reactive/issues/1607
-                    Uni<Void> result = Uni.createFrom().voidItem();
+    public Uni<Void> timeoutDisconnect(UUID client) {
+        WebSocketConnection conn = openConnections
+                .stream()
+                .filter(c -> c.pathParam("participationId").equals(client.toString()))
+                .findFirst()
+                .orElse(null);
 
-                    for (String pId : examineeIds) {
-                        WebSocketConnection s = openConnections
-                                .stream()
-                                .filter(c -> c.pathParam("participationId").equals(pId))
-                                .findFirst()
-                                .orElse(null);
+        Log.infof("Disconnecting %s (Reason: Timed out)", client);
 
-                        Log.infof("Disconnecting %s (Reason: Timed out)", pId);
-
-                        result = result.call(ignored ->
-                                stateService.insertConnectedIfOngoing(pId, false)
-                                        .onFailure().retry().atMost(2) // retry when database insert fails
-                                        .call(ignored2 ->
-                                                s != null && s.isOpen()
-                                                        ? s.close()
-                                                        : Uni.createFrom().voidItem()
-                                        )
-                                        .onFailure().recoverWithNull() // No hard failure if one disconnect fails
-                                        .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()))
-                        );
-                    }
-
-                    return result
-                            .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
-                }).replaceWithVoid();
+        if (conn != null && conn.isOpen()) {
+            return conn.close();
+        } else {
+            return Uni.createFrom().voidItem();
+        }
     }
 
     public Uni<Void> requestFrame(UUID participationId, FrameType type) {
@@ -161,8 +147,6 @@ public class ExamineeCommandSocket {
                 .chain(conn ->
                         conn.sendText(screenshotCommand)
                                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
-                                .onFailure().retry().atMost(2)
-                                .ifNoItem().after(Duration.ofMillis(1000)).fail()
                                 .onFailure().invoke(e ->
                                         Log.warnf(
                                                 "Screenshot request to %s failed! Is the server overloaded? (Reason: %s)",

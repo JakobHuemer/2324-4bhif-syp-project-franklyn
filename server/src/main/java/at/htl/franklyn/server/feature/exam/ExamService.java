@@ -2,7 +2,7 @@ package at.htl.franklyn.server.feature.exam;
 
 import at.htl.franklyn.server.common.Limits;
 import at.htl.franklyn.server.feature.examinee.ExamineeDto;
-import at.htl.franklyn.server.feature.telemetry.ScreenshotJobManager;
+import at.htl.franklyn.server.feature.telemetry.ScreenshotRequestManager;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateRepository;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
@@ -10,14 +10,11 @@ import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import at.htl.franklyn.server.feature.telemetry.video.VideoJobRepository;
 import at.htl.franklyn.server.feature.telemetry.video.VideoJobService;
-import io.quarkus.logging.Log;
-import io.quarkus.websockets.next.WebSocketConnection;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -26,9 +23,6 @@ import java.util.UUID;
 public class ExamService {
     @Inject
     ExamRepository examRepository;
-
-    @Inject
-    ScreenshotJobManager screenshotJobManager;
 
     @Inject
     ParticipationRepository participationRepository;
@@ -47,6 +41,9 @@ public class ExamService {
 
     @Inject
     ExamineeCommandSocket commandSocket;
+
+    @Inject
+    ScreenshotRequestManager screenshotRequestManager;
 
     /**
      * Creates a new Exam from a Dto.
@@ -112,7 +109,7 @@ public class ExamService {
                 // make sure examinees are not immediately disconnected, when the exam starts and they are already connected to the socket
                 .call(participations -> connectionStateRepository
                         .changeConnectionStatesOfMany(participations, true))
-                .chain(affectedRows -> screenshotJobManager.startScreenshotJob(e));
+                .replaceWithVoid();
     }
 
     /**
@@ -131,12 +128,6 @@ public class ExamService {
                         ExamState.DONE,
                         LocalDateTime.now(),
                         e.getId())
-                .chain(affectedRows -> screenshotJobManager
-                        .stopScreenshotJob(e)
-                        // Failure is because the screenshot job is no longer active
-                        // make sure this is not a fatal error, otherwise the exam can never be stopped
-                        .onFailure(IllegalStateException.class).recoverWithNull()
-                )
                 .chain(ignored -> participationRepository.getParticipationsOfExam(e))
                 .call(participations -> {
                     List<UUID> pIds = participations.stream().map(Participation::getId).toList();

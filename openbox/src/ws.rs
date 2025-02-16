@@ -191,7 +191,8 @@ pub async fn handle_message(ws: &mut FragmentCollector<TokioIo<Upgraded>>) -> Ev
             let msg = serde_json::from_str::<WsMessage>(&raw);
 
             match msg {
-                Ok(WsMessage::Disconnect) | Err(_) => Event::Disconnect,
+                Err(_) => Event::Reconnect,
+                Ok(WsMessage::Disconnect) => Event::Disconnect,
                 Ok(msg) => Event::Received(msg),
             }
         }
