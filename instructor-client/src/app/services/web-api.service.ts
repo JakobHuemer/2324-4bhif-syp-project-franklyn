@@ -1,7 +1,7 @@
 import {inject, Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {environment} from "../../../env/environment";
-import {lastValueFrom, Observable} from "rxjs";
+import {lastValueFrom, map, Observable} from "rxjs";
 import {
   set,
   ServerMetricsDto,
@@ -13,6 +13,7 @@ import {
   ExamState,
   CreateExam, Job, JobDto, JobState
 } from "../model";
+import {ExamineeService} from "./examinee.service";
 
 @Injectable({
   providedIn: 'root'
@@ -154,40 +155,48 @@ export class WebApiService {
 
   //region Examinee-WebApi calls
 
-  public getExamineesFromServer(examId: number): void {
-    this.httpClient.get<ExamineeDto[]>(
+  public getExamineesFromServer(examId: number): Observable<void> {
+    return this.httpClient.get<ExamineeDto[]>(
       `${environment.serverBaseUrl}/exams/${examId}/examinees`,
       {headers: this.headers})
-      .subscribe({
-        "next": (examinees) => set((model) => {
-          model.patrolModeModel.examinees = examinees.map(
-            (eDto) => {
-              let examinee: Examinee = {
-                id: eDto.id,
-                firstname: eDto.firstname,
-                lastname: eDto.lastname,
-                isConnected: eDto.is_connected
-              };
+      .pipe(
+        map(examinees => {
+          set((model) => {
+            model.patrolModeModel.examinees = examinees.map(
+              (eDto) => {
+                let examinee: Examinee = {
+                  id: eDto.id,
+                  firstname: eDto.firstname,
+                  lastname: eDto.lastname,
+                  isConnected: eDto.is_connected
+                };
 
-              return examinee;
-            })
-            .sort((a, b) => {
-              if (a.isConnected !== b.isConnected) {
-                return a.isConnected ? 1 : -1;
-              }
+                return examinee;
+              })
+              .sort((a, b) => {
+                if (a.isConnected !== b.isConnected) {
+                  return a.isConnected ? 1 : -1;
+                }
 
-              const lastNameComparison = a.lastname
-                .localeCompare(b.lastname);
+                const lastNameComparison = a.lastname
+                  .localeCompare(b.lastname);
 
-              if (lastNameComparison !== 0) {
-                return lastNameComparison;
-              }
+                if (lastNameComparison !== 0) {
+                  return lastNameComparison;
+                }
 
-              return a.firstname.localeCompare(b.firstname);
-            });
-        }),
-        "error": (err) => console.error(err),
-      });
+                return a.firstname.localeCompare(b.firstname);
+              });
+
+            model.patrolModeModel.patrol.patrolExaminee = model
+              .patrolModeModel
+              .examinees
+              .find(e =>
+                e.id === model.patrolModeModel.patrol.patrolExaminee?.id
+              );
+          });
+        })
+      );
   }
 
   public getVideoExamineesFromServer(examId: number): void {

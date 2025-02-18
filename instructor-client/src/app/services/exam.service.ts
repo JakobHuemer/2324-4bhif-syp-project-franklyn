@@ -58,8 +58,14 @@ export class ExamService {
       this.webApi.startExamByIdFromServer(exam);
     }
 
-    this.examineeSvc.updateScreenshots();
-    this.webApi.getExamineesFromServer(exam.id);
+    this.webApi.getExamineesFromServer(exam.id)
+      .subscribe({
+        next: () => {
+          this.examineeSvc.newPatrolExaminee();
+          this.examineeSvc.updateScreenshots();
+        },
+        error: err => console.error(err)
+      });
     this.webApi.getExamsFromServer();
   }
 

@@ -16,7 +16,13 @@ export class ExamineeService {
     if (this.store.value.patrolModeModel.curExamId)
       this.webApi.getExamineesFromServer(
         this.store.value.patrolModeModel.curExamId
-      );
+      ).subscribe({
+        next: () => {
+          this.newPatrolExaminee();
+          this.updateScreenshots();
+        },
+        error: err => console.error(err)
+      });
 
     if (this.store.value.videoViewerModel.curExamId)
       this.webApi.getVideoExamineesFromServer(

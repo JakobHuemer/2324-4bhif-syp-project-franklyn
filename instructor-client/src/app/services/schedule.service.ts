@@ -80,14 +80,6 @@ export class ScheduleService {
       this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = window.setInterval(() => {
         this.examineeRepo.updateScreenshots();
         this.jobSvc.getAllJobs();
-
-        if (this.store.value.patrolModeModel.curExamId) {
-          // Do not check if exam ongoing since we also want to get
-          // examinees for the video viewer when the exam is not ongoing
-          this.webApi.getExamineesFromServer(
-            this.store.value.patrolModeModel.curExamId
-          );
-        }
       }, this.store.value.scheduleServiceModel.timer.nextClientTimeMilliseconds);
     }
   }
@@ -98,7 +90,19 @@ export class ScheduleService {
     if (this.store.value.scheduleServiceModel.timer.patrolScheduleTimer === undefined) {
       set((model) => {
         model.scheduleServiceModel.timer.patrolScheduleTimer = window.setInterval(() => {
-          this.examineeRepo.newPatrolExaminee();
+          if (this.store.value.patrolModeModel.curExamId) {
+            // Do not check if exam ongoing since we also want to get
+            // examinees for the video viewer when the exam is not ongoing
+            this.webApi.getExamineesFromServer(
+              this.store.value.patrolModeModel.curExamId
+            ).subscribe({
+              next: () => {
+                this.examineeRepo.newPatrolExaminee();
+                this.examineeRepo.updateScreenshots();
+              },
+              error: err => console.error(err)
+            });
+          }
         }, this.store.value.scheduleServiceModel.timer.patrolSpeedMilliseconds);
       });
     }
