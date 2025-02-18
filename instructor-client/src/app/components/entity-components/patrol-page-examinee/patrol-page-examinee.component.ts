@@ -1,12 +1,16 @@
-import {Component, inject, Input} from '@angular/core';
+import {Component, HostListener, inject, Input} from '@angular/core';
 import {ExamineeService} from "../../../services/examinee.service";
 import {StoreService} from "../../../services/store.service";
-import {Examinee} from "../../../model";
+import {Examinee, set} from "../../../model";
 import {environment} from "../../../../../env/environment";
+import {distinctUntilChanged, map} from "rxjs";
+import {AsyncPipe} from "@angular/common";
 
 @Component({
     selector: 'app-patrol-page-examinee',
-    imports: [],
+  imports: [
+    AsyncPipe
+  ],
     templateUrl: './patrol-page-examinee.component.html',
     styleUrl: './patrol-page-examinee.component.css'
 })
@@ -17,6 +21,11 @@ export class PatrolPageExamineeComponent {
   @Input() examId: number | undefined;
   @Input() examinee: Examinee | undefined;
   @Input() showImage: boolean = false;
+
+  protected readonly isFullScreen = this.store.pipe(
+    map(state => state.patrolModeModel.isFullScreen),
+    distinctUntilChanged()
+  );
 
   getScreenshotAddress() {
     return `${environment.serverBaseUrl}/telemetry/by-user/${this.examinee!.id}/${this.examId}/screen/download?cachebust=${this.store.value.patrolModeModel.cacheBuster.cachebustNum}`;
@@ -36,5 +45,22 @@ export class PatrolPageExamineeComponent {
 
   selectExaminee() {
     this.examineeSvc.newPatrolExaminee(this.examinee);
+  }
+
+  openModal() {
+    set(model => {
+      model.patrolModeModel.isFullScreen = true;
+    });
+  }
+
+  closeModal() {
+    set(model => {
+      model.patrolModeModel.isFullScreen = false;
+    });
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  handleEscape() {
+    this.closeModal();
   }
 }

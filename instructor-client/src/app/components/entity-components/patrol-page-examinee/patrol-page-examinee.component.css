@@ -5,3 +5,23 @@ img {
 a {
   display: inline-block;
 }
+
+.fullscreen-height {
+  height: 100vh;
+  width: 100vw;
+  z-index: 1050;
+}
+
+.fullscreen-image {
+  max-height: 85vh;
+  max-width: 90vw;
+  height: auto;
+  width: auto;
+}
+
+.normal-image {
+  max-height: 85%;
+  max-width: 90%;
+  height: auto;
+  width: auto;
+}

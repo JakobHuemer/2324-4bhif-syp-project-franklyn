@@ -65,7 +65,8 @@ const initialState: Model = {
     },
     cacheBuster: {
       cachebustNum: 0
-    }
+    },
+    isFullScreen: false
   },
   scheduleServiceModel: {
     timer: new Timer()

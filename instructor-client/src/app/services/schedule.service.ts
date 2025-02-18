@@ -78,8 +78,20 @@ export class ScheduleService {
 
     if (!this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId) {
       this.store.value.scheduleServiceModel.timer.updateDataScheduleTimerId = window.setInterval(() => {
-        this.examineeRepo.updateScreenshots();
         this.jobSvc.getAllJobs();
+
+        if (!this.store.value.patrolModeModel.patrol.isPatrolModeOn &&
+          this.store.value.patrolModeModel.curExamId !== undefined) {
+          this.webApi.getExamineesFromServer(
+            this.store.value.patrolModeModel.curExamId
+          ).subscribe({
+            next: () => {
+              this.examineeRepo.newPatrolExaminee();
+              this.examineeRepo.updateScreenshots();
+            },
+            error: err => console.error(err)
+          });
+        }
       }, this.store.value.scheduleServiceModel.timer.nextClientTimeMilliseconds);
     }
   }

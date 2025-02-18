@@ -7,4 +7,5 @@ export interface PatrolModeModel {
   examinees: Examinee[],
   readonly patrol: Patrol,
   readonly cacheBuster: CacheBuster,
+  readonly isFullScreen: boolean,
 }
