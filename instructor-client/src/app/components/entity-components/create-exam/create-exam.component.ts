@@ -403,7 +403,7 @@ export class CreateExamComponent implements AfterViewInit{
 
     this.toastSvc.addToast(
       "Started creating the exam",
-      `Started creating the exam '${this.store.value.createTestModel.createExam.title}.`,
+      `Started creating the exam '${this.store.value.createTestModel.createExam.title}'.`,
       "info"
     );
 

@@ -2,3 +2,6 @@
   width: 20vw;
   display: block !important;
 }
+.toast-container {
+  margin-top: 5vh;
+}
