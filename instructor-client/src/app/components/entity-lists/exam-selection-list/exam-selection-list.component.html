@@ -1,4 +1,15 @@
 <div class="px-2">
+  <form class="d-flex" role="search">
+    <input
+      #searchExamInput
+      class="form-control mb-2"
+      type="search"
+      placeholder="Search"
+      aria-label="Search"
+      [value]="store.value.examDashboardModel.examSearch"
+      (keyup)="setExamSearch(searchExamInput.value)">
+  </form>
+
   @for (exam of exams | async; track exam.id) {
     <div class="pb-1 mb-1">
       <app-exam [exam]="exam"></app-exam>

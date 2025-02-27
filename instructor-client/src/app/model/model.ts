@@ -36,7 +36,8 @@ const initialState: Model = {
   },
   examDashboardModel: {
     exams: [],
-    curExamId: undefined
+    curExamId: undefined,
+    examSearch: ""
   },
   metricsDashboardModel: {
     serverMetrics: {
