@@ -53,6 +53,7 @@ public class VideoJobService {
                                         participation.getExaminee(),
                                         LocalDateTime.now(),
                                         null,
+                                        null,
                                         null
                                 )
                         )
@@ -73,6 +74,7 @@ public class VideoJobService {
                                         exam,
                                         null,
                                         LocalDateTime.now(),
+                                        null,
                                         null,
                                         null
                                 )

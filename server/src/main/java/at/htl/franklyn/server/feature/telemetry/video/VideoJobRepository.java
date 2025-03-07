@@ -33,11 +33,12 @@ public class VideoJobRepository implements PanacheRepository<VideoJob> {
             ).replaceWithVoid();
     }
 
-    public Uni<Void> failJob(long jobId) {
-        return update("state = ?1, finishedAt = ?3 where id = ?2",
+    public Uni<Void> failJob(long jobId, String errorMessage) {
+        return update("state = ?1, finishedAt = ?3, errorMessage = ?4 where id = ?2",
                 VideoJobState.FAILED,
                 jobId,
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                errorMessage
         ).replaceWithVoid();
     }
 

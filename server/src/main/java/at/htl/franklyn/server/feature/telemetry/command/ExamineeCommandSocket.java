@@ -156,6 +156,7 @@ public class ExamineeCommandSocket {
                                 )
                                 .onFailure().recoverWithNull()
                 )
+                .onFailure().recoverWithNull()
                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()));
     }
 

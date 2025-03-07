@@ -26,6 +26,9 @@ public class VideoJob {
     @Enumerated(EnumType.ORDINAL)
     private VideoJobState state;
 
+    @Column(name = "VJ_ERR_MSG", nullable = true)
+    private String errorMessage;
+
     @NotNull(message = "VideoJob type can not be null")
     @Column(name = "VJ_TYPE", nullable = false)
     @Enumerated(EnumType.ORDINAL)
@@ -70,7 +73,7 @@ public class VideoJob {
     public VideoJob() {
     }
 
-    public VideoJob(LocalDateTime queueTimestamp, VideoJobState state, VideoJobType type, Exam exam, Examinee examinee, LocalDateTime createdAt, LocalDateTime finishedAt, String artifactPath) {
+    public VideoJob(LocalDateTime queueTimestamp, VideoJobState state, VideoJobType type, Exam exam, Examinee examinee, LocalDateTime createdAt, LocalDateTime finishedAt, String artifactPath, String errorMessage) {
         this.queueTimestamp = queueTimestamp;
         this.state = state;
         this.type = type;
@@ -79,6 +82,7 @@ public class VideoJob {
         this.createdAt = createdAt;
         this.finishedAt = finishedAt;
         this.artifactPath = artifactPath;
+        this.errorMessage = errorMessage;
     }
 
     public Long getId() {
@@ -151,5 +155,13 @@ public class VideoJob {
 
     public void setFinishedAt(LocalDateTime finishedAt) {
         this.finishedAt = finishedAt;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
     }
 }

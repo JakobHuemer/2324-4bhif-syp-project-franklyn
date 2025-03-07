@@ -14,6 +14,8 @@ public record VideoJobDto(
         @JsonProperty("created_at")
         LocalDateTime createdAt,
         @JsonProperty("finished_at")
-        LocalDateTime finishedAt
+        LocalDateTime finishedAt,
+        @JsonProperty("error_message")
+        String errorMessage
 ) {
 }

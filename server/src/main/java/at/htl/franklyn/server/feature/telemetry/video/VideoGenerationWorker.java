@@ -81,7 +81,7 @@ public class VideoGenerationWorker {
                     })
                     .onFailure().recoverWithUni(failure -> {
                         Log.infof("Video job %d failed! Reason: %s", job.getId(), failure.getMessage());
-                        return videoJobRepository.failJob(job.getId())
+                        return videoJobRepository.failJob(job.getId(), failure.getMessage())
                                 .emitOn(scheduler);
                     });
                 })

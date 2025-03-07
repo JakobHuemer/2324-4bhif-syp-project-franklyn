@@ -67,10 +67,10 @@ public class ExamResource {
     public Uni<Response> getExamById(@PathParam("id") long id) {
         return examRepository.findById(id)
                 .onItem().ifNull().failWith(
-                    new WebApplicationException(
-                        String.format("No exam with the id %d could be found!", id),
-                        Response.Status.NOT_FOUND
-                    )
+                        new WebApplicationException(
+                                String.format("No exam with the id %d could be found!", id),
+                                Response.Status.NOT_FOUND
+                        )
                 )
                 .onItem().ifNotNull().transformToUni(exam -> examService.transformToDto(exam))
                 .onItem().transform(examInfoDto -> Response.ok(examInfoDto).build())
@@ -101,10 +101,10 @@ public class ExamResource {
         return examRepository
                 .findById(id)
                 .onItem().ifNull().failWith(
-                    new WebApplicationException(
-                        String.format("No exam with the id %d could be found!", id),
-                        Response.Status.NOT_FOUND
-                    )
+                        new WebApplicationException(
+                                String.format("No exam with the id %d could be found!", id),
+                                Response.Status.NOT_FOUND
+                        )
                 )
                 .onItem().transformToUni(e -> examService.deleteTelemetry(e).replaceWith(e))
                 .onFailure(ExceptionFilter.NO_WEBAPP)
@@ -127,10 +127,10 @@ public class ExamResource {
         return examService.exists(id)
                 .onItem().transform(exists -> exists ? id : null)
                 .onItem().ifNull().failWith(
-                    new WebApplicationException(
-                            String.format("No exam with the id %d could be found!", id),
-                            Response.Status.NOT_FOUND
-                    )
+                        new WebApplicationException(
+                                String.format("No exam with the id %d could be found!", id),
+                                Response.Status.NOT_FOUND
+                        )
                 )
                 .onItem().transformToUni(ignored -> examService.getExamineesOfExam(id))
                 .onItem().transform(exam -> Response.ok(exam).build())
@@ -156,12 +156,14 @@ public class ExamResource {
                 .onItem().transform(vjs -> vjs
                         .stream()
                         .map(job -> new VideoJobDto(
-                            job.getId(),
-                            job.getState(),
-                            job.getExam().getId(),
-                            job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null,
-                            job.getCreatedAt(),
-                            job.getFinishedAt())
+                                        job.getId(),
+                                        job.getState(),
+                                        job.getExam().getId(),
+                                        job.getType() == VideoJobType.SINGLE ? job.getExaminee().getId() : null,
+                                        job.getCreatedAt(),
+                                        job.getFinishedAt(),
+                                        job.getErrorMessage()
+                                )
                         )
                         .toList()
                 )
