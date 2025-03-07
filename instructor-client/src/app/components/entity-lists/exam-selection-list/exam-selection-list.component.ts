@@ -21,7 +21,8 @@ export class ExamSelectionListComponent {
       map(model =>
         model.examDashboardModel.exams
           .filter(e => e.title
-            .includes(model.examDashboardModel.examSearch))),
+            .toLowerCase()
+            .includes(model.examDashboardModel.examSearch.toLowerCase()))),
       distinctUntilChanged()
     );
   protected readonly store = store;
