@@ -20,10 +20,7 @@ export class ExamComponent {
   protected setExamToCurExam() {
     if (this.exam !== undefined) {
       this.examSvc.setCurDashboardExam(this.exam);
-
-      set(model => {
-        model.videoViewerModel.curExamId = this.exam!.id;
-      });
+      this.examSvc.setCurVideoExam(this.exam);
     }
   }
 

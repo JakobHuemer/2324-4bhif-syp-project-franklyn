@@ -5,4 +5,5 @@ export interface JobDto {
   examinee_id: number | undefined,
   created_at: string,
   finished_at: string,
+  error_message: string | null,
 }

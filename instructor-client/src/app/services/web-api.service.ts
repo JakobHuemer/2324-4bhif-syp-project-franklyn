@@ -13,12 +13,13 @@ import {
   ExamState,
   CreateExam, Job, JobDto, JobState
 } from "../model";
-import {ExamineeService} from "./examinee.service";
+import {ToastService} from "./toast.service";
 
 @Injectable({
   providedIn: 'root'
 })
 export class WebApiService {
+  private toastSvc = inject(ToastService);
   private httpClient = inject(HttpClient);
   private headers: HttpHeaders = new HttpHeaders().set('Accept', 'application/json');
 
@@ -53,26 +54,49 @@ export class WebApiService {
 
   //region Job-WebApi calls
 
-  getAllExamVideos(examId: number): void {
+  getAllExamVideos(
+    examId: number,
+    startedToastId: number): void {
     this.httpClient.post(
       `${environment.serverBaseUrl}/telemetry/by-exam/${examId}/video/generate-all`,
       {headers: this.headers})
       .subscribe({
         "next": () => this.getAllJobsForExam(examId),
-        "error": (err) => console.error(err),
+        "error": (err) => {
+          console.error(err);
+          this.toastSvc.addToast(
+            "Error generating exam videos.",
+            err.error,
+            "error"
+          );
+          this.toastSvc.removeToast({
+            id: startedToastId, message: "", title: "", type: ""
+          });
+        },
       });
   }
 
   getExamExamineeVideo(
     examId: number,
-    examineeId: number
+    examineeId: number,
+    startedToastId: number
   ): void {
     this.httpClient.post(
       `${environment.serverBaseUrl}/telemetry/by-user/${examineeId}/${examId}/video/generate`,
       {headers: this.headers})
       .subscribe({
         "next": () => this.getAllJobsForExam(examId),
-        "error": (err) => console.error(err),
+        "error": (err) => {
+          console.error(err);
+          this.toastSvc.addToast(
+            "Error generating examinee video.",
+            err.error,
+            "error"
+          );
+          this.toastSvc.removeToast({
+            id: startedToastId, message: "", title: "", type: ""
+          });
+        },
       });
   }
 
@@ -123,6 +147,7 @@ export class WebApiService {
                         .getTime() + 60 * 60 * 1000
                     ),
                     finishedAt: finishedAt,
+                    error_message: jDto.error_message,
                   };
 
                   return job;
@@ -336,9 +361,13 @@ export class WebApiService {
                 .examDashboardModel
                 .exams[0]
                 .id;
+
               model.videoViewerModel.curExamId = model
                 .examDashboardModel
                 .curExamId;
+              model.videoViewerModel.examinees = [];
+              model.videoViewerModel.examinee = undefined;
+              this.getVideoExamineesFromServer(model.videoViewerModel.curExamId);
             }
           });
         },

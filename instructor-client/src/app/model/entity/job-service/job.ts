@@ -7,4 +7,5 @@ export interface Job {
   examineeId: number | undefined,
   createdAt: Date,
   finishedAt: Date | undefined,
+  error_message: string | null,
 }

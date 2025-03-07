@@ -17,11 +17,16 @@ export class DownloadExamineeComponent {
 
   startJob() {
     if (this.exam !== undefined && this.examinee !== undefined) {
-      this.jobSvc.getExamExamineeVideos(this.exam, this.examinee);
-      this.toastSvc.addToast(
+      let id = this.toastSvc.addToast(
         "Job Started",
         `The Job to generate the video for '${this.examinee?.firstname} ${this.examinee?.lastname}' has been started.`,
         "success"
+      );
+
+      this.jobSvc.getExamExamineeVideos(
+        this.exam,
+        this.examinee,
+        id
       );
     }
   }

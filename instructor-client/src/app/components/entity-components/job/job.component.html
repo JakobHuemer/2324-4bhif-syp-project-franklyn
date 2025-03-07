@@ -65,6 +65,32 @@
           </span>
         </td>
       </tr>
+      <tr class="w-100">
+        <td class="job-label-style">
+          <span class="fw-bold">
+            State:
+          </span>
+        </td>
+        <td class="job-message-style">
+          <span class="text-start job-message-style">
+            {{getStateString(job.state)}}
+          </span>
+        </td>
+      </tr>
+      @if (job.error_message !== undefined && job.error_message !== "" && job.error_message !== null) {
+        <tr class="w-100">
+          <td class="job-label-style">
+          <span class="fw-bold">
+            Error:
+          </span>
+          </td>
+          <td class="job-message-style">
+          <span class="text-start job-message-style">
+            "{{job.error_message}}"
+          </span>
+          </td>
+        </tr>
+      }
 
       @if (job.state === JobState.DONE) {
         <tr class="w-100">

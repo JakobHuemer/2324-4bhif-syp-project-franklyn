@@ -9,7 +9,7 @@ export class ToastService {
   readonly store = inject(StoreService).store;
   private id = 0;
 
-  addToast(title: string, message: string, type: string = 'info') {
+  addToast(title: string, message: string, type: string = 'info'): number {
     let toastDto: ToastDto = {
       id: this.id,
       title: title,
@@ -24,6 +24,7 @@ export class ToastService {
 
     setTimeout(() => this.removeToast(toastDto), 10000);
     // Auto-remove after 10 seconds
+    return toastDto.id;
   }
 
   removeToast(toastDto: ToastDto) {

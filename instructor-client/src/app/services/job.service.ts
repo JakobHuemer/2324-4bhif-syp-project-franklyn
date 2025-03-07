@@ -31,17 +31,22 @@ export class JobService {
     }
   }
 
-  getAllExamVideos(exam: Exam): void {
-    this.webApi.getAllExamVideos(exam.id);
+  getAllExamVideos(exam: Exam, startedToastId: number): void {
+    this.webApi.getAllExamVideos(
+      exam.id,
+      startedToastId
+    );
   }
 
   getExamExamineeVideos(
     exam: Exam,
-    examinee: Examinee
+    examinee: Examinee,
+    startedToastId: number
   ): void {
     this.webApi.getExamExamineeVideo(
       exam.id,
-      examinee.id
+      examinee.id,
+      startedToastId
     );
   }
 }

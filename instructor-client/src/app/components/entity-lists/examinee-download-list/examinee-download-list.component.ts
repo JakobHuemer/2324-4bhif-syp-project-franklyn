@@ -43,13 +43,12 @@ export class ExamineeDownloadListComponent {
       );
 
     if (exam !== undefined) {
-      this.jobSvc.getAllExamVideos(exam);
-
-      this.toastSvc.addToast(
+      let id = this.toastSvc.addToast(
         "Job Started",
         `The Job to generate the videos for the exam '${exam.title}' has been started.`,
         "success"
       );
+      this.jobSvc.getAllExamVideos(exam, id);
     }
   }
 }

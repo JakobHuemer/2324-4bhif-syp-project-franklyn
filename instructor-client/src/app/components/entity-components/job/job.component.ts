@@ -56,4 +56,19 @@ export class JobComponent {
   }
 
   protected readonly JobState = JobState;
+
+  getStateString(state: JobState) {
+    switch (state) {
+      case JobState.ONGOING:
+        return "Ongoing";
+      case JobState.FAILED:
+        return "Failed";
+      case JobState.DONE:
+        return "Done";
+      case JobState.DELETED:
+        return "Deleted";
+      default:
+        return "Queued";
+    }
+  }
 }
