@@ -5,6 +5,8 @@ import io.quarkus.logging.Log;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -13,7 +15,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class ExamCleanupSchedule {
     @ConfigProperty(name = "exam.cleanup.state.maxAgeInDays", defaultValue = "1")
-    int maxAgeInDays;
+    int stateMaxAgeInDays;
+
+    @ConfigProperty(name = "exam.cleanup.data.maxAgeInDays", defaultValue = "30")
+    int dataMaxAgeInDays;
 
     @Inject
     ExamRepository examRepository;
@@ -23,34 +28,91 @@ public class ExamCleanupSchedule {
 
     /**
      * Exams ONGOING for more than 1 day are closed automatically by this cleanup State job.
+     *
      * @return Nothing
      */
-    @Scheduled(cron= "{exam.cleanup.state.cron}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @Scheduled(cron = "{exam.cleanup.cron}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     @WithTransaction
     Uni<Void> cleanupExamState() {
+        Context ctx = Vertx.currentContext();
         Log.info("Running exam state cleanup (autocomplete) job");
-        return examRepository.findExamsOngoingFor(maxAgeInDays)
+        return examRepository.findExamsOngoingFor(stateMaxAgeInDays)
                 .invoke(exams -> {
                     if (!exams.isEmpty()) {
                         Log.infof("Trying to complete %d exams which have been ONGOING for more than a day.",
                                 exams.size());
                     }
                 })
-                .toMulti()
-                .flatMap(exams -> Multi.createFrom().iterable(exams))
-                .onItem().transformToUniAndConcatenate(exam ->
-                        examService.completeExam(exam)
-                                .onItem().invoke(ignored -> {
-                                    Log.infof("Successfully autocompleted exam '%s' (id = %d)",
-                                            exam.getTitle(), exam.getId());
-                                })
-                                .onFailure().recoverWithUni(e -> {
-                                    Log.errorf("Could not complete exam %d. (Reason: %s)",
-                                            exam.getId(),
-                                            e.getMessage());
-                                    return Uni.createFrom().voidItem();
-                                })
-                )
-                .toUni();
+                .chain(exams -> {
+                    var result = Uni.createFrom().voidItem();
+
+                    for (Exam e : exams) {
+                        result = result.chain(ignored ->
+                                examService.completeExam(e)
+                                        .onItem().invoke(ignored2 -> {
+                                            Log.infof("Successfully autocompleted exam '%s' (id = %d)",
+                                                    e.getTitle(), e.getId());
+                                        })
+                                        .onFailure().recoverWithUni(err -> {
+                                            Log.errorf("Could not complete exam %d. (Reason: %s)",
+                                                    e.getId(),
+                                                    err.getMessage());
+                                            return Uni.createFrom().voidItem();
+                                        }))
+                                .emitOn(r -> ctx.runOnContext(ignored3 -> r.run()));
+                    }
+
+                    return result;
+                })
+                .emitOn(r -> ctx.runOnContext(ignored3 -> r.run()))
+                .replaceWithVoid();
+    }
+
+    /**
+     * Exams older than 1 month are deleted automatically by this cleanup job.
+     *
+     * @return Nothing
+     */
+    @Scheduled(cron = "{exam.cleanup.cron}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @WithTransaction
+    Uni<Void> cleanupExamData() {
+        Context ctx = Vertx.currentContext();
+        Log.info("Running exam data cleanup (delete telemetry) job");
+        return examRepository.findExamsOlderThan(dataMaxAgeInDays)
+                .invoke(exams -> {
+                    if (!exams.isEmpty()) {
+                        Log.infof("Trying to delete data for %d exams which have been DONE for at least one month.",
+                                exams.size());
+                    }
+                })
+                .chain(exams -> {
+                    var result = Uni.createFrom().voidItem();
+
+                    for (Exam e : exams) {
+                        result = result.chain(ignored ->
+                                        examService.deleteTelemetry(e)
+                                                .chain(ignored2 -> examRepository
+                                                        .deleteById(e.getId())
+                                                        .replaceWithVoid()
+                                                        .emitOn(r -> ctx.runOnContext(ignored3 -> r.run()))
+                                                )
+                                                .onItem().invoke(ignored2 -> {
+                                                    Log.infof("Successfully deleted exam '%s' (id = %d)",
+                                                            e.getTitle(), e.getId());
+                                                })
+                                                .onFailure().recoverWithUni(err -> {
+                                                    Log.errorf("Could not delete exam %d. (Reason: %s)",
+                                                            e.getId(),
+                                                            err.getMessage());
+                                                    return Uni.createFrom().voidItem();
+                                                }))
+                                .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()))
+                        ;
+                    }
+
+                    return result;
+                })
+                .emitOn(r -> ctx.runOnContext(ignored3 -> r.run()))
+                .replaceWithVoid();
     }
 }

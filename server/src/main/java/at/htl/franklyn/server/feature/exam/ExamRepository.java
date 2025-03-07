@@ -80,4 +80,16 @@ public class ExamRepository implements PanacheRepository<Exam> {
                         """, Duration.ofDays(days), ExamState.ONGOING
         );
     }
+
+    public Uni<List<Exam>> findExamsOlderThan(int days) {
+        return list(
+                """
+                        select e
+                        from Exam e
+                        where e.actualEnd is not null
+                            and (CURRENT_TIMESTAMP - e.actualEnd) >= ?1
+                            and e.state = ?2
+                        """, Duration.ofDays(days), ExamState.DONE
+        );
+    }
 }
