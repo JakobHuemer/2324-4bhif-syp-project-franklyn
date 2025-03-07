@@ -10,8 +10,10 @@ import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.unchecked.Unchecked;
 import io.vertx.core.file.OpenOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.Vertx;
 import jakarta.inject.Inject;
+import jakarta.json.JsonString;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -223,13 +225,13 @@ public class TelemetryResource {
                 .onFailure(NoSuchElementException.class).transform(e -> {
                     Log.warnf("Could not generate video for (exam: %s, user: %s) (Reason: %s)", examId, userId, e.getMessage());
                     return new WebApplicationException(
-                            Response.status(Response.Status.BAD_REQUEST).entity("Examinee never participated in Exam").build()
+                            Response.status(Response.Status.BAD_REQUEST).entity("\"Examinee never participated in Exam\"").build()
                     );
                 })
                 .onFailure(NoImagesAvailableException.class).transform(e -> {
                     Log.warnf("Could not generate video for (exam: %s, user: %s) (Reason: %s)", examId, userId, e.getMessage());
                     return new WebApplicationException(
-                            Response.status(Response.Status.BAD_REQUEST).entity("No Images available for examinee").build()
+                            Response.status(Response.Status.BAD_REQUEST).entity("\"No Images available for examinee\"").build()
                     );
                 })
                 .onItem().transform(job -> new VideoJobDto(
