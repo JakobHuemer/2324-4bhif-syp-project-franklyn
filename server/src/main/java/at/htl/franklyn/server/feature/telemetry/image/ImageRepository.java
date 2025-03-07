@@ -37,4 +37,13 @@ public class ImageRepository implements PanacheRepository<Image> {
                     """, examId, userId)
                 .list();
     }
+
+    public Uni<Long> countImagesOfUserInExam(long examId, long userId) {
+        return find(
+                """
+                        select i from Image i join Participation p on (i.participation.id = p.id)
+                            where p.exam.id = ?1 and p.examinee.id = ?2
+                    """, examId, userId)
+                .count();
+    }
 }

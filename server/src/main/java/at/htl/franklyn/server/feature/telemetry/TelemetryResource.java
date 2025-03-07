@@ -223,7 +223,13 @@ public class TelemetryResource {
                 .onFailure(NoSuchElementException.class).transform(e -> {
                     Log.warnf("Could not generate video for (exam: %s, user: %s) (Reason: %s)", examId, userId, e.getMessage());
                     return new WebApplicationException(
-                            "Unable to generate video", Response.Status.BAD_REQUEST
+                            Response.status(Response.Status.BAD_REQUEST).entity("Examinee never participated in Exam").build()
+                    );
+                })
+                .onFailure(NoImagesAvailableException.class).transform(e -> {
+                    Log.warnf("Could not generate video for (exam: %s, user: %s) (Reason: %s)", examId, userId, e.getMessage());
+                    return new WebApplicationException(
+                            Response.status(Response.Status.BAD_REQUEST).entity("No Images available for examinee").build()
                     );
                 })
                 .onItem().transform(job -> new VideoJobDto(

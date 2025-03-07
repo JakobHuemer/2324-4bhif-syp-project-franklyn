@@ -1,6 +1,7 @@
 package at.htl.franklyn.server.feature.telemetry.video;
 
 import at.htl.franklyn.server.feature.exam.ExamRepository;
+import at.htl.franklyn.server.feature.telemetry.image.ImageRepository;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.core.Vertx;
@@ -17,6 +18,9 @@ import java.util.NoSuchElementException;
 public class VideoJobService {
     @Inject
     VideoJobRepository videoJobRepository;
+
+    @Inject
+    ImageRepository imageRepository;
 
     @Inject
     ParticipationRepository participationRepository;
@@ -43,6 +47,17 @@ public class VideoJobService {
     ) {
         return participationRepository.getByExamAndExaminee(userId, examId)
                 .onItem().ifNull().failWith(new NoSuchElementException("Can not find participation of exam and examinee"))
+                .call(participation -> imageRepository.countImagesOfUserInExam(examId, userId)
+                        .chain(amount -> amount <= 0
+                                ? Uni
+                                    .createFrom()
+                                    .failure(new NoImagesAvailableException("No images available for examinee"))
+                                    .replaceWithVoid()
+                                : Uni
+                                    .createFrom()
+                                    .voidItem()
+                        )
+                )
                 .chain(participation ->
                         videoJobRepository.persistAndFlush(
                                 new VideoJob(

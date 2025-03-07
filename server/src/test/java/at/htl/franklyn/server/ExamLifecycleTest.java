@@ -337,6 +337,26 @@ public class ExamLifecycleTest {
     }
 
     @Test
+    @Order(501)
+    void test_tryGenerateVideoWithoutImages_ok() {
+        // Arrange
+
+        // Act
+        Response createResponse = given()
+                .contentType(ContentType.JSON)
+                .basePath("/telemetry")
+                .when()
+                .post(String.format("/by-user/%d/%d/video/generate", joinedExamineeId, createdExam.id()));
+
+        // Assert
+        assertThat(createResponse.statusCode())
+                .isEqualTo(RestResponse.StatusCode.BAD_REQUEST);
+
+        assertThat(createResponse.body().asString())
+                .isNotNull();
+    }
+
+    @Test
     @Order(600)
     void test_simpleStartExam_ok() {
         // Arrange
