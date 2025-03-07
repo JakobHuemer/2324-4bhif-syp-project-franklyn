@@ -92,4 +92,16 @@ public class ExamRepository implements PanacheRepository<Exam> {
                         """, Duration.ofDays(days), ExamState.DONE
         );
     }
+
+    public Uni<List<Exam>> findOverdueUnstartedExams() {
+        return list(
+                """
+                        select e
+                        from Exam e
+                        where e.plannedStart <= CURRENT_TIMESTAMP
+                            and e.actualStart is null
+                            and e.state = ?1
+                        """, ExamState.CREATED
+        );
+    }
 }

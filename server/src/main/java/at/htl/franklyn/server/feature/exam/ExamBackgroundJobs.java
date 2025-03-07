@@ -3,7 +3,6 @@ package at.htl.franklyn.server.feature.exam;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.quarkus.scheduler.Scheduled;
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
@@ -13,7 +12,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 
 @ApplicationScoped
-public class ExamCleanupSchedule {
+public class ExamBackgroundJobs {
     @ConfigProperty(name = "exam.cleanup.state.maxAgeInDays", defaultValue = "1")
     int stateMaxAgeInDays;
 
@@ -102,6 +101,49 @@ public class ExamCleanupSchedule {
                                                 })
                                                 .onFailure().recoverWithUni(err -> {
                                                     Log.errorf("Could not delete exam %d. (Reason: %s)",
+                                                            e.getId(),
+                                                            err.getMessage());
+                                                    return Uni.createFrom().voidItem();
+                                                }))
+                                .emitOn(r -> ctx.runOnContext(ignored2 -> r.run()))
+                        ;
+                    }
+
+                    return result;
+                })
+                .emitOn(r -> ctx.runOnContext(ignored3 -> r.run()))
+                .replaceWithVoid();
+    }
+
+    /**
+     * Exams which have their start/end time in the past are started automatically by job.
+     *
+     * @return Nothing
+     */
+    @Scheduled(cron = "{exam.start.cron}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @WithTransaction
+    Uni<Void> startExams() {
+        Context ctx = Vertx.currentContext();
+        Log.debug("Running exam autostart job");
+        return examRepository.findOverdueUnstartedExams()
+                .invoke(exams -> {
+                    if (!exams.isEmpty()) {
+                        Log.infof("Trying to start %d exams which are scheduled to start.",
+                                exams.size());
+                    }
+                })
+                .chain(exams -> {
+                    var result = Uni.createFrom().voidItem();
+
+                    for (Exam e : exams) {
+                        result = result.chain(ignored ->
+                                        examService.startExam(e)
+                                                .onItem().invoke(ignored2 -> {
+                                                    Log.infof("Successfully started exam '%s' (id = %d)",
+                                                            e.getTitle(), e.getId());
+                                                })
+                                                .onFailure().recoverWithUni(err -> {
+                                                    Log.errorf("Could start delete exam %d. (Reason: %s)",
                                                             e.getId(),
                                                             err.getMessage());
                                                     return Uni.createFrom().voidItem();
