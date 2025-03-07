@@ -336,6 +336,9 @@ export class WebApiService {
                 .examDashboardModel
                 .exams[0]
                 .id;
+              model.videoViewerModel.curExamId = model
+                .examDashboardModel
+                .curExamId;
             }
           });
         },

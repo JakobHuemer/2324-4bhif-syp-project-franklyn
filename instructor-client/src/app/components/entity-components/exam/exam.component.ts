@@ -1,7 +1,7 @@
 import {Component, inject, Input} from '@angular/core';
 import {ExamService} from "../../../services/exam.service";
 import {NgClass} from "@angular/common";
-import {Exam} from "../../../model";
+import {Exam, set} from "../../../model";
 
 @Component({
     selector: 'app-exam',
@@ -18,8 +18,12 @@ export class ExamComponent {
   @Input() exam: Exam | undefined;
 
   protected setExamToCurExam() {
-    if (this.exam) {
+    if (this.exam !== undefined) {
       this.examSvc.setCurDashboardExam(this.exam);
+
+      set(model => {
+        model.videoViewerModel.curExamId = this.exam!.id;
+      });
     }
   }
 
