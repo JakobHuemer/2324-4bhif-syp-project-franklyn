@@ -8,6 +8,7 @@ import {AsyncPipe, Location} from "@angular/common";
 import {ExamService} from "../../../services/exam.service";
 import {ExamState, set} from "../../../model";
 import {ScheduleService} from "../../../services/schedule.service";
+import {ColumnResizeDirective} from "../../../directives/column-resize.directive";
 
 @Component({
     selector: 'app-patrol-mode',
@@ -16,6 +17,7 @@ import {ScheduleService} from "../../../services/schedule.service";
     PatrolPageExamineeComponent,
     FormsModule,
     AsyncPipe,
+    ColumnResizeDirective,
   ],
     templateUrl: './patrol-mode.component.html',
     styleUrl: './patrol-mode.component.css'

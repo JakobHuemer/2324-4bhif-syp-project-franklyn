@@ -427,6 +427,9 @@ export class CreateExamComponent implements AfterViewInit{
             .patrolSpeed;
         });
         this.schoolUnitSvc.checkIfSelected();
+
+        this.examSvc.setCurDashboardExam(exam);
+        this.examSvc.setCurVideoExam(exam);
       },
       error: error => {
         this.createdExamInfo = "Der Test wurde nicht erfolgreich gespeichert:";

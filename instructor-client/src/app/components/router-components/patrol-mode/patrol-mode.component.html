@@ -1,20 +1,24 @@
 <div>
-  <table class="screen-height container-fluid">
-    <tr class="screen-height">
-      <td class="bg-light align-top pt-3 left-bar-width">
-        @if(curExam | async){
-          <div class="overflow-scroll height-examinee-list">
-            <h5 class="fw-bold text-center">{{(curExam | async)!.title}}</h5>
-            <p class="text-center">
-              Pin: {{(curExam | async)!.pin}}
-              <br>
-              Schüleranzahl: {{amountOfExamineesOnline() + amountOfExamineesOffline()}}
-              <br>
-              Online: {{amountOfExamineesOnline()}} | Offline: {{amountOfExamineesOffline()}}
-            </p>
-            <app-examinee-list></app-examinee-list>
-          </div>
-        }
+  <table class="screen-height container-fluid w-100">
+    <tr class="screen-height w-100">
+      <td
+        class="bg-light left-bar-width resize-cursor"
+        appColumnResize>
+        <div class="no-cursor-resize align-top pt-3">
+          @if(curExam | async){
+            <div class="overflow-scroll height-examinee-list">
+              <h5 class="fw-bold text-center">{{(curExam | async)!.title}}</h5>
+              <p class="text-center">
+                Pin: {{(curExam | async)!.pin}}
+                <br>
+                Schüleranzahl: {{amountOfExamineesOnline() + amountOfExamineesOffline()}}
+                <br>
+                Online: {{amountOfExamineesOnline()}} | Offline: {{amountOfExamineesOffline()}}
+              </p>
+              <app-examinee-list></app-examinee-list>
+            </div>
+          }
+        </div>
       </td>
       <td>
         @if (curExam | async) {
