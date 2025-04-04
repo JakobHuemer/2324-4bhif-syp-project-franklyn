@@ -9,26 +9,26 @@ cloud INET {
         () "downloadVideo"
     }
 
-    "uploadScreenshot" -- [Server]
-    "getExaminees" -- [Server]
-    "getScreenshot" -- [Server]
-    "downloadVideo" -- [Server]
+    "uploadScreenshot" -- [Franklyn Server]
+    "getExaminees" -- [Franklyn Server]
+    "getScreenshot" -- [Franklyn Server]
+    "downloadVideo" -- [Franklyn Server]
 }
 
 package LAN {
     package Examinees {
-        [OpenBox1] -- "uploadScreenshot"
-        [OpenBox2] -- "uploadScreenshot"
-        [OpenBox3] -- "uploadScreenshot"
+        [OpenBox1] --( "uploadScreenshot"
+        [OpenBox2] --( "uploadScreenshot"
+        [OpenBox3] --( "uploadScreenshot"
     }
 
     node Instructors {
-        [Frontend] <<browser>>
+        [Instructor Frontend] <<browser>>
     }
 }
-[Frontend] -- "getExaminees"
-[Frontend] -- "getScreenshot"
-[Frontend] -- "downloadVideo"
+[Instructor Frontend] --( "getExaminees"
+[Instructor Frontend] --( "getScreenshot"
+[Instructor Frontend] --( "downloadVideo"
 
 " " -[hidden]- INET
 LAN -[hidden]- " "
