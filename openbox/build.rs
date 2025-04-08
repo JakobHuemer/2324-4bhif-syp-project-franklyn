@@ -141,32 +141,36 @@ fn main() {
         return;
     }
 
-    let lib_prefix = Path::new(&out_dir).join("static-libs-openbox");
+    // only do static linking shenanigans on linux
+    #[cfg(target_os = "linux")]
+    {
+        let lib_prefix = Path::new(&out_dir).join("static-libs-openbox");
 
-    std::env::set_var("PKG_CONFIG_PATH", format!("{p}/share/pkgconfig:{p}/usr/local/share/pkgconfig:{p}/usr/local/lib/pkgconfig:{p}/lib/pkgconfig", p = lib_prefix.display()));
-    std::env::set_var("ACLOCAL", format!("aclocal -I {}/share/aclocal", lib_prefix.display()));
-    std::env::set_var("CFLAGS", format!("-I {}/usr/local/include", lib_prefix.display()));
+        std::env::set_var("PKG_CONFIG_PATH", format!("{p}/share/pkgconfig:{p}/usr/local/share/pkgconfig:{p}/usr/local/lib/pkgconfig:{p}/lib/pkgconfig", p = lib_prefix.display()));
+        std::env::set_var("ACLOCAL", format!("aclocal -I {}/share/aclocal", lib_prefix.display()));
+        std::env::set_var("CFLAGS", format!("-I {}/usr/local/include", lib_prefix.display()));
 
-    fs::create_dir_all(format!("{}/usr/local/include", lib_prefix.display())).unwrap();
+        fs::create_dir_all(format!("{}/usr/local/include", lib_prefix.display())).unwrap();
 
-    build_xorg_macros(&project_root, &lib_prefix);
-    build_xcb_proto(&project_root, &lib_prefix);
-    build_xorg_proto(&project_root, &lib_prefix);
-    build_libxau(&project_root, &lib_prefix);
-    build_libxdmcp(&project_root, &lib_prefix);
-    build_libxcb(&project_root, &lib_prefix);
+        build_xorg_macros(&project_root, &lib_prefix);
+        build_xcb_proto(&project_root, &lib_prefix);
+        build_xorg_proto(&project_root, &lib_prefix);
+        build_libxau(&project_root, &lib_prefix);
+        build_libxdmcp(&project_root, &lib_prefix);
+        build_libxcb(&project_root, &lib_prefix);
 
-    // link flags
-    println!("cargo:rustc-link-arg=-lXau");
-    println!("cargo:rustc-link-arg=-lXdmcp");
+        // link flags
+        println!("cargo:rustc-link-arg=-lXau");
+        println!("cargo:rustc-link-arg=-lXdmcp");
 
-    // add search paths for static libraries 
-    println!("cargo:rustc-link-search=native={}/lib/", lib_prefix.display());
-    println!("cargo:rustc-link-search=native={}/usr/local/lib/", lib_prefix.display());
-    println!("cargo:rustc-link-search=native={}/usr/lib/", lib_prefix.display());
+        // add search paths for static libraries 
+        println!("cargo:rustc-link-search=native={}/lib/", lib_prefix.display());
+        println!("cargo:rustc-link-search=native={}/usr/local/lib/", lib_prefix.display());
+        println!("cargo:rustc-link-search=native={}/usr/lib/", lib_prefix.display());
 
-    // link libXau, libXdmcp, libxcb statically
-    println!("cargo:rust-link-lib=static=libXau");
-    println!("cargo:rust-link-lib=static=libXdmcp");
-    println!("cargo:rust-link-lib=static=libxcb");
+        // link libXau, libXdmcp, libxcb statically
+        println!("cargo:rust-link-lib=static=libXau");
+        println!("cargo:rust-link-lib=static=libXdmcp");
+        println!("cargo:rust-link-lib=static=libxcb");
+    }
 }
