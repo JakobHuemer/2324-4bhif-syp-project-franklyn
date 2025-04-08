@@ -452,10 +452,16 @@ export class WebApiService {
   private sortExams(exams: Exam[]): Exam[] {
     return exams
       .sort((a, b) => {
-        if (a.title > b.title) {
+        const dateA = new Date(a.plannedStart);
+        const dateB = new Date(b.plannedStart);
+
+        dateA.setSeconds(0, 0);
+        dateB.setSeconds(0, 0);
+
+        if (dateA.getTime() > dateB.getTime()) {
           return 1;
-        } else if (a.title === b.title) {
-          return (a.plannedStart > b.plannedStart ? 1 : -1);
+        } else if (a.plannedStart === b.plannedStart) {
+          return (a.title > b.title ? 1 : -1);
         } else {
           return -1;
         }

@@ -36,8 +36,8 @@ export class ExamComponent {
     if (!this.exam)
       return "";
 
-    return (this.exam.plannedStart.getMonth() + 1) + '.' +
-      this.exam.plannedStart.getDate() + '.' +
+    return this.exam.plannedStart.getDate() + '.' +
+      (this.exam.plannedStart.getMonth() + 1) + '.' +
       this.exam.plannedStart.getFullYear();
   }
 
