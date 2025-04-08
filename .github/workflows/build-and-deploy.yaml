@@ -53,13 +53,12 @@ jobs:
       - name: Build openbox binary
         run: |
           cd openbox
-          ./appimage/build.sh "${{ needs.openbox-determine-version.outputs.openbox_feature }}"
-          mv Franklyn_Openbox-x86_64.AppImage openbox
+          ./release-scripts/build.sh "${{ needs.openbox-determine-version.outputs.openbox_feature }}"
       - name: Archive openbox binary
         uses: actions/upload-artifact@v4
         with:
           name: openbox-x86_64-unknown-linux-gnu
-          path: openbox/openbox
+          path: openbox/target/release-opt/openbox
 
   openbox-macos:
     needs: openbox-determine-version

@@ -28,7 +28,6 @@ fn build_autoconf_proj(project_root: &str, lib_prefix: &PathBuf, proj_name: &str
         .current_dir(Path::new(project_root).join("externals").join(proj_name))
         .arg("--disable-shared")
         .arg("--enable-static")
-        //.arg("--host=x86_64-linux-musl")
         .arg(&format!("--prefix={}", lib_prefix.display()))
         .output()
         .expect(&format!("could not run configure of {}", proj_name));
