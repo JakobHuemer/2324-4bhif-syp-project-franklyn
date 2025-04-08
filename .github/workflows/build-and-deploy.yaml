@@ -44,22 +44,21 @@ jobs:
     needs: openbox-determine-version
     runs-on: ubuntu-22.04
     steps:
-      - uses: hecrj/setup-rust-action@v2
       - uses: actions/checkout@master
       - name: Install dependencies
         run: |
           export DEBIAN_FRONTED=noninteractive
           sudo apt-get -qq update
-          sudo apt-get install -y libxkbcommon-dev
+          sudo apt-get install -y appimagetool wget git
       - name: Build openbox binary
         run: |
           cd openbox
-          cargo build --profile release-opt --package openbox --features "${{ needs.openbox-determine-version.outputs.openbox_feature }}"
+          ./appimage/build.sh "${{ needs.openbox-determine-version.outputs.openbox_feature }}"
       - name: Archive openbox binary
         uses: actions/upload-artifact@v4
         with:
           name: openbox-x86_64-unknown-linux-gnu
-          path: openbox/target/release-opt/openbox
+          path: openbox/Franklyn_Openbox-x86_64.AppImage 
 
   openbox-macos:
     needs: openbox-determine-version

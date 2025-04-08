@@ -149,7 +149,6 @@ fn main() {
 
     fs::create_dir_all(format!("{}/usr/local/include", lib_prefix.display())).unwrap();
 
-
     build_xorg_macros(&project_root, &lib_prefix);
     build_xcb_proto(&project_root, &lib_prefix);
     build_xorg_proto(&project_root, &lib_prefix);
@@ -160,7 +159,6 @@ fn main() {
     // link flags
     println!("cargo:rustc-link-arg=-lXau");
     println!("cargo:rustc-link-arg=-lXdmcp");
-    //println!("cargo:rustc-link-arg=-l:libc.a");
 
     // add search paths for static libraries 
     println!("cargo:rustc-link-search=native={}/lib/", lib_prefix.display());
@@ -171,5 +169,4 @@ fn main() {
     println!("cargo:rust-link-lib=static=libXau");
     println!("cargo:rust-link-lib=static=libXdmcp");
     println!("cargo:rust-link-lib=static=libxcb");
-    //println!("cargo:rust-link-lib=static=libc");
 }
