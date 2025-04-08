@@ -26,6 +26,7 @@ serde_json = "1.0.132"
 serde = { version = "1.0.214", features = ["derive"] }
 clap = { version = "4.5.28", features = ["derive"] }
 openssl = { version = "0.10", features = ["vendored"] }
+#libc = "0.2.102"
 
 [profile.release-opt]
 inherits = "release"

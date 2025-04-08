@@ -1,9 +1,12 @@
-FROM rust:1.86-alpine3.21
+FROM ubuntu:24.04
 
 RUN <<EOF
-apk update
-apk add git wget musl tree python3 meson ninja-build make gcc automake autoconf libtool musl-dev pkgconf fuse
-rustup target add x86_64-unknown-linux-musl
-wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-chmod +x linuxdeploy-x86_64.AppImage
+apt-get update
+apt-get install -y build-essential curl wget libssl-dev autoconf python3 git meson pkg-config python3 python3-pip python3-setuptools python3-wheel ninja-build libtool
+pip3 install --user meson
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+. "$HOME/.cargo/env" 
+rustup default stable
 EOF
+
+ENV PATH="/root/.cargo/bin:${PATH}"

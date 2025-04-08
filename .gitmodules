@@ -1,0 +1,18 @@
+[submodule "openbox/externals/macros"]
+	path = openbox/externals/macros
+	url = https://gitlab.freedesktop.org/xorg/util/macros.git
+[submodule "openbox/externals/xcbproto"]
+	path = openbox/externals/xcbproto
+	url = https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
+[submodule "openbox/externals/xorgproto"]
+	path = openbox/externals/xorgproto
+	url = https://gitlab.freedesktop.org/xorg/proto/xorgproto.git
+[submodule "openbox/externals/libxau"]
+	path = openbox/externals/libxau
+	url = https://gitlab.freedesktop.org/xorg/lib/libxau.git
+[submodule "openbox/externals/libxdmcp"]
+	path = openbox/externals/libxdmcp
+	url = https://gitlab.freedesktop.org/xorg/lib/libxdmcp.git
+[submodule "openbox/externals/libxcb"]
+	path = openbox/externals/libxcb
+	url = https://gitlab.freedesktop.org/xorg/lib/libxcb.git

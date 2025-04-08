@@ -13,7 +13,7 @@ pfx=/openbox-libs
 mkdir -p $pfx
 
 # set c compiler to musl
-export CC=gcc
+# export CC=gcc
 
 # export new package config and autoconf (aclocal) paths to the install prefix
 export PKG_CONFIG_PATH="$pfx/share/pkgconfig:$pfx/usr/local/share/pkgconfig:$pfx/usr/local/lib/pkgconfig:$pfx/lib/pkgconfig:$PKG_CONFIG_PATH"
@@ -122,12 +122,7 @@ mkdir -p $appdir/usr/share/icons/hicolor/256x256/apps/
 # compile and copy binary to AppDir
 cd $_dir
 find $pfx -iname "*lib*" -type d
-RUSTFLAGS="-L /usr/lib -L $pfx/lib/ -L $pfx/usr/local/lib/ -L $pfx/usr/lib/ -C target-feature=+crt-static -C link-arg=-Wl,--start-group -C link-arg=-static -C link-arg=-static-libgcc -C link-arg=-Wl,-Bstatic -C link-arg=-l:libc.a -C link-arg=-l:libXdmcp.a -C link-arg=-l:libxcb.a -C link-arg=-l:libXau.a -C link-arg=-Wl,--end-group" cargo build --profile release-opt --package openbox --target x86_64-unknown-linux-musl --verbose
-#-C link-arg=-l:libxdmcp.a 
-#RUSTFLAGS="-L /usr/lib -L $pfx/lib/ -L $pfx/usr/local/lib/ -L $pfx/usr/lib/ -C target-feature=+crt-static -C link-arg=-static -C link-arg=–Wl,-Bstatic -C link-arg=–l:libc.a -C link-arg=-l:libXau.a" cargo build --profile release-opt --package openbox --target x86_64-unknown-linux-musl --verbose
-
-#-C link-arg=-l:libbsd.a -C link-arg=-static-libgcc -C link-arg=-static 
-#RUSTFLAGS="-L $pfx/lib/ -L $pfx/usr/local/lib/ -Ctarget-feature=+crt-static -Clink-args=-lm -Clink-args=-l:libbsd.a -Clink-args=-l:libXau.a" cargo build --profile release-opt --package openbox --target x86_64-unknown-linux-musl --verbose
+RUSTFLAGS="-L /usr/lib -L $pfx/lib/ -L $pfx/usr/local/lib/ -L $pfx/usr/lib/ -C link-lib=static=libXdmcp -C link-lib=static=libXau -C link-lib=static=libxcb -C link-lib=static=libc -C target-feature=+crt-static -C link-arg=-Wl,--start-group -C link-arg=-static -C link-arg=-static-libgcc -C link-arg=-Wl,-Bstatic -C link-arg=-l:libc.a -C link-arg=-l:libXdmcp.a -C link-arg=-l:libxcb.a -C link-arg=-l:libXau.a -C link-arg=-Wl,--end-group" cargo build --profile release-opt --package openbox --target x86_64-unknown-linux-musl -vv
 cp ./target/release-opt/openbox $appdir/usr/bin/openbox
 
 # create desktop entry
