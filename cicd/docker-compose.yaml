@@ -25,7 +25,7 @@ services:
 
   franklyn-db:
     container_name: franklyn-db
-    image: postgres:17.2-alpine3.21
+    image: postgres:17.4-alpine3.21
     restart: unless-stopped
     environment:
       POSTGRES_USER: app
