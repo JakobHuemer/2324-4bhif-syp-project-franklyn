@@ -30,6 +30,9 @@ clap = { version = "4.5.28", features = ["derive"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
+[patch.crates-io]
+libc = { git = "https://github.com/rust-lang/libc", rev = "0.2.74" }
+
 [profile.release-opt]
 inherits = "release"
 codegen-units = 1

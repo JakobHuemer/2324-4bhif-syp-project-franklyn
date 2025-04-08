@@ -57,47 +57,6 @@ fn build_autoconf_proj(project_root: &str, lib_prefix: &PathBuf, proj_name: &str
     }
 }
 
-fn build_meson_proj(project_root: &str, lib_prefix: &PathBuf, proj_name: &str) -> () {
-    let mut result = Command::new("meson")
-        .arg("setup")
-        .arg("--reconfigure")
-        .arg("build")
-        .arg("--default-library=static")
-        .current_dir(Path::new(project_root).join("externals").join(proj_name))
-        .output()
-        .expect(&format!("could not run meson setup of {}", proj_name));
-
-    if !result.status.success() {
-        panic!("meson setup of {} failed: {} | {}", proj_name, String::from_utf8(result.stdout).unwrap(), String::from_utf8(result.stderr).unwrap());
-    }
-
-    result = Command::new("meson")
-        .arg("compile")
-        .arg("-C")
-        .arg("build")
-        .current_dir(Path::new(project_root).join("externals").join(proj_name))
-        .output()
-        .expect(&format!("could not run meson compile of {}", proj_name));
-
-    if !result.status.success() {
-        panic!("meson compile of {} failed: {} | {}", proj_name, String::from_utf8(result.stdout).unwrap(), String::from_utf8(result.stderr).unwrap());
-    }
-
-    result = Command::new("meson")
-        .arg("install")
-        .arg("-C")
-        .arg("build")
-        .arg("--destdir")
-        .arg(lib_prefix)
-        .current_dir(Path::new(project_root).join("externals").join(proj_name))
-        .output()
-        .expect(&format!("could not run meson install of {}", proj_name));
-
-    if !result.status.success() {
-        panic!("meson install of {} failed: {} | {}", proj_name, String::from_utf8(result.stdout).unwrap(), String::from_utf8(result.stderr).unwrap());
-    }
-}
-
 fn build_xorg_macros(project_root: &str, lib_prefix: &PathBuf) -> () {
     build_autoconf_proj(project_root, lib_prefix, "macros");
 }
@@ -107,11 +66,10 @@ fn build_xcb_proto(project_root: &str, lib_prefix: &PathBuf) -> () {
 }
 
 fn build_xorg_proto(project_root: &str, lib_prefix: &PathBuf) -> () {
-    build_meson_proj(project_root, lib_prefix, "xorgproto");
+    build_autoconf_proj(project_root, lib_prefix, "xorgproto");
 }
 
 fn build_libxau(project_root: &str, lib_prefix: &PathBuf) -> () {
-    //build_meson_proj(project_root, lib_prefix, "libxau");
     build_autoconf_proj(project_root, lib_prefix, "libxau");
 }
 
