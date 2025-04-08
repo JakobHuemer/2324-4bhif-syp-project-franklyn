@@ -7,3 +7,4 @@ server/old
 server/video/
 .mvn
 build/
+*.AppImage
