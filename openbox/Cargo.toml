@@ -9,26 +9,27 @@ description = "Openbox client"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.12.8", features = ["multipart", "json"] }
-xcap = "0.0.13"
-image = "0.25.2"
-hyper = { version = "1", features = ["http1", "server", "client"] }
-hyper-util = { version = "0.1.0", features = ["tokio"] }
-http-body-util = { version = "0.1.0" }
-tokio = { version = "1.40.0", features = ["full", "macros"] }
-anyhow = "1.0.89"
+reqwest = { version = "0.12.15", features = ["multipart", "json"] }
+xcap = "0.4.1"
+image = "0.25.6"
+hyper = { version = "1.6.0", features = ["http1", "server", "client"] }
+hyper-util = { version = "0.1.11", features = ["tokio"] }
+http-body-util = { version = "0.1.3" }
+tokio = { version = "1.44.2", features = ["full", "macros"] }
+anyhow = "1.0.97"
 futures = "0.3.31"
-fastwebsockets = { version = "0.8.0", features = ["upgrade"] }
+fastwebsockets = { version = "0.10.0", features = ["upgrade"] }
 iced = { version = "0.13.1", features = ["tokio"] }
-bytes = "1.7.2"
-log = "0.4.22"
-serde_json = "1.0.132"
-serde = { version = "1.0.214", features = ["derive"] }
-clap = { version = "4.5.28", features = ["derive"] }
+bytes = "1.10.1"
+log = "0.4.27"
+serde_json = "1.0.140"
+serde = { version = "1.0.219", features = ["derive"] }
+clap = { version = "4.5.35", features = ["derive"] }
 
 # Only enable static openssl build on linux
 [target.'cfg(target_os = "linux")'.dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
+openssl = { version = "0.10.72", features = ["vendored"] }
+dbus = { version = "0.9.7", features = ["vendored"] }
 
 [patch.crates-io]
 libc = { git = "https://github.com/rust-lang/libc", rev = "0.2.74" }
