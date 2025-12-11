@@ -872,9 +872,9 @@ fn precompute_frames(
         Some(n) => format!("{:.4}", n),
         None => "none".to_string(),
     };
-    // Update filename to reflect new version (v5) to force regeneration when visuals change
+    // Update filename to reflect new version (v6) to force regeneration when visuals change
     let filename = format!(
-        "{}/frames_v5_{}_int_{}_noise_{}.bin",
+        "{}/frames_v6_{}_int_{}_noise_{}.bin",
         cache_dir, count, interval, noise_str
     );
     let path = std::path::Path::new(&filename);
@@ -1019,6 +1019,17 @@ fn generate_placeholder_png(
     };
     let cycle_time = (time_secs + jitter).rem_euclid(90.0);
 
+    // At higher noise, add a fast micro-jitter to trigger more differences
+    if noise > 0.0 {
+        let micro_jitter_frames = (noise * 4.0) as usize;
+        for _ in 0..micro_jitter_frames {
+            let px = rng.gen_range(0..width);
+            let py = rng.gen_range(0..height);
+            let val = rng.gen_range(0..=255);
+            img.put_pixel(px, py, Rgba([val, rng.gen_range(0..=255), rng.gen_range(0..=255), 255]));
+        }
+    }
+
     // Determine base state:
     // 0-15s: Browser Reading (Light)
     // 15-50s: IDE Coding (Dark)
@@ -1076,12 +1087,13 @@ fn generate_placeholder_png(
 
     // Add visual noise/complexity based on noise level
     if noise > 0.0 {
-        let patch_count = (5.0 + noise * 120.0) as u32;
+        // Draw small colored patches (adds texture and color variation)
+        let patch_count = (10.0 + noise * 220.0) as u32;
         for _ in 0..patch_count {
             let px = rng.gen_range(0..width);
             let py = rng.gen_range(0..height);
-            let max_w = 10 + (noise * 150.0) as u32;
-            let max_h = 10 + (noise * 100.0) as u32;
+            let max_w = 12 + (noise * 200.0) as u32;
+            let max_h = 12 + (noise * 140.0) as u32;
             let span_w = (width - px).max(3).min(max_w);
             let span_h = (height - py).max(3).min(max_h);
             let w = rng.gen_range(3..=span_w);
@@ -1090,9 +1102,35 @@ fn generate_placeholder_png(
                 rng.gen_range(0..=255),
                 rng.gen_range(0..=255),
                 rng.gen_range(0..=255),
-                200,
+                220,
             ]);
             draw_filled_rect(&mut img, px, py, w, h, color);
+        }
+
+        // Add “scanline” style horizontal noise to drive bitrate
+        let line_count = (noise * 240.0) as u32;
+        for _ in 0..line_count {
+            let y = rng.gen_range(0..height);
+            let thickness = rng.gen_range(1..=3 + (noise * 4.0) as u32);
+            let start_x = rng.gen_range(0..width);
+            let span = rng.gen_range(60..=400);
+            let x2 = (start_x + span).min(width - 1);
+            let color = Rgba([
+                rng.gen_range(0..=255),
+                rng.gen_range(0..=255),
+                rng.gen_range(0..=255),
+                180,
+            ]);
+            draw_filled_rect(&mut img, start_x, y, x2 - start_x + 1, thickness.min(height - y), color);
+        }
+
+        // Add per-pixel salt noise sparsely for upper noise levels
+        let salt_count = (noise * noise * 0.12 * (width * height) as f64) as u32;
+        for _ in 0..salt_count {
+            let px = rng.gen_range(0..width);
+            let py = rng.gen_range(0..height);
+            let val = rng.gen_range(0..=255);
+            img.put_pixel(px, py, Rgba([val, 255u8.saturating_sub(val / 2), rng.gen_range(0..=255), 255]));
         }
     }
 
