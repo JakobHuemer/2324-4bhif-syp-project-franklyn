@@ -37,6 +37,8 @@ const _DEV_URL: &str = "http://localhost:8080";
 use ddos_tester::connect_ws;
 const SUFFIX_LEN: usize = 8;
 const MAX_CLIENTS: usize = 200_000;
+const LOOP_DURATION_SECS: f64 = 150.0; // 2.5 minutes sync window
+const FRAME_VARIANTS: usize = 1; // single variant to keep deterministic timing
 
 mod bitmap_font {
     use super::*;
@@ -183,7 +185,10 @@ async fn main() -> Result<()> {
     };
 
     // Pre-compute frames to save CPU during the test
-    let pool_size = (300.0 / args.interval).ceil() as usize; // 5 minute loop
+    // Generate frames for the 2.5 minute loop with variants per timestamp
+    // Derive slots directly from interval to cover full loop duration
+    let slots = (LOOP_DURATION_SECS / args.interval).ceil() as usize;
+    let pool_size = slots * FRAME_VARIANTS;
     let precomputed_frames = Arc::new(precompute_frames(pool_size, args.interval, args.noise)?);
 
     // Capture global start time for synchronization
@@ -204,9 +209,8 @@ async fn main() -> Result<()> {
         let precomputed_frames = Arc::clone(&precomputed_frames);
         let base_url = base_url.clone();
 
-        // Generate a random loop offset for this client (0s to 300s)
-        // This ensures not everyone is in the "coding" or "browsing" phase at the same time
-        let loop_offset = rand::thread_rng().gen_range(0.0..300.0);
+        // Keep clients aligned: start all at the same loop position (no random offset)
+        let loop_offset = 0.0;
 
         tokio::spawn(async move {
             let target_start = global_start_tokio + Duration::from_secs_f64(initial_delay_secs);
@@ -252,12 +256,14 @@ async fn main() -> Result<()> {
                         attempted.fetch_add(1, Ordering::Relaxed);
 
                         let elapsed = global_start_tokio.elapsed().as_secs_f64();
-                        // Add random offset to loop time so clients are desynchronized in their "task"
-                        let loop_time = (elapsed + loop_offset) % 300.0;
+                        // Use shared loop time (no per-client offset) to keep timestamps aligned
+                        let loop_time = (elapsed + loop_offset) % LOOP_DURATION_SECS;
 
-                        // Calculate frame index based on time
-                        let frame_idx = (loop_time / interval.as_secs_f64()) as usize
-                            % precomputed_frames.len();
+                        // Map current time to slot and exact frame index deterministically
+                        let total_slots = precomputed_frames.len() / FRAME_VARIANTS;
+                        let slot = ((loop_time / interval.as_secs_f64()).floor() as usize) % total_slots;
+                        let base_idx = slot;
+                        let frame_idx = base_idx * FRAME_VARIANTS; // pick variant 0 to avoid jumping
 
                         let image_bytes = &precomputed_frames[frame_idx];
                         let payload_size = image_bytes.len();
@@ -872,9 +878,9 @@ fn precompute_frames(
         Some(n) => format!("{:.4}", n),
         None => "none".to_string(),
     };
-    // Update filename to reflect new version (v6) to force regeneration when visuals change
+    // Update filename to reflect new version (v12) to force regeneration when visuals change
     let filename = format!(
-        "{}/frames_v6_{}_int_{}_noise_{}.bin",
+        "{}/frames_v12_{}_int_{}_noise_{}.bin",
         cache_dir, count, interval, noise_str
     );
     let path = std::path::Path::new(&filename);
@@ -915,7 +921,7 @@ fn precompute_frames(
         }
     }
 
-    println!("Precomputing {} frames (5min loop)...", count);
+    println!("Precomputing {} frames (2.5min loop)...", count);
     let start_precomp = Instant::now();
 
     // Track progress
@@ -1009,15 +1015,12 @@ fn generate_placeholder_png(
         (frame_count as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15),
     );
 
-    // Calculate simulation time within 90s cycle with noise-driven jitter
-    let time_secs = frame_count as f64 * interval;
-    let jitter = if noise > 0.0 {
-        // up to +/-30s jitter scaled by noise
-        (rng.gen::<f64>() - 0.5) * 30.0 * noise
-    } else {
-        0.0
-    };
-    let cycle_time = (time_secs + jitter).rem_euclid(90.0);
+    // Tie frame time to slot to keep timestamps aligned with sync time
+    let slot = frame_count / FRAME_VARIANTS;
+    let time_secs = (slot as f64) * interval;
+    let loop_time = time_secs.rem_euclid(LOOP_DURATION_SECS);
+    let cycle_time = loop_time % 90.0;
+
 
     // At higher noise, add a fast micro-jitter to trigger more differences
     if noise > 0.0 {
@@ -1134,9 +1137,9 @@ fn generate_placeholder_png(
         }
     }
 
-    // Burn timestamp for debugging
-    let mins = (time_secs / 60.0) as u64;
-    let secs = (time_secs % 60.0) as u64;
+    // Burn timestamp for debugging; use the 2.5-minute loop time (matches sync)
+    let mins = (loop_time / 60.0) as u64;
+    let secs = (loop_time % 60.0) as u64;
     let time_str = format!("{:02}:{:02}", mins, secs);
 
     // Draw shadow then text (bottom right)
