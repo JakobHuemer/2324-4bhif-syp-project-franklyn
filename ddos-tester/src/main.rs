@@ -123,6 +123,10 @@ struct Args {
     #[arg(long)]
     noise: Option<f64>,
 
+    /// Generate maximally uncompressible frames (overrides --noise)
+    #[arg(long)]
+    noise_ultra: bool,
+
     /// Spread percentage (0.0-1.0) for staggering client start times.
     /// 0.0 = all start together (burst), 1.0 = evenly distributed over `interval` (smooth load).
     #[arg(long, default_value_t = 0.0)]
@@ -189,7 +193,8 @@ async fn main() -> Result<()> {
     // Derive slots directly from interval to cover full loop duration
     let slots = (LOOP_DURATION_SECS / args.interval).ceil() as usize;
     let pool_size = slots * FRAME_VARIANTS;
-    let precomputed_frames = Arc::new(precompute_frames(pool_size, args.interval, args.noise)?);
+    let effective_noise = if args.noise_ultra { Some(1.0) } else { args.noise };
+    let precomputed_frames = Arc::new(precompute_frames(pool_size, args.interval, effective_noise, args.noise_ultra)?);
 
     // Capture global start time for synchronization
     let global_start_tokio = tokio::time::Instant::now();
@@ -515,7 +520,7 @@ async fn run_tui(
             let connected_val = connected_clients.load(Ordering::Relaxed);
 
             let elapsed = global_start.elapsed().as_secs_f64();
-            let loop_time_secs = elapsed % 300.0;
+            let loop_time_secs = elapsed % LOOP_DURATION_SECS;
             let loop_mins = (loop_time_secs / 60.0) as u64;
             let loop_secs = (loop_time_secs % 60.0) as u64;
             let sync_time_str = format!("{:02}:{:02}", loop_mins, loop_secs);
@@ -870,17 +875,22 @@ fn precompute_frames(
     count: usize,
     interval: f64,
     noise_level: Option<f64>,
+    noise_ultra: bool,
 ) -> Result<Vec<Vec<u8>>> {
     let cache_dir = "frame_cache";
     fs::create_dir_all(cache_dir)?;
 
-    let noise_str = match noise_level {
-        Some(n) => format!("{:.4}", n),
-        None => "none".to_string(),
+    let noise_str = if noise_ultra {
+        "ultra".to_string()
+    } else {
+        match noise_level {
+            Some(n) => format!("{:.4}", n),
+            None => "none".to_string(),
+        }
     };
-    // Update filename to reflect new version (v12) to force regeneration when visuals change
+    // Update filename to reflect new version (v13) to force regeneration when visuals change
     let filename = format!(
-        "{}/frames_v12_{}_int_{}_noise_{}.bin",
+        "{}/frames_v13_{}_int_{}_noise_{}.bin",
         cache_dir, count, interval, noise_str
     );
     let path = std::path::Path::new(&filename);
@@ -966,7 +976,7 @@ fn precompute_frames(
     let frames: Result<Vec<Vec<u8>>> = (0..count)
         .into_par_iter()
         .map(move |i| {
-            let res = generate_placeholder_png(i, interval, noise_level);
+            let res = generate_placeholder_png(i, interval, noise_level, noise_ultra);
             completed_worker.fetch_add(1, Ordering::Relaxed);
             res
         })
@@ -1005,6 +1015,7 @@ fn generate_placeholder_png(
     frame_count: usize,
     interval: f64,
     noise_level: Option<f64>,
+    noise_ultra: bool,
 ) -> Result<Vec<u8>> {
     let width = 1920;
     let height = 1080;
@@ -1088,8 +1099,20 @@ fn generate_placeholder_png(
         }
     }
 
-    // Add visual noise/complexity based on noise level
-    if noise > 0.0 {
+    // Ultra mode: generate pure random noise frames, maximally uncompressible
+    if noise_ultra {
+        for _ in 0..(width * height) {
+            let px = rng.gen_range(0..width);
+            let py = rng.gen_range(0..height);
+            let color = Rgba([
+                rng.gen_range(0..=255),
+                rng.gen_range(0..=255),
+                rng.gen_range(0..=255),
+                255,
+            ]);
+            img.put_pixel(px, py, color);
+        }
+    } else if noise > 0.0 {
         // Draw small colored patches (adds texture and color variation)
         let patch_count = (10.0 + noise * 220.0) as u32;
         for _ in 0..patch_count {
