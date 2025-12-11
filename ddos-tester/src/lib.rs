@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use bytes::Bytes;
 use fastwebsockets::{FragmentCollector, Frame, OpCode};
 use futures::channel::mpsc;
@@ -66,7 +66,7 @@ pub fn connect(data: Data) -> Subscription<Event> {
             match &mut state {
                 State::Disconnected => {
                     _ = output
-                        .send(match connect_ws(&user).await {
+                        .send(match connect_ws(&URL.to_string(), &user).await {
                             Ok(ws) => {
                                 state = State::Connected(ws);
                                 Event::Connected(None)
@@ -133,13 +133,17 @@ pub async fn handle_msg(user: &String, _data: &Data, ws: &mut Ws) -> Result<Opti
     }
 }
 
-pub async fn connect_ws(user: &String) -> Result<Ws> {
-    let stream = TcpStream::connect(&URL[7..]).await?;
+pub async fn connect_ws(base_url: &String, user: &String) -> Result<Ws> {
+    let domain = base_url
+        .trim_start_matches("http://")
+        .trim_start_matches("https://");
+    // Handle port in domain if present, else default to 80
+    let stream = TcpStream::connect(domain).await?;
 
     let req = Request::builder()
         .method("GET")
-        .uri(format!("{}/examinee/{}", URL, user))
-        .header("Host", URL)
+        .uri(format!("{}/examinee/{}", base_url, user))
+        .header("Host", domain)
         .header(UPGRADE, "websocket")
         .header(CONNECTION, "upgrade")
         .header(

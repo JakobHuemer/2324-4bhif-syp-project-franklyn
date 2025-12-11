@@ -1,20 +1,23 @@
 use std::collections::{HashSet, VecDeque};
 use std::fs;
-use std::io::{Cursor, Write, stdout};
-use std::sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}};
+use std::io::{stdout, Cursor, Write};
+use std::sync::{
+    atomic::{AtomicBool, AtomicUsize, Ordering},
+    Arc,
+};
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use fastwebsockets::{Frame, OpCode};
 use image::{ImageFormat, Rgba, RgbaImage};
-use rand::rngs::OsRng;
-use rand::Rng;
+use rand::rngs::{OsRng, StdRng};
+use rand::{Rng, SeedableRng};
 use rayon::prelude::*;
 use reqwest::multipart;
 
 use crossterm::{
-    event::{self, Event, KeyCode, EnableMouseCapture, DisableMouseCapture},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -31,7 +34,7 @@ use ratatui::{
 const _PROD_URL: &str = "http://franklyn3.htl-leonding.ac.at:8080";
 const _DEV_URL: &str = "http://localhost:8080";
 
-const URL: &str = _DEV_URL;
+use ddos_tester::connect_ws;
 const SUFFIX_LEN: usize = 8;
 const MAX_CLIENTS: usize = 200_000;
 
@@ -54,7 +57,14 @@ mod bitmap_font {
         [0x00, 0x36, 0x36, 0x00, 0x00], // : (10)
     ];
 
-    pub fn draw_text_scaled(img: &mut RgbaImage, text: &str, x: u32, y: u32, scale: u32, color: Rgba<u8>) {
+    pub fn draw_text_scaled(
+        img: &mut RgbaImage,
+        text: &str,
+        x: u32,
+        y: u32,
+        scale: u32,
+        color: Rgba<u8>,
+    ) {
         let mut curr_x = x;
         let spacing = 1 * scale;
 
@@ -62,9 +72,9 @@ mod bitmap_font {
             let glyph_idx = match c {
                 '0'..='9' => (c as usize) - ('0' as usize),
                 ':' => 10,
-                _ => continue, 
+                _ => continue,
             };
-            
+
             let glyph = FONT_DATA[glyph_idx];
             for (col_idx, &col_byte) in glyph.iter().enumerate() {
                 for row_idx in 0..8 {
@@ -86,7 +96,6 @@ mod bitmap_font {
         }
     }
 }
-
 
 /// Small ddos-tester CLI for load testing the screenshot endpoint.
 #[derive(Parser, Debug, Clone)]
@@ -116,6 +125,22 @@ struct Args {
     /// 0.0 = all start together (burst), 1.0 = evenly distributed over `interval` (smooth load).
     #[arg(long, default_value_t = 0.0)]
     spread: f64,
+
+    /// Target URL (e.g. http://localhost:8080)
+    #[arg(long, default_value = "http://localhost:8080")]
+    url: String,
+
+    /// Use the production URL (http://franklyn3.htl-leonding.ac.at:8080)
+    #[arg(long)]
+    prod: bool,
+
+    /// Use the dev URL (http://localhost:8080)
+    #[arg(long)]
+    dev: bool,
+
+    /// Run in headless mode (no TUI), printing stats to stdout
+    #[arg(long)]
+    headless: bool,
 }
 
 #[tokio::main]
@@ -124,8 +149,16 @@ async fn main() -> Result<()> {
 
     validate_args(&args)?;
 
-    println!("ddos-tester: clients={} prefix={} interval={}s dry_run={} noise={:?} spread={}", 
-        args.clients, args.prefix, args.interval, args.dry_run, args.noise, args.spread);
+    let base_url = if args.prod {
+        _PROD_URL.to_string()
+    } else if args.dev {
+        _DEV_URL.to_string()
+    } else {
+        args.url.clone()
+    };
+
+    println!("ddos-tester: clients={} prefix={} interval={}s dry_run={} noise={:?} spread={} url={} headless={}", 
+        args.clients, args.prefix, args.interval, args.dry_run, args.noise, args.spread, base_url, args.headless);
 
     let start = Instant::now();
 
@@ -137,6 +170,7 @@ async fn main() -> Result<()> {
     let succeeded = Arc::new(AtomicUsize::new(0));
     let failed = Arc::new(AtomicUsize::new(0));
     let bytes_sent = Arc::new(AtomicUsize::new(0));
+    let connected_clients = Arc::new(AtomicUsize::new(0));
 
     let interval_duration = Duration::from_secs_f64(args.interval);
 
@@ -163,10 +197,16 @@ async fn main() -> Result<()> {
         let succeeded = Arc::clone(&succeeded);
         let failed = Arc::clone(&failed);
         let bytes_sent = Arc::clone(&bytes_sent);
+        let connected_clients = Arc::clone(&connected_clients);
         let dry_run = args.dry_run;
         let interval = interval_duration;
         let initial_delay_secs = delay_per_client * idx as f64;
         let precomputed_frames = Arc::clone(&precomputed_frames);
+        let base_url = base_url.clone();
+
+        // Generate a random loop offset for this client (0s to 300s)
+        // This ensures not everyone is in the "coding" or "browsing" phase at the same time
+        let loop_offset = rand::thread_rng().gen_range(0.0..300.0);
 
         tokio::spawn(async move {
             let target_start = global_start_tokio + Duration::from_secs_f64(initial_delay_secs);
@@ -175,8 +215,12 @@ async fn main() -> Result<()> {
             loop {
                 // WebSocket logic
                 let mut ws = loop {
-                    match openbox::connect_ws(&name).await {
-                        Ok(ws) => break ws,
+                    // Use local connect_ws with dynamic URL
+                    match connect_ws(&base_url, &name).await {
+                        Ok(ws) => {
+                            connected_clients.fetch_add(1, Ordering::Relaxed);
+                            break ws;
+                        }
                         Err(_) => tokio::time::sleep(Duration::from_secs(1)).await,
                     }
                 };
@@ -206,12 +250,15 @@ async fn main() -> Result<()> {
                     loop {
                         next_deadline += Duration::from_secs_f64(interval.as_secs_f64());
                         attempted.fetch_add(1, Ordering::Relaxed);
-                        
+
                         let elapsed = global_start_tokio.elapsed().as_secs_f64();
-                        let loop_time = elapsed % 300.0; // 5 min loop
+                        // Add random offset to loop time so clients are desynchronized in their "task"
+                        let loop_time = (elapsed + loop_offset) % 300.0;
+
                         // Calculate frame index based on time
-                        let frame_idx = (loop_time / interval.as_secs_f64()) as usize % precomputed_frames.len();
-                        
+                        let frame_idx = (loop_time / interval.as_secs_f64()) as usize
+                            % precomputed_frames.len();
+
                         let image_bytes = &precomputed_frames[frame_idx];
                         let payload_size = image_bytes.len();
                         // frame_count not used for content anymore
@@ -221,10 +268,11 @@ async fn main() -> Result<()> {
                             let body_bytes = image_bytes.clone();
                             let part = multipart::Part::bytes(body_bytes)
                                 .file_name("image.png")
-                                .mime_str("image/png").unwrap();
+                                .mime_str("image/png")
+                                .unwrap();
 
                             let form = multipart::Form::new().part("image", part);
-                            let url = format!("{}/screenshot/{}/alpha", URL, name);
+                            let url = format!("{}/screenshot/{}/alpha", base_url, name);
 
                             match client.post(&url).multipart(form).send().await {
                                 Ok(resp) => {
@@ -243,7 +291,7 @@ async fn main() -> Result<()> {
 
                         tokio::time::sleep_until(next_deadline).await;
                         if next_deadline.elapsed() > interval {
-                             next_deadline = tokio::time::Instant::now();
+                            next_deadline = tokio::time::Instant::now();
                         }
                     }
                 };
@@ -252,28 +300,101 @@ async fn main() -> Result<()> {
                     _ = ws_logic => {},
                     _ = http_logic => {}
                 }
+                connected_clients.fetch_sub(1, Ordering::Relaxed);
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         });
     }
 
-    // Run TUI
-    println!("Starting TUI... Press 'q' or Ctrl-C to exit.");
-    // Give a moment for user to read
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    if args.headless {
+        println!("Running in headless mode. Press Ctrl-C to stop.");
+        run_headless(
+            &args,
+            &attempted,
+            &succeeded,
+            &failed,
+            &bytes_sent,
+            &connected_clients,
+        )
+        .await?;
+    } else {
+        // Run TUI
+        println!("Starting TUI... Press 'q' or Ctrl-C to exit.");
+        // Give a moment for user to read
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let global_start = Instant::now();
-    run_tui(&args, &attempted, &succeeded, &failed, &bytes_sent, global_start).await?;
+        let global_start = Instant::now();
+        run_tui(
+            &args,
+            &attempted,
+            &succeeded,
+            &failed,
+            &bytes_sent,
+            &connected_clients,
+            global_start,
+        )
+        .await?;
+    }
 
     let elapsed = start.elapsed();
     println!("\nShutting down...");
-    println!("Summary: attempted={} succeeded={} failed={} elapsed={:?}",
+    println!(
+        "Summary: attempted={} succeeded={} failed={} elapsed={:?}",
         attempted.load(Ordering::Relaxed),
         succeeded.load(Ordering::Relaxed),
         failed.load(Ordering::Relaxed),
-        elapsed);
+        elapsed
+    );
 
     Ok(())
+}
+
+async fn run_headless(
+    args: &Args,
+    attempted: &Arc<AtomicUsize>,
+    succeeded: &Arc<AtomicUsize>,
+    failed: &Arc<AtomicUsize>,
+    bytes_sent: &Arc<AtomicUsize>,
+    connected_clients: &Arc<AtomicUsize>,
+) -> Result<()> {
+    let mut last_bytes = 0;
+    let mut last_reqs = 0;
+    let mut last_check = Instant::now();
+
+    loop {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let now = Instant::now();
+        let duration = now.duration_since(last_check).as_secs_f64();
+
+        let current_bytes = bytes_sent.load(Ordering::Relaxed);
+        let att = attempted.load(Ordering::Relaxed);
+        let succ = succeeded.load(Ordering::Relaxed);
+        let fail = failed.load(Ordering::Relaxed);
+        let conn = connected_clients.load(Ordering::Relaxed);
+
+        let bytes_diff = current_bytes - last_bytes;
+        let mb_per_sec = (bytes_diff as f64 / duration) * 8.0 / 1_000_000.0;
+
+        let current_reqs = succ + fail;
+        let reqs_diff = current_reqs - last_reqs;
+        let rps = reqs_diff as f64 / duration;
+
+        println!(
+            "Clients: {}/{} | RPS: {:.1} | Requests: OK={} Fail={} Pending={} | Speed: {:.2} Mb/s",
+            conn,
+            args.clients,
+            rps,
+            succ,
+            fail,
+            att.saturating_sub(succ + fail),
+            mb_per_sec
+        );
+
+        last_bytes = current_bytes;
+        last_reqs = current_reqs;
+        last_check = now;
+    }
 }
 
 async fn run_tui(
@@ -282,6 +403,7 @@ async fn run_tui(
     succeeded: &Arc<AtomicUsize>,
     failed: &Arc<AtomicUsize>,
     bytes_sent: &Arc<AtomicUsize>,
+    connected_clients: &Arc<AtomicUsize>,
     global_start: Instant,
 ) -> Result<()> {
     enable_raw_mode()?;
@@ -293,14 +415,14 @@ async fn run_tui(
     let mut last_bytes = 0;
     let mut last_reqs = 0;
     let mut last_check = Instant::now();
-    
+
     let mut rps_history: VecDeque<f64> = VecDeque::with_capacity(60);
     let mut raw_rps_buffer: VecDeque<f64> = VecDeque::with_capacity(20);
     let mut speed_history: VecDeque<f64> = VecDeque::with_capacity(60);
     let mut avg_speed_history: VecDeque<f64> = VecDeque::with_capacity(60);
     let mut raw_speed_buffer: VecDeque<f64> = VecDeque::with_capacity(20);
     let mut diff_history: VecDeque<f64> = VecDeque::with_capacity(60);
-    
+
     for _ in 0..60 {
         rps_history.push_back(0.0);
         speed_history.push_back(0.0);
@@ -316,16 +438,16 @@ async fn run_tui(
             let attempted_val = attempted.load(Ordering::Relaxed);
             let succeeded_val = succeeded.load(Ordering::Relaxed);
             let failed_val = failed.load(Ordering::Relaxed);
-
-            let duration = now.duration_since(last_check).as_secs_f64();
             
+            let duration = now.duration_since(last_check).as_secs_f64();
+
             let bytes_diff = current_bytes - last_bytes;
             let bytes_per_sec = bytes_diff as f64 / duration;
 
             let current_reqs = succeeded_val + failed_val;
             let reqs_diff = current_reqs - last_reqs;
             let actual_rps = reqs_diff as f64 / duration;
-            
+
             // Diff (Backlog/Failures)
             let current_diff = if attempted_val >= succeeded_val {
                 (attempted_val - succeeded_val) as f64
@@ -341,7 +463,7 @@ async fn run_tui(
             }
             raw_rps_buffer.push_back(actual_rps);
             let avg_rps = raw_rps_buffer.iter().sum::<f64>() / raw_rps_buffer.len() as f64;
-            
+
             rps_history.pop_front();
             rps_history.push_back(avg_rps);
 
@@ -363,183 +485,320 @@ async fn run_tui(
             last_check = now;
         }
 
-            // Draw
-            terminal.draw(|f| {
-                let chunks = Layout::default()
-                    .direction(Direction::Vertical)
-                    .margin(1)
-                    .constraints(
-                        vec![
-                            Constraint::Length(3), // Header
-                            Constraint::Length(3), // Gauge
-                            Constraint::Length(3), // Stats Row
-                            Constraint::Min(0), // Charts
-                        ]
-                    )
-                    .split(f.area());
+        // Draw
+        terminal.draw(|f| {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints(vec![
+                    Constraint::Length(3), // Header
+                    Constraint::Length(3), // Gauge
+                    Constraint::Length(3), // Stats Row
+                    Constraint::Min(0),    // Charts
+                ])
+                .split(f.area());
 
-                let current_rps = *rps_history.back().unwrap_or(&0.0);
-                let current_speed_mb = *speed_history.back().unwrap_or(&0.0) * 8.0 / 1_000_000.0;
-                let avg_speed_mb = *avg_speed_history.back().unwrap_or(&0.0) * 8.0 / 1_000_000.0;
-                let expected_rps = if args.clients > 0 { args.clients as f64 / args.interval } else { 0.0 };
-                
-                let elapsed = global_start.elapsed().as_secs_f64();
-                let loop_time_secs = elapsed % 300.0;
-                let loop_mins = (loop_time_secs / 60.0) as u64;
-                let loop_secs = (loop_time_secs % 60.0) as u64;
-                let sync_time_str = format!("{:02}:{:02}", loop_mins, loop_secs);
+            let current_rps = *rps_history.back().unwrap_or(&0.0);
+            let current_speed_mb = *speed_history.back().unwrap_or(&0.0) * 8.0 / 1_000_000.0;
+            let avg_speed_mb = *avg_speed_history.back().unwrap_or(&0.0) * 8.0 / 1_000_000.0;
+            let expected_rps = if args.clients > 0 {
+                args.clients as f64 / args.interval
+            } else {
+                0.0
+            };
+            let connected_val = connected_clients.load(Ordering::Relaxed);
 
-                // 1. Header
-                let header_block = Block::default().borders(Borders::ALL).title(Span::styled(" DDoS Tester ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
-                
-                let header_text = Line::from(vec![
-                    Span::styled(" Clients: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{} ", args.clients), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                    Span::raw("|"),
-                    Span::styled(" Interval: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{}s ", args.interval), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                    Span::raw("|"),
-                    Span::styled(" Sync Time: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{} ", sync_time_str), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                    Span::raw("|"),
-                    Span::styled(" Target RPS: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{:.1} ", expected_rps), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                ]);
-                
-                let p_header = Paragraph::new(header_text).block(header_block).alignment(ratatui::layout::Alignment::Center);
-                f.render_widget(p_header, chunks[0]);
+            let elapsed = global_start.elapsed().as_secs_f64();
+            let loop_time_secs = elapsed % 300.0;
+            let loop_mins = (loop_time_secs / 60.0) as u64;
+            let loop_secs = (loop_time_secs % 60.0) as u64;
+            let sync_time_str = format!("{:02}:{:02}", loop_mins, loop_secs);
+
+            // 1. Header
+            let header_block = Block::default().borders(Borders::ALL).title(Span::styled(
+                " DDoS Tester ",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ));
+
+            let header_text = Line::from(vec![
+                Span::styled(" Clients: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{}/{} ", connected_val, args.clients),
+                    Style::default()
+                        .fg(if connected_val == args.clients {
+                            Color::Green
+                        } else {
+                            Color::Yellow
+                        })
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("|"),
+                Span::styled(" Interval: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{}s ", args.interval),
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("|"),
+                Span::styled(" Sync Time: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{} ", sync_time_str),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("|"),
+                Span::styled(" Target RPS: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{:.1} ", expected_rps),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]);
+
+            let p_header = Paragraph::new(header_text)
+                .block(header_block)
+                .alignment(ratatui::layout::Alignment::Center);
+            f.render_widget(p_header, chunks[0]);
 
             // Stats Values
-                let attempted_val = attempted.load(Ordering::Relaxed);
-                let succeeded_val = succeeded.load(Ordering::Relaxed);
-                let failed_val = failed.load(Ordering::Relaxed);
+            let attempted_val = attempted.load(Ordering::Relaxed);
+            let succeeded_val = succeeded.load(Ordering::Relaxed);
+            let failed_val = failed.load(Ordering::Relaxed);
 
-                // Derived stats
-                let avg_req_size_mb = if current_rps > 0.0 {
-                    current_speed_mb / current_rps
-                } else {
-                    0.0
-                };
+            // Derived stats
+            let avg_req_size_mb = if current_rps > 0.0 {
+                current_speed_mb / current_rps
+            } else {
+                0.0
+            };
 
-                // Color Logic
-                let rps_ratio = if expected_rps > 0.0 { current_rps / expected_rps } else { 0.0 };
-                let health_color = if rps_ratio >= 0.95 {
-                    Color::Green
-                } else if rps_ratio >= 0.80 {
-                    Color::Yellow
-                } else {
-                    Color::Red
-                };
+            // Color Logic
+            let rps_ratio = if expected_rps > 0.0 {
+                current_rps / expected_rps
+            } else {
+                0.0
+            };
+            let health_color = if rps_ratio >= 0.95 {
+                Color::Green
+            } else if rps_ratio >= 0.80 {
+                Color::Yellow
+            } else {
+                Color::Red
+            };
 
-                let fail_color = if failed_val > 0 { Color::Red } else { Color::Green };
+            let fail_color = if failed_val > 0 {
+                Color::Red
+            } else {
+                Color::Green
+            };
 
-                // 2. Gauge (RPS Health)
-                let gauge = Gauge::default()
-                    .block(Block::default().title(" RPS Stability ").borders(Borders::ALL))
-                    .gauge_style(Style::default().fg(health_color))
-                    .percent((rps_ratio * 100.0).clamp(0.0, 100.0) as u16)
-                    .label(format!("{:.1} / {:.1} RPS ({:.0}%)", current_rps, expected_rps, rps_ratio * 100.0));
-                f.render_widget(gauge, chunks[1]);
+            // 2. Gauge (RPS Health)
+            let gauge = Gauge::default()
+                .block(
+                    Block::default()
+                        .title(" RPS Stability ")
+                        .borders(Borders::ALL),
+                )
+                .gauge_style(Style::default().fg(health_color))
+                .percent((rps_ratio * 100.0).clamp(0.0, 100.0) as u16)
+                .label(format!(
+                    "{:.1} / {:.1} RPS ({:.0}%)",
+                    current_rps,
+                    expected_rps,
+                    rps_ratio * 100.0
+                ));
+            f.render_widget(gauge, chunks[1]);
 
-                // 3. Stats Row
-                let stats_block = Block::default().borders(Borders::ALL);
-                let stats_text = Line::from(vec![
-                    Span::styled(" Sent: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{} ", attempted_val), Style::default().fg(Color::White)),
-                    Span::raw("   "),
-                    Span::styled(" OK: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{} ", succeeded_val), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                    Span::raw("   "),
-                    Span::styled(" Fail: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{} ", failed_val), Style::default().fg(fail_color).add_modifier(Modifier::BOLD)),
-                    Span::raw("   "),
-                    Span::styled(" Bandwidth: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{:.2} Mb/s (Avg: {:.2} Mb/s | {:.3} Mb/req) ", current_speed_mb, avg_speed_mb, avg_req_size_mb), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                ]);
-                let p_stats = Paragraph::new(stats_text).block(stats_block).alignment(ratatui::layout::Alignment::Center);
-                f.render_widget(p_stats, chunks[2]);
+            // 3. Stats Row
+            let stats_block = Block::default().borders(Borders::ALL);
+            let stats_text = Line::from(vec![
+                Span::styled(" Sent: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{} ", attempted_val),
+                    Style::default().fg(Color::White),
+                ),
+                Span::raw("   "),
+                Span::styled(" OK: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{} ", succeeded_val),
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("   "),
+                Span::styled(" Fail: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{} ", failed_val),
+                    Style::default().fg(fail_color).add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("   "),
+                Span::styled(" Bandwidth: ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!(
+                        "{:.2} Mb/s (Avg: {:.2} Mb/s | {:.3} Mb/req) ",
+                        current_speed_mb, avg_speed_mb, avg_req_size_mb
+                    ),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]);
+            let p_stats = Paragraph::new(stats_text)
+                .block(stats_block)
+                .alignment(ratatui::layout::Alignment::Center);
+            f.render_widget(p_stats, chunks[2]);
 
-                // 4. Charts
-                // Split into 3 vertical columns
-                let chart_chunks = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Percentage(33),
-                        Constraint::Percentage(33),
-                        Constraint::Percentage(33),
-                    ])
-                    .split(chunks[3]);
+            // 4. Charts
+            // Split into 3 vertical columns
+            let chart_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Percentage(33),
+                    Constraint::Percentage(33),
+                    Constraint::Percentage(33),
+                ])
+                .split(chunks[3]);
 
-                // Chart 0: Diff (Sent - OK)
-                let diff_data: Vec<(f64, f64)> = diff_history.iter().enumerate().map(|(i, &v)| (i as f64, v)).collect();
-                let max_diff = diff_data.iter().map(|(_, v)| *v).fold(0.0f64, f64::max).max(10.0);
-                
-                let diff_dataset = vec![
-                    Dataset::default()
-                        .name("Pending/Failed")
-                        .marker(symbols::Marker::Braille)
-                        .graph_type(GraphType::Line)
-                        .style(Style::default().fg(Color::Magenta))
-                        .data(&diff_data),
-                ];
-                let chart_diff = Chart::new(diff_dataset)
-                    .block(Block::default().title(" Pending/Dropped (Sent - OK) ").borders(Borders::ALL))
-                    .x_axis(Axis::default().title("Time").bounds([0.0, 60.0]).labels(vec![Span::raw("0s"), Span::raw("60s")]))
-                    .y_axis(Axis::default().title("Reqs").bounds([0.0, max_diff * 1.2]).labels(vec![
-                        Span::raw("0"),
-                        Span::raw(format!("{:.0}", max_diff * 1.2))
-                    ]));
-                f.render_widget(chart_diff, chart_chunks[0]);
+            // Chart 0: Diff (Sent - OK)
+            let diff_data: Vec<(f64, f64)> = diff_history
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| (i as f64, v))
+                .collect();
+            let max_diff = diff_data
+                .iter()
+                .map(|(_, v)| *v)
+                .fold(0.0f64, f64::max)
+                .max(10.0);
 
-                // Chart 1: RPS
-                let rps_data: Vec<(f64, f64)> = rps_history.iter().enumerate().map(|(i, &v)| (i as f64, v)).collect();
-                let rps_dataset = vec![
-                    Dataset::default()
-                        .name("RPS")
-                        .marker(symbols::Marker::Braille)
-                        .graph_type(GraphType::Line)
-                        .style(Style::default().fg(health_color))
-                        .data(&rps_data),
-                ];
-                let chart_rps = Chart::new(rps_dataset)
-                    .block(Block::default().title(" Requests Per Second ").borders(Borders::ALL))
-                    .x_axis(Axis::default().title("Time").bounds([0.0, 60.0]).labels(vec![Span::raw("0s"), Span::raw("60s")]))
-                    .y_axis(Axis::default().title("Reqs").bounds([0.0, expected_rps * 1.2]).labels(vec![
-                        Span::raw("0"),
-                        Span::raw(format!("{:.0}", expected_rps * 1.2))
-                    ]));
-                f.render_widget(chart_rps, chart_chunks[1]);
+            let diff_dataset = vec![Dataset::default()
+                .name("Pending/Failed")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::Magenta))
+                .data(&diff_data)];
+            let chart_diff = Chart::new(diff_dataset)
+                .block(
+                    Block::default()
+                        .title(" Pending/Dropped (Sent - OK) ")
+                        .borders(Borders::ALL),
+                )
+                .x_axis(
+                    Axis::default()
+                        .title("Time")
+                        .bounds([0.0, 60.0])
+                        .labels(vec![Span::raw("0s"), Span::raw("60s")]),
+                )
+                .y_axis(
+                    Axis::default()
+                        .title("Reqs")
+                        .bounds([0.0, max_diff * 1.2])
+                        .labels(vec![
+                            Span::raw("0"),
+                            Span::raw(format!("{:.0}", max_diff * 1.2)),
+                        ]),
+                );
+            f.render_widget(chart_diff, chart_chunks[0]);
 
-                // Chart 2: Speed
-                let speed_data: Vec<(f64, f64)> = speed_history.iter().enumerate().map(|(i, &v)| (i as f64, v * 8.0 / 1_000_000.0)).collect();
-                let avg_speed_data: Vec<(f64, f64)> = avg_speed_history.iter().enumerate().map(|(i, &v)| (i as f64, v * 8.0 / 1_000_000.0)).collect();
+            // Chart 1: RPS
+            let rps_data: Vec<(f64, f64)> = rps_history
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| (i as f64, v))
+                .collect();
+            let rps_dataset = vec![Dataset::default()
+                .name("RPS")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(health_color))
+                .data(&rps_data)];
+            let chart_rps = Chart::new(rps_dataset)
+                .block(
+                    Block::default()
+                        .title(" Requests Per Second ")
+                        .borders(Borders::ALL),
+                )
+                .x_axis(
+                    Axis::default()
+                        .title("Time")
+                        .bounds([0.0, 60.0])
+                        .labels(vec![Span::raw("0s"), Span::raw("60s")]),
+                )
+                .y_axis(
+                    Axis::default()
+                        .title("Reqs")
+                        .bounds([0.0, expected_rps * 1.2])
+                        .labels(vec![
+                            Span::raw("0"),
+                            Span::raw(format!("{:.0}", expected_rps * 1.2)),
+                        ]),
+                );
+            f.render_widget(chart_rps, chart_chunks[1]);
 
-                let max_speed = speed_data.iter().map(|(_, v)| *v).fold(0.0f64, f64::max).max(1.0); // avoid 0 bound
-                
-                let speed_dataset = vec![
-                    Dataset::default()
-                        .name("Instant")
-                        .marker(symbols::Marker::Braille)
-                        .graph_type(GraphType::Line)
-                        .style(Style::default().fg(Color::DarkGray))
-                        .data(&speed_data),
-                    Dataset::default()
-                        .name("Average")
-                        .marker(symbols::Marker::Braille)
-                        .graph_type(GraphType::Line)
-                        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-                        .data(&avg_speed_data),
-                ];
-                let chart_speed = Chart::new(speed_dataset)
-                    .block(Block::default().title(" Network Speed (Mb/s) ").borders(Borders::ALL))
-                    .x_axis(Axis::default().title("Time").bounds([0.0, 60.0]).labels(vec![Span::raw("0s"), Span::raw("60s")]))
-                    .y_axis(Axis::default().title("Mb/s").bounds([0.0, max_speed * 1.2]).labels(vec![
-                        Span::raw("0"),
-                        Span::raw(format!("{:.1}", max_speed * 1.2))
-                    ]));
-                f.render_widget(chart_speed, chart_chunks[2]);
+            // Chart 2: Speed
+            let speed_data: Vec<(f64, f64)> = speed_history
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| (i as f64, v * 8.0 / 1_000_000.0))
+                .collect();
+            let avg_speed_data: Vec<(f64, f64)> = avg_speed_history
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| (i as f64, v * 8.0 / 1_000_000.0))
+                .collect();
 
-            })?;
+            let max_speed = speed_data
+                .iter()
+                .map(|(_, v)| *v)
+                .fold(0.0f64, f64::max)
+                .max(1.0); // avoid 0 bound
+
+            let speed_dataset = vec![
+                Dataset::default()
+                    .name("Instant")
+                    .marker(symbols::Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .style(Style::default().fg(Color::DarkGray))
+                    .data(&speed_data),
+                Dataset::default()
+                    .name("Average")
+                    .marker(symbols::Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .style(
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    )
+                    .data(&avg_speed_data),
+            ];
+            let chart_speed = Chart::new(speed_dataset)
+                .block(
+                    Block::default()
+                        .title(" Network Speed (Mb/s) ")
+                        .borders(Borders::ALL),
+                )
+                .x_axis(
+                    Axis::default()
+                        .title("Time")
+                        .bounds([0.0, 60.0])
+                        .labels(vec![Span::raw("0s"), Span::raw("60s")]),
+                )
+                .y_axis(
+                    Axis::default()
+                        .title("Mb/s")
+                        .bounds([0.0, max_speed * 1.2])
+                        .labels(vec![
+                            Span::raw("0"),
+                            Span::raw(format!("{:.1}", max_speed * 1.2)),
+                        ]),
+                );
+            f.render_widget(chart_speed, chart_chunks[2]);
+        })?;
 
         // Input handling
         if crossterm::event::poll(Duration::from_millis(100))? {
@@ -548,9 +807,12 @@ async fn run_tui(
                     break;
                 }
                 if let KeyCode::Char('c') = key.code {
-                     if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                    if key
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::CONTROL)
+                    {
                         break;
-                     }
+                    }
                 }
             }
         }
@@ -598,7 +860,11 @@ fn validate_args(args: &Args) -> Result<()> {
     Ok(())
 }
 
-fn precompute_frames(count: usize, interval: f64, noise_level: Option<f64>) -> Result<Vec<Vec<u8>>> {
+fn precompute_frames(
+    count: usize,
+    interval: f64,
+    noise_level: Option<f64>,
+) -> Result<Vec<Vec<u8>>> {
     let cache_dir = "frame_cache";
     fs::create_dir_all(cache_dir)?;
 
@@ -606,8 +872,11 @@ fn precompute_frames(count: usize, interval: f64, noise_level: Option<f64>) -> R
         Some(n) => format!("{:.4}", n),
         None => "none".to_string(),
     };
-    // Include dimensions/version in filename to invalidate old caches if needed
-    let filename = format!("{}/frames_v3_{}_int_{}_noise_{}.bin", cache_dir, count, interval, noise_str);
+    // Update filename to reflect new version (v5) to force regeneration when visuals change
+    let filename = format!(
+        "{}/frames_v5_{}_int_{}_noise_{}.bin",
+        cache_dir, count, interval, noise_str
+    );
     let path = std::path::Path::new(&filename);
 
     if path.exists() {
@@ -648,7 +917,7 @@ fn precompute_frames(count: usize, interval: f64, noise_level: Option<f64>) -> R
 
     println!("Precomputing {} frames (5min loop)...", count);
     let start_precomp = Instant::now();
-    
+
     // Track progress
     let completed = Arc::new(AtomicUsize::new(0));
     let completed_monitor = completed.clone();
@@ -657,18 +926,27 @@ fn precompute_frames(count: usize, interval: f64, noise_level: Option<f64>) -> R
     // Spawn a background thread to update the timer
     let done = Arc::new(AtomicBool::new(false));
     let done_clone = done.clone();
-    
+
     std::thread::spawn(move || {
         while !done_clone.load(Ordering::Relaxed) {
             let n = completed_monitor.load(Ordering::Relaxed);
             let elapsed = start_precomp.elapsed().as_secs_f64();
-            
+
             if n > 0 {
                 let rate = n as f64 / elapsed; // frames per second
                 let remaining = count - n;
-                let eta_secs = if rate > 0.0 { remaining as f64 / rate } else { 0.0 };
-                print!("\rPrecomputing... {:.1}% ({}/{}) ETA: {:.1}s   ", 
-                    (n as f64 / count as f64) * 100.0, n, count, eta_secs);
+                let eta_secs = if rate > 0.0 {
+                    remaining as f64 / rate
+                } else {
+                    0.0
+                };
+                print!(
+                    "\rPrecomputing... {:.1}% ({}/{}) ETA: {:.1}s   ",
+                    (n as f64 / count as f64) * 100.0,
+                    n,
+                    count,
+                    eta_secs
+                );
             } else {
                 print!("\rPrecomputing... 0% ({}/{}) ETA: ???   ", n, count);
             }
@@ -687,11 +965,14 @@ fn precompute_frames(count: usize, interval: f64, noise_level: Option<f64>) -> R
             res
         })
         .collect();
-    
+
     done.store(true, Ordering::Relaxed);
     let frames = frames?;
-    
-    println!("\rPrecomputation complete in {:.2?}.          ", start_precomp.elapsed());
+
+    println!(
+        "\rPrecomputation complete in {:.2?}.          ",
+        start_precomp.elapsed()
+    );
 
     // Save to cache
     if let Err(e) = (|| -> Result<()> {
@@ -713,73 +994,273 @@ fn precompute_frames(count: usize, interval: f64, noise_level: Option<f64>) -> R
     Ok(frames)
 }
 
-/// Generate a small in-memory PNG and return its bytes.
-fn generate_placeholder_png(frame_count: usize, interval: f64, noise_level: Option<f64>) -> Result<Vec<u8>> {
-    // Hardcoded small buffer for speed - we just want bytes that look like a PNG
-    // Using a very small image (e.g. 10x10) significantly reduces PNG encoding time
-    // But if the server expects 1080p, we might need to stick to 1920x1080.
-    // The prompt asks for "performance gain as possible" and "dirty".
-    // Let's stick to 1920x1080 but use extremely fast/dirty generation.
-    
-    // Actually, encoding 1920x1080 PNG is very slow. 
-    // We will generate the image ONCE (in the loop above) and reuse it.
-    // The implementation below is now only called during precomputation.
-
+/// Generate a realistic simulation frame (IDE or Browser)
+fn generate_placeholder_png(
+    frame_count: usize,
+    interval: f64,
+    noise_level: Option<f64>,
+) -> Result<Vec<u8>> {
     let width = 1920;
     let height = 1080;
     let mut img: RgbaImage = RgbaImage::new(width, height);
 
-    // If noise is requested, we just flip some pixels to make it different enough for delta compression
-    // We don't need "real" noise, just "changed" pixels.
-    if let Some(level) = noise_level {
-        let mut rng = rand::thread_rng();
+    let noise = noise_level.unwrap_or(0.0).clamp(0.0, 1.0);
+    let mut rng = StdRng::seed_from_u64(
+        (frame_count as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15),
+    );
 
-        for pixel in img.pixels_mut() {
-             if rng.gen_bool(level) {
-                 *pixel = image::Rgba([rng.gen(), rng.gen(), rng.gen(), 255]);
-             } else {
-                 *pixel = image::Rgba([240, 240, 240, 255]);
-             }
-        }
-    } else {
-        // Clean low entropy background
-        for pixel in img.pixels_mut() {
-            *pixel = image::Rgba([240, 240, 240, 255]);
-        }
-    }
-
-    // Draw a moving red square to ensure some delta exists even without noise
-    let square_size = 100;
-    let speed = 50; // faster movement
-    
-    // Calculate position based on frame_count
-    let x_pos = (frame_count * speed) % (width as usize - square_size);
-    let y_pos = (frame_count * speed) % (height as usize - square_size);
-
-    for x in x_pos..(x_pos + square_size) {
-        for y in y_pos..(y_pos + square_size) {
-            img.put_pixel(x as u32, y as u32, image::Rgba([255, 100, 100, 255]));
-        }
-    }
-
-    // Burn timestamp
+    // Calculate simulation time within 90s cycle with noise-driven jitter
     let time_secs = frame_count as f64 * interval;
+    let jitter = if noise > 0.0 {
+        // up to +/-30s jitter scaled by noise
+        (rng.gen::<f64>() - 0.5) * 30.0 * noise
+    } else {
+        0.0
+    };
+    let cycle_time = (time_secs + jitter).rem_euclid(90.0);
+
+    // Determine base state:
+    // 0-15s: Browser Reading (Light)
+    // 15-50s: IDE Coding (Dark)
+    // 50-60s: Browser Check (Light)
+    // 60-90s: IDE Refactor (Dark)
+    let mut state = if cycle_time < 15.0 {
+        0
+    } else if cycle_time < 50.0 {
+        1
+    } else if cycle_time < 60.0 {
+        2
+    } else {
+        3
+    };
+
+    // Higher noise means more context switches between the states
+    if noise > 0.0 && rng.gen::<f64>() < noise * 0.6 {
+        state = rng.gen_range(0..4);
+    }
+
+    match state {
+        0 => {
+            let progress = if cycle_time < 15.0 {
+                cycle_time / 15.0
+            } else {
+                rng.gen::<f64>()
+            };
+            draw_browser_frame(&mut img, progress, false);
+        }
+        1 => {
+            let progress = if (15.0..50.0).contains(&cycle_time) {
+                (cycle_time - 15.0) / 35.0
+            } else {
+                rng.gen::<f64>()
+            };
+            draw_ide_frame(&mut img, progress, false);
+        }
+        2 => {
+            let progress = if (50.0..60.0).contains(&cycle_time) {
+                (cycle_time - 50.0) / 10.0
+            } else {
+                rng.gen::<f64>()
+            };
+            draw_browser_frame(&mut img, progress, true);
+        }
+        _ => {
+            let progress = if (60.0..90.0).contains(&cycle_time) {
+                (cycle_time - 60.0) / 30.0
+            } else {
+                rng.gen::<f64>()
+            };
+            draw_ide_frame(&mut img, progress, true);
+        }
+    }
+
+    // Add visual noise/complexity based on noise level
+    if noise > 0.0 {
+        let patch_count = (5.0 + noise * 120.0) as u32;
+        for _ in 0..patch_count {
+            let px = rng.gen_range(0..width);
+            let py = rng.gen_range(0..height);
+            let max_w = 10 + (noise * 150.0) as u32;
+            let max_h = 10 + (noise * 100.0) as u32;
+            let span_w = (width - px).max(3).min(max_w);
+            let span_h = (height - py).max(3).min(max_h);
+            let w = rng.gen_range(3..=span_w);
+            let h = rng.gen_range(3..=span_h);
+            let color = Rgba([
+                rng.gen_range(0..=255),
+                rng.gen_range(0..=255),
+                rng.gen_range(0..=255),
+                200,
+            ]);
+            draw_filled_rect(&mut img, px, py, w, h, color);
+        }
+    }
+
+    // Burn timestamp for debugging
     let mins = (time_secs / 60.0) as u64;
     let secs = (time_secs % 60.0) as u64;
     let time_str = format!("{:02}:{:02}", mins, secs);
 
-    // Draw shadow then text
-    bitmap_font::draw_text_scaled(&mut img, &time_str, 55, 55, 10, Rgba([0, 0, 0, 255]));
-    bitmap_font::draw_text_scaled(&mut img, &time_str, 50, 50, 10, Rgba([255, 255, 0, 255])); // Yellow
+    // Draw shadow then text (bottom right)
+    bitmap_font::draw_text_scaled(&mut img, &time_str, 1700, 1000, 5, Rgba([0, 0, 0, 255]));
+    bitmap_font::draw_text_scaled(&mut img, &time_str, 1698, 998, 5, Rgba([255, 255, 0, 255]));
 
-    // Use Fast settings for PNG encoder if possible, or just default.
-    // Since we precompute, this slowness is acceptable at startup.
     let mut buf = Vec::new();
-    // Speed up: Use a lower compression level or faster filter if configurable, 
-    // but the `image` crate's write_to default is usually fine for one-off.
-    // For maximum speed during precalc we could use `png` crate directly but `image` is easier.
+    // Default compression is fine here as image is simple
     image::DynamicImage::ImageRgba8(img).write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)?;
     Ok(buf)
+}
+
+fn draw_filled_rect(img: &mut RgbaImage, x: u32, y: u32, w: u32, h: u32, color: Rgba<u8>) {
+    let w_img = img.width();
+    let h_img = img.height();
+
+    for iy in y..(y + h) {
+        if iy >= h_img {
+            break;
+        }
+        for ix in x..(x + w) {
+            if ix >= w_img {
+                break;
+            }
+            img.put_pixel(ix, iy, color);
+        }
+    }
+}
+
+// Draw "Browser" style (Light Theme, Reading)
+fn draw_browser_frame(img: &mut RgbaImage, progress: f64, is_checking: bool) {
+    let bg_color = Rgba([245, 245, 245, 255]);
+    let text_color = Rgba([70, 70, 70, 255]);
+    let header_color = Rgba([225, 225, 225, 255]);
+    let url_bar_color = Rgba([255, 255, 255, 255]);
+    let tab_inactive = Rgba([210, 210, 210, 255]);
+    let tab_active = Rgba([255, 255, 255, 255]);
+    let accent = Rgba([66, 133, 244, 255]);
+
+    // Fill BG
+    draw_filled_rect(img, 0, 0, 1920, 1080, bg_color);
+
+    // Header with tabs and controls
+    draw_filled_rect(img, 0, 0, 1920, 90, header_color);
+    // Tabs
+    for i in 0..6u32 {
+        let tab_x = 40 + i * 170;
+        let color = if i == ((progress * 6.0) as u32 % 6) { tab_active } else { tab_inactive };
+        draw_filled_rect(img, tab_x, 10, 150, 35, color);
+        draw_filled_rect(img, tab_x + 10, 20, 90, 6, accent);
+    }
+    // URL bar and search box
+    draw_filled_rect(img, 220, 50, 1100, 30, url_bar_color);
+    draw_filled_rect(img, 1340, 50, 200, 30, Rgba([240, 240, 240, 255]));
+
+    // Content: sections + side nav
+    let scroll_y = if is_checking { 500 } else { (progress * 1200.0) as u32 };
+    let start_y = 120;
+
+    // Left navigation
+    draw_filled_rect(img, 60, 110, 220, 920, Rgba([255, 255, 255, 255]));
+    for i in 0..8 {
+        let item_y = start_y + (i * 90) as i32 - scroll_y as i32;
+        if item_y < 110 || item_y > 1040 { continue; }
+        let y = item_y as u32;
+        draw_filled_rect(img, 80, y, 180, 28, Rgba([235, 235, 235, 255]));
+        draw_filled_rect(img, 85, y + 35, 130, 12, text_color);
+        draw_filled_rect(img, 85, y + 52, 90, 12, text_color);
+    }
+
+    // Main cards
+    for i in 0..10 {
+        let block_y = start_y + (i * 180) as i32 - scroll_y as i32;
+        if block_y < 110 { continue; }
+        if block_y > 1100 { break; }
+        let by = block_y as u32;
+
+        draw_filled_rect(img, 320, by, 1400, 150, Rgba([255, 255, 255, 255]));
+        draw_filled_rect(img, 340, by + 15, 420, 26, Rgba([40, 40, 40, 255]));
+        draw_filled_rect(img, 340, by + 50, 1050, 14, text_color);
+        draw_filled_rect(img, 340, by + 70, 980, 14, text_color);
+        draw_filled_rect(img, 340, by + 90, 900, 14, text_color);
+        // Image/preview placeholder
+        draw_filled_rect(img, 1400, by + 20, 280, 110, Rgba([240, 240, 240, 255]));
+    }
+
+    // Sticky footer bar to add color variation
+    draw_filled_rect(img, 0, 1040, 1920, 40, Rgba([52, 152, 219, 255]));
+}
+
+// Draw "IDE" style (Dark Theme, Coding)
+fn draw_ide_frame(img: &mut RgbaImage, progress: f64, is_refactoring: bool) {
+    let bg_color = Rgba([26, 26, 30, 255]); // VSCode Dark
+    let sidebar_color = Rgba([38, 38, 42, 255]);
+    let panel_color = Rgba([24, 24, 28, 255]);
+
+    // Fill BG
+    draw_filled_rect(img, 0, 0, 1920, 1080, bg_color);
+
+    // Sidebar with items
+    draw_filled_rect(img, 0, 0, 300, 1080, sidebar_color);
+    for i in 0..20u32 {
+        let y = 20 + i * 50;
+        if y + 30 > 1080 { break; }
+        let active = i == ((progress * 10.0) as u32 % 12);
+        let color = if active { Rgba([60, 60, 90, 255]) } else { Rgba([48, 48, 54, 255]) };
+        draw_filled_rect(img, 20, y, 260, 32, color);
+        draw_filled_rect(img, 30, y + 38, 140, 10, Rgba([170, 170, 170, 255]));
+    }
+
+    // Bottom panel / terminal
+    draw_filled_rect(img, 300, 800, 1620, 280, panel_color);
+    draw_filled_rect(img, 320, 820, 1580, 20, Rgba([55, 55, 65, 255]));
+    for i in 0..8u32 {
+        draw_filled_rect(img, 330, 850 + i * 24, 1480, 16, Rgba([120, 255, 120, 255]));
+    }
+
+    // Syntax colors
+    let c_blue = Rgba([86, 156, 214, 255]);
+    let c_green = Rgba([106, 153, 85, 255]);
+    let c_orange = Rgba([206, 145, 120, 255]);
+    let c_white = Rgba([220, 220, 220, 255]);
+    let c_purple = Rgba([197, 134, 192, 255]);
+
+    let colors = [c_blue, c_white, c_white, c_orange, c_green, c_purple];
+
+    let lines_to_draw = if is_refactoring {
+        50 // Full file
+    } else {
+        // Typing effect: lines appear over time
+        15 + (progress * 40.0) as u32
+    };
+
+    let start_x = 350;
+    let mut current_y = 40;
+
+    for i in 0..lines_to_draw {
+        if current_y > 760 { break; }
+        let indent = (i % 4) * 30; // varied indentation
+
+        // Draw line number gutter
+        draw_filled_rect(img, 310, current_y, 28, 18, Rgba([90, 90, 100, 255]));
+
+        // Draw tokens
+        let num_tokens = 3 + (i % 6);
+        let mut cx = start_x + indent;
+
+        for t in 0..num_tokens {
+            let col = colors[(i as usize + t as usize) % colors.len()];
+            let w = 28 + ((i * (t + 1) * 11) % 120);
+            draw_filled_rect(img, cx, current_y, w, 20, col);
+            cx += w + 12;
+        }
+
+        current_y += 26;
+    }
+
+    // Refactor Selection Highlight
+    if is_refactoring {
+        let sel_color = Rgba([38, 79, 120, 180]);
+        draw_filled_rect(img, 360, 220, 620, 320, sel_color);
+    }
 }
 
 /// Generate `count` unique client names by appending an A-Z/a-z suffix to the prefix.
