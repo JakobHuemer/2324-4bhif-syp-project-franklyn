@@ -581,9 +581,11 @@ async fn run_tui(
             let succeeded_val = succeeded.load(Ordering::Relaxed);
             let failed_val = failed.load(Ordering::Relaxed);
 
-            // Derived stats
-            let avg_req_size_mb = if current_rps > 0.0 {
-                current_speed_mb / current_rps
+            // Derived stats (cumulative average per request to avoid spread jitter)
+            let total_reqs = succeeded_val + failed_val;
+            let bytes_total = bytes_sent.load(Ordering::Relaxed) as f64;
+            let avg_req_size_mb = if total_reqs > 0 {
+                (bytes_total * 8.0 / 1_000_000.0) / (total_reqs as f64)
             } else {
                 0.0
             };
@@ -608,7 +610,12 @@ async fn run_tui(
                 Color::Green
             };
 
-            // 2. Gauge (RPS Health)
+            // 2. Gauge (RPS Health) with contrasting label color when filled
+            let gauge_label_color = if rps_ratio >= 0.5 {
+                Color::Black
+            } else {
+                Color::White
+            };
             let gauge = Gauge::default()
                 .block(
                     Block::default()
@@ -617,11 +624,9 @@ async fn run_tui(
                 )
                 .gauge_style(Style::default().fg(health_color))
                 .percent((rps_ratio * 100.0).clamp(0.0, 100.0) as u16)
-                .label(format!(
-                    "{:.1} / {:.1} RPS ({:.0}%)",
-                    current_rps,
-                    expected_rps,
-                    rps_ratio * 100.0
+                .label(Span::styled(
+                    format!("{:.1} / {:.1} RPS ({:.0}%)", current_rps, expected_rps, rps_ratio * 100.0),
+                    Style::default().fg(gauge_label_color).add_modifier(Modifier::BOLD),
                 ));
             f.render_widget(gauge, chunks[1]);
 
@@ -722,12 +727,23 @@ async fn run_tui(
                 .enumerate()
                 .map(|(i, &v)| (i as f64, v))
                 .collect();
-            let rps_dataset = vec![Dataset::default()
-                .name("RPS")
-                .marker(symbols::Marker::Braille)
-                .graph_type(GraphType::Line)
-                .style(Style::default().fg(health_color))
-                .data(&rps_data)];
+            let target_line: Vec<(f64, f64)> = (0..rps_history.len())
+                .map(|i| (i as f64, expected_rps))
+                .collect();
+            let rps_dataset = vec![
+                Dataset::default()
+                    .name("Target")
+                    .marker(symbols::Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .style(Style::default().fg(Color::DarkGray))
+                    .data(&target_line),
+                Dataset::default()
+                    .name("RPS")
+                    .marker(symbols::Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .style(Style::default().fg(health_color).add_modifier(Modifier::BOLD))
+                    .data(&rps_data),
+            ];
             let chart_rps = Chart::new(rps_dataset)
                 .block(
                     Block::default()
