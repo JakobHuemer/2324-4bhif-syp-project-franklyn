@@ -48,7 +48,26 @@ public class StateResource {
                 metricsService.getFreeDiskSpaceInBytes(),
                 metricsService.getScreenshotsFolderSizeInBytes(),
                 metricsService.getTotalMemoryInBytes(),
-                metricsService.getUsedMemoryInBytes()
+                metricsService.getUsedMemoryInBytes(),
+                metricsService.getAlphaUploadsCount(),
+                metricsService.getAlphaUploadAvgDurationMs(),
+                metricsService.getAlphaUploadBytesTotal(),
+                metricsService.getAlphaUploadErrors(),
+                metricsService.getBetaUploadsCount(),
+                metricsService.getBetaUploadAvgDurationMs(),
+                metricsService.getBetaUploadBytesTotal(),
+                metricsService.getBetaChangedPixelsTotal(),
+                metricsService.getBetaUploadErrors(),
+                metricsService.getRequestedAlphaFrames(),
+                metricsService.getScreenshotFetchCount(),
+                metricsService.getScreenshotFetchAvgMs(),
+                metricsService.getScreenshotScaledFetchCount(),
+                metricsService.getScreenshotScaledFetchAvgMs(),
+                metricsService.getScreenshotErrors(),
+                metricsService.getVideoDownloadsCount(),
+                metricsService.getVideoDownloadAvgMs(),
+                metricsService.getVideoDownloadErrors(),
+                metricsService.getScreenshotsFolderFileCount()
         );
 
         return Response.ok(serverMetricsDto).build();

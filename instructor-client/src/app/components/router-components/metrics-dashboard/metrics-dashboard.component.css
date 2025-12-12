@@ -1,0 +1,49 @@
+.metrics-container {
+  padding: 1rem;
+}
+
+.metric-card {
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: 32% 48% 20%;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.metric-label {
+  font-weight: 600;
+  color: #333;
+}
+
+.metric-bar {
+  background: #f5f5f5;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 18px;
+  border: 1px solid #e0e0e0;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.metric-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #222;
+}
+
+@media (max-width: 768px) {
+  .metric-row {
+    grid-template-columns: 42% 38% 20%;
+  }
+}

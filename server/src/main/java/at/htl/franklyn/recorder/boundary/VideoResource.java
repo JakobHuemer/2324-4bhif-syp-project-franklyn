@@ -1,8 +1,10 @@
 package at.htl.franklyn.recorder.boundary;
 
+import at.htl.franklyn.server.services.MetricsService;
 import io.quarkus.logging.Log;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -29,7 +31,11 @@ public class VideoResource {
     @ConfigProperty(name = "screenshots.path")
     String screenshotsPath;
 
+    @Inject
+    MetricsService metricsService;
+
     Logger logger = Logger.getLogger(getClass().getName());
+
 
     @GET
     @Path("/download")
@@ -37,25 +43,22 @@ public class VideoResource {
     @Blocking
     public Uni<Response> downloadAllVideos(){
 
+        io.micrometer.core.instrument.Timer.Sample sample = metricsService.startVideoDownloadTimer();
         ResponseBuilder response = Response.serverError();
 
         try {
-            // Parent-folder
             File screenshotFolder = new File(screenshotsPath);
-            // Input/Output-folder
             File[] targetDirectories = screenshotFolder.listFiles();
 
-            // Return if folder with this user does not exist
             if(targetDirectories == null || targetDirectories.length == 0 ){
+                metricsService.recordVideoDownloadError(sample);
                 return Uni.createFrom().item(response.build());
             }
 
             ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
             for(File file : targetDirectories){
-                executor.execute(() -> {
-                    produceVideo(file.getName());
-                });
+                executor.execute(() -> produceVideo(file.getName()));
             }
 
             executor.shutdown();
@@ -74,16 +77,17 @@ public class VideoResource {
                             )
                     );
 
+            metricsService.recordVideoDownload(sample);
             return Uni.createFrom().item(response.build());
         }
         catch (Exception e) {
+            metricsService.recordVideoDownloadError(sample);
             logger.warning("Type: " + e.getClass().getSimpleName());
 
             Arrays.stream(e.getStackTrace())
                     .filter(traceElement -> traceElement.getClassName().equals(getClass().getName()))
                     .forEach(t -> logger.warning(t.toString()));
 
-            // server error
             return Uni.createFrom().item(response.build());
         }
     }

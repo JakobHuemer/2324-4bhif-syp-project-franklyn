@@ -1,9 +1,9 @@
-<div class="container h-100, d-flex flex-column">
-  <div class="row h-bar">
-    <div class="col-1 d-flex align-items-center">
+<div class="container-fluid metrics-container">
+  <div class="row h-bar mb-3">
+    <div class="col-2 d-flex align-items-center">
       <h6 class="align-middle d-table-cell text-center">CPU Utilization</h6>
     </div>
-    <div class="col-10">
+    <div class="col-8">
       <canvas
         baseChart
         [data]="cpuChartData"
@@ -11,11 +11,12 @@
         [options]="cpuChartOptions" class="h-bar">
       </canvas>
     </div>
-    <div class="col-1 d-flex align-items-center">
+    <div class="col-2 d-flex align-items-center justify-content-end">
       <h6 class="align-middle d-table-cell text-center">{{store.value.serverMetrics.cpuUsagePercent.toFixed(1)}} %</h6>
     </div>
   </div>
-  <div class="row">
+
+  <div class="row mb-4">
     <div class="col-6">
       <canvas
         baseChart
@@ -33,6 +34,75 @@
         [plugins]="[ doughnutLabel ]"
         [options]="memChartOptions">
       </canvas>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12 col-lg-6 mb-4">
+      <div class="metric-card">
+        <h5>Uploads</h5>
+        <div *ngFor="let bar of uploadMetricsBars" class="metric-row">
+          <div class="metric-label">{{bar.label}}</div>
+          <div class="metric-bar">
+            <div class="metric-bar-fill" [style.width.%]="bar.width" [style.background]="bar.color"></div>
+          </div>
+          <div class="metric-value">{{bar.value | number:'1.0-1'}} {{bar.unit}}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6 mb-4">
+      <div class="metric-card">
+        <h5>Patrol</h5>
+        <div *ngFor="let bar of patrolMetricsBars" class="metric-row">
+          <div class="metric-label">{{bar.label}}</div>
+          <div class="metric-bar">
+            <div class="metric-bar-fill" [style.width.%]="bar.width" [style.background]="bar.color"></div>
+          </div>
+          <div class="metric-value">{{bar.value | number:'1.0-1'}} {{bar.unit}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12 col-lg-6 mb-4">
+      <div class="metric-card">
+        <h5>Video</h5>
+        <div *ngFor="let bar of videoMetricsBars" class="metric-row">
+          <div class="metric-label">{{bar.label}}</div>
+          <div class="metric-bar">
+            <div class="metric-bar-fill" [style.width.%]="bar.width" [style.background]="bar.color"></div>
+          </div>
+          <div class="metric-value">{{bar.value | number:'1.0-1'}} {{bar.unit}}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6 mb-4">
+      <div class="metric-card">
+        <h5>Storage</h5>
+        <div *ngFor="let bar of storageMetricsBars" class="metric-row">
+          <div class="metric-label">{{bar.label}}</div>
+          <div class="metric-bar">
+            <div class="metric-bar-fill" [style.width.%]="bar.width" [style.background]="bar.color"></div>
+          </div>
+          <div class="metric-value">{{bar.value | number:'1.0-1'}} {{bar.unit}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      <div class="metric-card">
+        <h5>Alpha Deep Dive</h5>
+        <div *ngFor="let bar of alphaAnalysisBars" class="metric-row">
+          <div class="metric-label">{{bar.label}}</div>
+          <div class="metric-bar">
+            <div class="metric-bar-fill" [style.width.%]="bar.width" [style.background]="bar.color"></div>
+          </div>
+          <div class="metric-value">{{bar.value | number:'1.0-1'}} {{bar.unit}}</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

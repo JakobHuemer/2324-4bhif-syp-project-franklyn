@@ -7,12 +7,22 @@ import {ScheduleService} from "../../../services/schedule.service";
 import {WebApiService} from "../../../services/web-api.service";
 import {set, store} from "../../../model";
 import {environment} from "../../../../../env/environment";
+import {CommonModule} from "@angular/common";
+
+type MetricBar = {
+  label: string;
+  value: number;
+  unit: string;
+  width: number;
+  color: string;
+};
 
 @Component({
   selector: 'app-metrics-dashboard',
   standalone: true,
   imports: [
-    BaseChartDirective
+    BaseChartDirective,
+    CommonModule
   ],
   templateUrl: './metrics-dashboard.component.html',
   styleUrl: './metrics-dashboard.component.css'
@@ -23,6 +33,12 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
   protected store = inject(StoreService).store;
   protected scheduleSvc = inject(ScheduleService);
   protected webApi = inject(WebApiService);
+
+  uploadMetricsBars: MetricBar[] = [];
+  patrolMetricsBars: MetricBar[] = [];
+  videoMetricsBars: MetricBar[] = [];
+  storageMetricsBars: MetricBar[] = [];
+  alphaAnalysisBars: MetricBar[] = [];
 
   async ngOnInit(): Promise<void> {
     // subscribe to server-metrics to update when
@@ -79,6 +95,8 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
       store.value.serverMetrics.diagramBackgroundColor
     ]
 
+    this.buildBarData();
+
     this.charts?.forEach(c => c.update());
   }
 
@@ -92,6 +110,17 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
     }
 
     return color;
+  }
+
+  getColorPerValue(val: number, thresholds: {ok: number, warn: number}, invert = false): string {
+    const value = invert ? -val : val;
+    if (value <= thresholds.ok) {
+      return environment.metricsDashboardValueOkay;
+    }
+    if (value <= thresholds.warn) {
+      return environment.metricsDashboardValueBarelyOkay;
+    }
+    return environment.metricsDashboardValueNotOkay;
   }
 
   updateColorLabels() {
@@ -244,4 +273,116 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy{
       }
     }
   };
+
+  private buildBarData() {
+    const metrics = this.store.value.serverMetrics;
+
+    this.uploadMetricsBars = [
+      {
+        label: "Alpha uploads (ms avg)",
+        value: metrics.alphaUploadAvgDurationMs,
+        unit: "ms",
+        width: this.normalize(metrics.alphaUploadAvgDurationMs, 0, 2000),
+        color: this.getColorPerValue(metrics.alphaUploadAvgDurationMs, { ok: 300, warn: 800 })
+      },
+      {
+        label: "Alpha bytes total", value: metrics.alphaUploadBytesTotal / (1024 * 1024), unit: "MiB",
+        width: this.normalize(metrics.alphaUploadBytesTotal, 0, 1024 * 1024 * 500),
+        color: this.getColorPerValue(metrics.alphaUploadBytesTotal, { ok: 1024 * 1024 * 200, warn: 1024 * 1024 * 400 })
+      },
+      {
+        label: "Alpha errors", value: metrics.alphaUploadErrors, unit: "", width: this.normalize(metrics.alphaUploadErrors, 0, 50),
+        color: this.getColorPerValue(metrics.alphaUploadErrors, { ok: 0, warn: 5 })
+      },
+      {
+        label: "Beta uploads (ms avg)", value: metrics.betaUploadAvgDurationMs, unit: "ms",
+        width: this.normalize(metrics.betaUploadAvgDurationMs, 0, 2000),
+        color: this.getColorPerValue(metrics.betaUploadAvgDurationMs, { ok: 300, warn: 800 })
+      },
+      {
+        label: "Beta bytes total", value: metrics.betaUploadBytesTotal / (1024 * 1024), unit: "MiB",
+        width: this.normalize(metrics.betaUploadBytesTotal, 0, 1024 * 1024 * 500),
+        color: this.getColorPerValue(metrics.betaUploadBytesTotal, { ok: 1024 * 1024 * 200, warn: 1024 * 1024 * 400 })
+      },
+      {
+        label: "Beta changed pixels", value: metrics.betaChangedPixelsTotal, unit: "px",
+        width: this.normalize(metrics.betaChangedPixelsTotal, 0, 5_000_000),
+        color: this.getColorPerValue(metrics.betaChangedPixelsTotal, { ok: 500_000, warn: 2_000_000 })
+      },
+      {
+        label: "Beta errors", value: metrics.betaUploadErrors, unit: "", width: this.normalize(metrics.betaUploadErrors, 0, 50),
+        color: this.getColorPerValue(metrics.betaUploadErrors, { ok: 0, warn: 5 })
+      },
+      {
+        label: "Requested alpha frames", value: metrics.requestedAlphaFrames, unit: "", width: this.normalize(metrics.requestedAlphaFrames, 0, 200),
+        color: this.getColorPerValue(metrics.requestedAlphaFrames, { ok: 5, warn: 25 })
+      }
+    ];
+
+    this.patrolMetricsBars = [
+      {
+        label: "Screenshot fetch (ms avg)", value: metrics.screenshotFetchAvgMs, unit: "ms",
+        width: this.normalize(metrics.screenshotFetchAvgMs, 0, 2000),
+        color: this.getColorPerValue(metrics.screenshotFetchAvgMs, { ok: 150, warn: 600 })
+      },
+      {
+        label: "Scaled fetch (ms avg)", value: metrics.screenshotScaledFetchAvgMs, unit: "ms",
+        width: this.normalize(metrics.screenshotScaledFetchAvgMs, 0, 2000),
+        color: this.getColorPerValue(metrics.screenshotScaledFetchAvgMs, { ok: 150, warn: 600 })
+      },
+      {
+        label: "Screenshot errors", value: metrics.screenshotErrors, unit: "", width: this.normalize(metrics.screenshotErrors, 0, 50),
+        color: this.getColorPerValue(metrics.screenshotErrors, { ok: 0, warn: 5 })
+      }
+    ];
+
+    this.videoMetricsBars = [
+      {
+        label: "Video download (ms avg)", value: metrics.videoDownloadAvgMs, unit: "ms",
+        width: this.normalize(metrics.videoDownloadAvgMs, 0, 5000),
+        color: this.getColorPerValue(metrics.videoDownloadAvgMs, { ok: 500, warn: 2000 })
+      },
+      {
+        label: "Video download errors", value: metrics.videoDownloadErrors, unit: "", width: this.normalize(metrics.videoDownloadErrors, 0, 50),
+        color: this.getColorPerValue(metrics.videoDownloadErrors, { ok: 0, warn: 5 })
+      }
+    ];
+
+    this.storageMetricsBars = [
+      {
+        label: "Screenshots folder size", value: metrics.savedScreenshotsSizeInBytes / (1024 * 1024), unit: "MiB",
+        width: this.normalize(metrics.savedScreenshotsSizeInBytes, 0, 1024 * 1024 * 1024),
+        color: this.getColorPerValue(metrics.savedScreenshotsSizeInBytes, { ok: 1024 * 1024 * 200, warn: 1024 * 1024 * 800 })
+      },
+      {
+        label: "Screenshots file count", value: metrics.screenshotsFileCount, unit: "files",
+        width: this.normalize(metrics.screenshotsFileCount, 0, 20_000),
+        color: this.getColorPerValue(metrics.screenshotsFileCount, { ok: 2_000, warn: 10_000 })
+      }
+    ];
+
+    this.alphaAnalysisBars = [
+      {
+        label: "Alpha bytes total", value: metrics.alphaUploadBytesTotal / (1024 * 1024), unit: "MiB",
+        width: this.normalize(metrics.alphaUploadBytesTotal, 0, 1024 * 1024 * 500),
+        color: this.getColorPerValue(metrics.alphaUploadBytesTotal, { ok: 1024 * 1024 * 200, warn: 1024 * 1024 * 400 })
+      },
+      {
+        label: "Alpha uploads", value: metrics.alphaUploadsCount, unit: "count",
+        width: this.normalize(metrics.alphaUploadsCount, 0, 10_000),
+        color: this.getColorPerValue(metrics.alphaUploadsCount, { ok: 1_000, warn: 5_000 })
+      },
+      {
+        label: "Alpha duration avg", value: metrics.alphaUploadAvgDurationMs, unit: "ms",
+        width: this.normalize(metrics.alphaUploadAvgDurationMs, 0, 2000),
+        color: this.getColorPerValue(metrics.alphaUploadAvgDurationMs, { ok: 300, warn: 800 })
+      }
+    ];
+  }
+
+  private normalize(value: number, min: number, max: number): number {
+    if (value <= min) return 0;
+    if (value >= max) return 100;
+    return ((value - min) / (max - min)) * 100;
+  }
 }

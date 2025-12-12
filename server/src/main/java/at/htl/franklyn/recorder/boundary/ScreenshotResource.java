@@ -2,6 +2,7 @@ package at.htl.franklyn.recorder.boundary;
 
 import at.htl.franklyn.recorder.dto.IntervalUpdateDto;
 import at.htl.franklyn.server.services.ScreenshotService;
+import at.htl.franklyn.server.services.MetricsService;
 import com.sun.tools.javac.Main;
 import io.quarkus.logging.Log;
 import jakarta.inject.Inject;
@@ -39,6 +40,9 @@ public class ScreenshotResource {
     @Inject
     ScreenshotService screenshotService;
 
+    @Inject
+    MetricsService metricsService;
+
     Logger logger = Logger.getLogger(getClass().getName());
 
     @POST
@@ -46,15 +50,18 @@ public class ScreenshotResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void takeAlphaScreenshot(@PathParam("username") String username,
                                @RestForm("image") @PartType(MediaType.APPLICATION_OCTET_STREAM) InputStream screenshot){
+        io.micrometer.core.instrument.Timer.Sample sample = metricsService.startAlphaUploadTimer();
+        long bytes = 0;
         try {
-            // TODO: Sanitize username
             File directory = Paths.get(screenshotsPath, username).toFile();
 
             if(!directory.exists()){
                 directory.mkdirs();
             }
 
-            BufferedImage alpha =  ImageIO.read(screenshot);
+            byte[] data = screenshot.readAllBytes();
+            bytes = data.length;
+            BufferedImage alpha =  ImageIO.read(new ByteArrayInputStream(data));
 
             ImageIO.write(
                     alpha,
@@ -75,8 +82,11 @@ public class ScreenshotResource {
                                     new SimpleDateFormat(timestampPattern).format(new Date()))
                     ).toFile()
             );
+
+            metricsService.recordAlphaUpload(sample, bytes);
         }
         catch (Exception e){
+            metricsService.recordAlphaUploadError(sample);
             logger.warning("Type: " + e.getClass().getSimpleName());
 
             Arrays.stream(e.getStackTrace())
@@ -92,16 +102,20 @@ public class ScreenshotResource {
                                @RestForm("image") @PartType(MediaType.APPLICATION_OCTET_STREAM) InputStream screenshot){
 
         BufferedImage alphaFrame = null;
+        io.micrometer.core.instrument.Timer.Sample sample = metricsService.startBetaUploadTimer();
+        long bytes = 0;
+        long changedPixels = 0;
 
         try {
-            // TODO: Sanitize username
             File directory = Paths.get(screenshotsPath, username).toFile();
 
             if(!directory.exists()){
                 directory.mkdirs();
             }
 
-            BufferedImage diffFrame = ImageIO.read(screenshot);
+            byte[] diffData = screenshot.readAllBytes();
+            bytes = diffData.length;
+            BufferedImage diffFrame = ImageIO.read(new ByteArrayInputStream(diffData));
 
             alphaFrame = ImageIO.read(Paths
                     .get(
@@ -123,6 +137,7 @@ public class ScreenshotResource {
 
                     if (0 != diffRGB) {
                         betaFrame.setRGB(x, y, diffRGB);
+                        changedPixels++;
                     } else {
                         betaFrame.setRGB(x, y, alphaRGB);
                     }
@@ -139,11 +154,14 @@ public class ScreenshotResource {
                                     new SimpleDateFormat(timestampPattern).format(new Date()))
                     ).toFile()
             );
+
+            metricsService.recordBetaUpload(sample, bytes, changedPixels);
         }
         catch (Exception e){
+            metricsService.recordBetaUploadError(sample);
             if (alphaFrame == null) {
-                // thrown by ImageIO.read
                 screenshotService.requestAlphaFrame(username);
+                metricsService.recordAlphaFrameRequestedFromClient();
                 Log.warn("Had to request new alphaframe");
             } else {
                 logger.warning("Type: " + e.getClass().getSimpleName());
@@ -159,18 +177,20 @@ public class ScreenshotResource {
     @Path("{username}")
     @Produces("image/png")
     public Response getScreenshot(@PathParam("username") String username) {
-        // TODO: Sanitize username
+        io.micrometer.core.instrument.Timer.Sample sample = metricsService.startScreenshotFetchTimer();
         File directory = Paths.get(screenshotsPath, username).toFile();
 
         Response response = Response.status(404).entity(null).build();
 
         if(!directory.exists()){
+            metricsService.recordScreenshotError(sample);
             return response;
         }
 
         File[] files = directory.listFiles();
 
         if(files == null){
+            metricsService.recordScreenshotError(sample);
             return response;
         }
 
@@ -186,14 +206,14 @@ public class ScreenshotResource {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             BufferedImage image = ImageIO.read(newestScreenshot);
 
-            // possible cause: patrol mode before first non alpha image is send
-
             ImageIO.write(image, "png", byteArrayOutputStream);
             response = Response
                     .ok()
                     .entity(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()))
                     .build();
+            metricsService.recordScreenshotFetch(sample);
         } catch (Exception e) {
+            metricsService.recordScreenshotError(sample);
             logger.warning("Type: " + e.getClass().getSimpleName());
 
             Arrays.stream(e.getStackTrace())
@@ -212,16 +232,17 @@ public class ScreenshotResource {
             @PathParam("width") int width,
             @PathParam("height") int height)
     {
+        io.micrometer.core.instrument.Timer.Sample sample = metricsService.startScreenshotScaledFetchTimer();
         Response response = Response.status(404).entity(null).build();
 
         try{
             BufferedImage screenShot = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
-            // if you click on disconnected user it errors here, if the folder is empty
             ByteArrayInputStream bis = (ByteArrayInputStream) getScreenshot(username).getEntity();
 
             if(bis == null)
             {
+                metricsService.recordScreenshotError(sample);
                 return response;
             }
 
@@ -236,8 +257,10 @@ public class ScreenshotResource {
                     .ok()
                     .entity(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()))
                     .build();
+            metricsService.recordScreenshotScaledFetch(sample);
         }
         catch (Exception e){
+            metricsService.recordScreenshotError(sample);
             logger.warning("Type: " + e.getClass().getSimpleName());
 
             Arrays.stream(e.getStackTrace())
