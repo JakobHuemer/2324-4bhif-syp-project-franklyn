@@ -8,3 +8,5 @@ server/video/
 .mvn
 build/
 *.AppImage
+
+cache
