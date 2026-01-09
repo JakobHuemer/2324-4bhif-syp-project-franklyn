@@ -1,0 +1,26 @@
+services:
+  franklyn-db:
+    container_name: franklyn-db
+    image: postgres:17.4-alpine3.21
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: db
+      TZ: UTC
+      PGTZ: UTC
+    command: postgres -c 'max_connections=250'
+    ports:
+      - 5432:5432
+
+  adminer:
+    container_name: franklyn-adminer
+    image: adminer:4.8.1
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: franklyn-db
+      ADMINER_DESIGN: pepa-linha-dark
+    ports:
+      - 4040:8080
+    depends_on:
+      - franklyn-db
