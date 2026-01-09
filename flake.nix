@@ -1,0 +1,142 @@
+{
+  description = "Franklyn all deps flake";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+  };
+
+  outputs = {flake-parts, ...} @ inputs:
+    flake-parts.lib.mkFlake {inherit inputs;} (
+      top @ {
+        config,
+        withSystem,
+        moduleWithSystem,
+        lib,
+        pkgs,
+        ...
+      }: {
+        imports = [
+          ./hugo
+          ./sentinel
+          ./proctor
+          ./server
+        ];
+        flake = {
+        };
+        systems = [
+          "x86_64-linux"
+          "aarch64-darwin"
+          "aarch64-linux"
+        ];
+        perSystem = {
+          config,
+          system,
+          pkgs,
+          self',
+          ...
+        }: let
+          # globals
+          project-version = lib.strings.removeSuffix "\n" (builtins.readFile ./VERSION);
+
+          package-meta = {
+            homepage = "https://2526-4ahitm-itp.github.io/2526-4ahitm-franklyn/";
+            license = pkgs.lib.licenses.mit;
+          };
+        in {
+          _module.args = {
+            inherit project-version package-meta;
+
+            pkgs = import inputs.nixpkgs {
+              inherit system;
+              overlays = [
+                inputs.rust-overlay.overlays.default
+              ];
+            };
+
+            mkEnvHook = envList:
+              pkgs.lib.concatStringsSep "\n" (map (env: "export ${env.name}=${env.value}") envList);
+          };
+
+          devShells.default = pkgs.mkShell {
+            inputsFrom = [
+              self'.devShells.sentinel
+              self'.devShells.server
+              self'.devShells.hugo
+              self'.devShells.proctor
+            ];
+
+            packages = with pkgs; [
+              cloc
+            ];
+          };
+
+          packages = {
+            manifests = let
+              getEnvOrDefault = name: default: let
+                val = builtins.getEnv name;
+              in
+                if val == ""
+                then default
+                else val;
+
+              vars = {
+                # in order to allow nix to use these external environment vars use
+                # nix build .#manifests --impure
+                container-registry = getEnvOrDefault "CONTAINER_REGISTRY" "ghcr.io";
+                container-location = getEnvOrDefault "CONTAINER_LOCATION" "2526-4ahitm-itp";
+              };
+
+              findYamlFiles = dir: prefix: let
+                entries = builtins.readDir dir;
+                processEntry = name: type: let
+                  path = dir + "/${name}";
+                  relPath =
+                    if prefix == ""
+                    then name
+                    else "${prefix}/${name}";
+                in
+                  if type == "directory"
+                  then findYamlFiles path relPath
+                  else if type == "regular" && pkgs.lib.hasSuffix ".yaml" name
+                  then [{inherit relPath path;}]
+                  else [];
+              in
+                pkgs.lib.flatten (builtins.map (name: processEntry name entries.${name}) (builtins.attrNames entries));
+
+              replaceVarsPartial = file: varsToReplace: let
+                content = builtins.readFile file;
+                varNames = builtins.attrNames varsToReplace;
+                patterns = builtins.map (name: "@${name}@") varNames;
+                values = builtins.map (name: varsToReplace.${name}) varNames;
+              in
+                builtins.replaceStrings patterns values content;
+
+              yamlFiles = findYamlFiles ./k8s "";
+
+              processedFiles =
+                builtins.map (
+                  file: {
+                    inherit (file) relPath;
+                    content = replaceVarsPartial file.path vars;
+                  }
+                )
+                yamlFiles;
+            in
+              pkgs.runCommand "k8s-manifests" {} ''
+                mkdir -p $out
+
+                ${
+                  pkgs.lib.concatMapStringsSep "\n" (file: ''
+                    mkdir -p $out/$(dirname ${file.relPath})
+                    echo "${file.content}" > $out/${file.relPath}
+                  '')
+                  processedFiles
+                }
+              '';
+          };
+        };
+      }
+    );
+}
