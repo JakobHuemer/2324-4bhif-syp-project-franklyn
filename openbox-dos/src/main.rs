@@ -71,10 +71,27 @@ async fn run_client(
     pin: String,
     server: String,
     frame_provider: cache::CachedFrameProvider,
+    registered_counter: Arc<AtomicU32>,
+    total_clients: u32,
 ) {
+    // Rate limit: stagger client connections at 5 clients/second (200ms apart)
+    let delay_ms = client_id as u64 * 200;
+    tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+    
     let (firstname, lastname) = generate_student_name(client_id);
     
     println!("[Client {}] Starting as {} {}...", client_id, firstname, lastname);
+    
+    // Update registration progress
+    let registered = registered_counter.fetch_add(1, Ordering::Relaxed) + 1;
+    let pct = (registered as f64 / total_clients as f64) * 100.0;
+    print!("\r  Registered: {}/{} clients ({:.1}%)", registered, total_clients, pct);
+    std::io::Write::flush(&mut std::io::stdout()).ok();
+    if registered == total_clients {
+        println!();
+        println!("All {} clients registered.", total_clients);
+        println!();
+    }
     
     loop {
         match ws::run_client(&pin, &server, &firstname, &lastname, client_id, frame_provider.clone()).await {
@@ -240,33 +257,20 @@ async fn main() {
     println!("Starting {} clients (rate limited to 5 clients/second)...", args.clients);
     
     let mut handles = Vec::new();
-    let total_clients = frame_providers.len();
-    let mut registered = 0;
+    let total_clients = frame_providers.len() as u32;
+    let registered_counter = Arc::new(AtomicU32::new(0));
     
     for (client_id, frame_provider) in frame_providers {
         let pin = args.pin.clone();
         let server = server.clone();
+        let counter = Arc::clone(&registered_counter);
         
         let handle = tokio::spawn(async move {
-            run_client(client_id, pin, server, frame_provider).await;
+            run_client(client_id, pin, server, frame_provider, counter, total_clients).await;
         });
         
         handles.push(handle);
-        registered += 1;
-        
-        // Show progress
-        let pct = (registered as f64 / total_clients as f64) * 100.0;
-        print!("\r  Registered: {}/{} clients ({:.1}%)", registered, total_clients, pct);
-        std::io::Write::flush(&mut std::io::stdout()).ok();
-        
-        // Rate limit: 5 clients per second = 200ms between each client
-        if registered < total_clients {
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-        }
     }
-    println!();
-    println!("All {} clients registered.", total_clients);
-    println!();
     
     // Wait for all clients to complete
     for handle in handles {

@@ -173,14 +173,17 @@ pub async fn run_client(
                     server, session, option,
                 );
 
-                if let Err(e) = reqwest::Client::new()
-                    .post(&path)
-                    .multipart(Form::new().part("image", file_part))
-                    .send()
-                    .await
-                {
-                    eprintln!("[Client {}] Upload error: {:?}", client_id, e);
-                }
+                // Spawn upload in background so we don't block ping/pong handling
+                tokio::spawn(async move {
+                    if let Err(e) = reqwest::Client::new()
+                        .post(&path)
+                        .multipart(Form::new().part("image", file_part))
+                        .send()
+                        .await
+                    {
+                        eprintln!("[Client {}] Upload error: {:?}", client_id, e);
+                    }
+                });
             }
             Err(_) => {
                 // Ignore unparseable messages
