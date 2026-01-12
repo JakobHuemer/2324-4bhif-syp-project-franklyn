@@ -237,9 +237,11 @@ async fn main() {
     println!("All frames loaded into memory.");
     println!();
     
-    println!("Starting {} clients...", args.clients);
+    println!("Starting {} clients (rate limited to 5 clients/second)...", args.clients);
     
     let mut handles = Vec::new();
+    let total_clients = frame_providers.len();
+    let mut registered = 0;
     
     for (client_id, frame_provider) in frame_providers {
         let pin = args.pin.clone();
@@ -250,7 +252,21 @@ async fn main() {
         });
         
         handles.push(handle);
+        registered += 1;
+        
+        // Show progress
+        let pct = (registered as f64 / total_clients as f64) * 100.0;
+        print!("\r  Registered: {}/{} clients ({:.1}%)", registered, total_clients, pct);
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        
+        // Rate limit: 5 clients per second = 200ms between each client
+        if registered < total_clients {
+            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        }
     }
+    println!();
+    println!("All {} clients registered.", total_clients);
+    println!();
     
     // Wait for all clients to complete
     for handle in handles {
