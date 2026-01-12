@@ -5,13 +5,30 @@ import {ChartConfiguration, ChartData, ChartType} from "chart.js";
 import {distinctUntilChanged, map} from "rxjs";
 import {ScheduleService} from "../../../services/schedule.service";
 import {WebApiService} from "../../../services/web-api.service";
-import {set, store} from "../../../model";
+import {set, store, ProfilingMetrics, HistogramData} from "../../../model";
 import {environment} from "../../../../../env/environment";
+import {CommonModule} from "@angular/common";
+
+// Historical data point with timestamp
+interface HistoricalDataPoint {
+  timestamp: Date;
+  screenshotRequestLatency: number;
+  imageDecode: number;
+  imageEncode: number;
+  imageDownload: number;
+  queueSize: number;
+  activeRequests: number;
+  uploadsPerSecond: number;
+}
+
+// Rolling window duration in milliseconds (5 minutes)
+const ROLLING_WINDOW_MS = 5 * 60 * 1000;
 
 @Component({
   selector: 'app-metrics-dashboard',
   imports: [
-    BaseChartDirective
+    BaseChartDirective,
+    CommonModule
   ],
   templateUrl: './metrics-dashboard.component.html',
   styleUrl: './metrics-dashboard.component.css'
@@ -23,6 +40,15 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy {
   protected scheduleSvc = inject(ScheduleService);
   protected webApi = inject(WebApiService);
 
+  // Profiling metrics for display
+  protected profilingMetrics: ProfilingMetrics | null = null;
+
+  // Latency histogram table data
+  protected latencyMetrics: {name: string; data: HistogramData}[] = [];
+
+  // Historical data for charts (rolling 5-minute window)
+  protected historicalData: HistoricalDataPoint[] = [];
+
   async ngOnInit(): Promise<void> {
     // subscribe to server-metrics to update when
     // there are changes
@@ -33,7 +59,20 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy {
       this.updateDatasets();
     });
 
+    // subscribe to profiling-metrics changes
+    this.store.pipe(
+      map(store => store.metricsDashboardModel.profilingMetrics),
+      distinctUntilChanged()
+    ).subscribe(next => {
+      this.profilingMetrics = next;
+      this.updateLatencyTable();
+      this.addHistoricalDataPoint();
+      this.updateTimelineChart();
+      this.updateProcessingBreakdownChart();
+    });
+
     await this.webApi.getServerMetrics();
+    await this.webApi.getProfilingMetrics();
     this.updateDatasets();
 
     this.scheduleSvc.startGettingServerMetrics();
@@ -41,6 +80,58 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.scheduleSvc.stopGettingServerMetrics();
+  }
+
+  // Add current profiling metrics to historical data
+  addHistoricalDataPoint() {
+    if (!this.profilingMetrics) return;
+
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - ROLLING_WINDOW_MS);
+
+    // Remove old data points
+    this.historicalData = this.historicalData.filter(dp => dp.timestamp > cutoff);
+
+    // Add new data point
+    this.historicalData.push({
+      timestamp: now,
+      screenshotRequestLatency: this.profilingMetrics.screenshotRequestLatency.p50Ms,
+      imageDecode: this.profilingMetrics.imageDecode.p50Ms,
+      imageEncode: this.profilingMetrics.imageEncode.p50Ms,
+      imageDownload: this.profilingMetrics.imageDownload.p50Ms,
+      queueSize: this.profilingMetrics.queueSize,
+      activeRequests: this.profilingMetrics.activeRequests,
+      uploadsPerSecond: this.profilingMetrics.uploadsPerSecond,
+    });
+  }
+
+  // Update the timeline line chart with historical data
+  updateTimelineChart() {
+    const labels = this.historicalData.map(dp => {
+      const mins = dp.timestamp.getMinutes().toString().padStart(2, '0');
+      const secs = dp.timestamp.getSeconds().toString().padStart(2, '0');
+      return `${mins}:${secs}`;
+    });
+
+    this.timelineChartData.labels = labels;
+    this.timelineChartData.datasets[0].data = this.historicalData.map(dp => dp.screenshotRequestLatency);
+    this.timelineChartData.datasets[1].data = this.historicalData.map(dp => dp.imageDecode);
+    this.timelineChartData.datasets[2].data = this.historicalData.map(dp => dp.imageEncode);
+    this.timelineChartData.datasets[3].data = this.historicalData.map(dp => dp.imageDownload);
+
+    this.charts?.forEach(c => c.update());
+  }
+
+  // Update processing breakdown stacked bar chart
+  updateProcessingBreakdownChart() {
+    if (!this.profilingMetrics) return;
+
+    this.breakdownChartData.datasets[0].data = [this.profilingMetrics.imageDecode.p50Ms];
+    this.breakdownChartData.datasets[1].data = [this.profilingMetrics.betaFrameMerge.p50Ms];
+    this.breakdownChartData.datasets[2].data = [this.profilingMetrics.imageEncode.p50Ms];
+    this.breakdownChartData.datasets[3].data = [this.profilingMetrics.imageFileRead.p50Ms];
+
+    this.charts?.forEach(c => c.update());
   }
 
   updateDatasets() {
@@ -266,4 +357,192 @@ export class MetricsDashboardComponent implements OnInit, OnDestroy {
       }
     }
   };
+
+  // === Request Pipeline Timeline Chart (Line Chart) ===
+  protected timelineChartType = "line" as const;
+  protected timelineChartData: ChartData<'line', number[], string> = {
+    labels: [],
+    datasets: [
+      {
+        label: 'Screenshot Request (p50)',
+        data: [],
+        borderColor: 'rgb(255, 99, 132)',
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        tension: 0.3,
+        fill: false,
+      },
+      {
+        label: 'Image Decode (p50)',
+        data: [],
+        borderColor: 'rgb(54, 162, 235)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        tension: 0.3,
+        fill: false,
+      },
+      {
+        label: 'Image Encode (p50)',
+        data: [],
+        borderColor: 'rgb(255, 205, 86)',
+        backgroundColor: 'rgba(255, 205, 86, 0.2)',
+        tension: 0.3,
+        fill: false,
+      },
+      {
+        label: 'Image Download (p50)',
+        data: [],
+        borderColor: 'rgb(75, 192, 192)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        tension: 0.3,
+        fill: false,
+      }
+    ]
+  };
+
+  protected timelineChartOptions: ChartConfiguration<'line'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Time (mm:ss)'
+        }
+      },
+      y: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Latency (ms)'
+        },
+        beginAtZero: true
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'bottom'
+      },
+      tooltip: {
+        callbacks: {
+          label: (ttItem) => `${ttItem.dataset.label}: ${ttItem.parsed.y.toFixed(1)} ms`
+        }
+      }
+    }
+  };
+
+  // === Processing Time Breakdown Chart (Stacked Bar) ===
+  protected breakdownChartType = "bar" as const;
+  protected breakdownChartData: ChartData<'bar', number[], string> = {
+    labels: ['Processing Time per Screenshot'],
+    datasets: [
+      {
+        label: 'Decode',
+        data: [0],
+        backgroundColor: 'rgb(54, 162, 235)',
+      },
+      {
+        label: 'Merge',
+        data: [0],
+        backgroundColor: 'rgb(255, 205, 86)',
+      },
+      {
+        label: 'Encode',
+        data: [0],
+        backgroundColor: 'rgb(255, 99, 132)',
+      },
+      {
+        label: 'File Read',
+        data: [0],
+        backgroundColor: 'rgb(75, 192, 192)',
+      }
+    ]
+  };
+
+  protected breakdownChartOptions: ChartConfiguration<'bar'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    scales: {
+      x: {
+        stacked: true,
+        title: {
+          display: true,
+          text: 'Time (ms)'
+        }
+      },
+      y: {
+        stacked: true,
+        display: false
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'bottom'
+      },
+      tooltip: {
+        callbacks: {
+          label: (ttItem) => `${ttItem.dataset.label}: ${ttItem.parsed.x.toFixed(1)} ms`
+        }
+      }
+    }
+  };
+
+  // === Profiling Metrics Methods ===
+
+  updateLatencyTable() {
+    if (!this.profilingMetrics) {
+      this.latencyMetrics = [];
+      return;
+    }
+
+    this.latencyMetrics = [
+      { name: 'Screenshot Request (end-to-end)', data: this.profilingMetrics.screenshotRequestLatency },
+      { name: 'Image Decode (ImageIO.read)', data: this.profilingMetrics.imageDecode },
+      { name: 'Image Encode (ImageIO.write)', data: this.profilingMetrics.imageEncode },
+      { name: 'Beta Frame Merge', data: this.profilingMetrics.betaFrameMerge },
+      { name: 'Image File Read (disk)', data: this.profilingMetrics.imageFileRead },
+      { name: 'Image Save Total', data: this.profilingMetrics.imageSaveTotal },
+      { name: 'WebSocket Message Send', data: this.profilingMetrics.websocketMessageSend },
+      { name: 'WebSocket Ping Latency', data: this.profilingMetrics.websocketPingLatency },
+      { name: 'Image Download', data: this.profilingMetrics.imageDownload },
+      { name: 'Video FFmpeg Encoding', data: this.profilingMetrics.videoFfmpeg },
+      { name: 'Video Zip Creation', data: this.profilingMetrics.videoZip },
+    ];
+  }
+
+  formatMs(value: number): string {
+    if (value < 1) {
+      return value.toFixed(2);
+    } else if (value < 1000) {
+      return value.toFixed(1);
+    } else {
+      return (value / 1000).toFixed(2) + 's';
+    }
+  }
+
+  formatBytes(bytes: number): string {
+    if (bytes < 1024) {
+      return bytes.toFixed(0) + ' B';
+    } else if (bytes < 1024 * 1024) {
+      return (bytes / 1024).toFixed(1) + ' KB';
+    } else {
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+  }
+
+  getQueueHealthColor(): string {
+    if (!this.profilingMetrics) return environment.metricsDashboardValueOkay;
+    const ratio = this.profilingMetrics.queueSize / Math.max(1, this.profilingMetrics.connectedClients);
+    if (ratio < 0.5) return environment.metricsDashboardValueOkay;
+    if (ratio < 1.0) return environment.metricsDashboardValueBarelyOkay;
+    return environment.metricsDashboardValueNotOkay;
+  }
+
+  getPoolHealthColor(ratio: number): string {
+    if (ratio < 0.5) return environment.metricsDashboardValueOkay;
+    if (ratio < 0.8) return environment.metricsDashboardValueBarelyOkay;
+    return environment.metricsDashboardValueNotOkay;
+  }
 }

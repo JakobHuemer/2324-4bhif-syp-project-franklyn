@@ -131,28 +131,34 @@ async fn main() {
         println!("All clients have valid cached frames.");
     } else {
         let total_clients = clients_to_generate.len();
+        let total_frames = total_clients as u32 * cache::FRAMES_PER_CLIENT;
         println!(
-            "Generating frames for {} client(s) ({} frames each) using {} threads...",
+            "Generating frames for {} client(s) ({} frames each, {} total) using {} threads...",
             total_clients,
             cache::FRAMES_PER_CLIENT,
+            total_frames,
             rayon::current_num_threads()
         );
 
-        let completed = Arc::new(AtomicU32::new(0));
+        let completed_frames = Arc::new(AtomicU32::new(0));
         let error_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
         // Spawn a thread to print progress
-        let completed_clone = Arc::clone(&completed);
+        let completed_clone = Arc::clone(&completed_frames);
         let error_clone = Arc::clone(&error_flag);
-        let total = total_clients as u32;
         let progress_handle = std::thread::spawn(move || {
             loop {
                 let done = completed_clone.load(Ordering::Relaxed);
-                let pct = (done as f64 / total as f64) * 100.0;
-                print!("\r  Progress: {}/{} clients ({:.1}%)", done, total, pct);
+                let pct = (done as f64 / total_frames as f64) * 100.0;
+                let clients_done = done / cache::FRAMES_PER_CLIENT;
+                let frames_in_current = done % cache::FRAMES_PER_CLIENT;
+                print!(
+                    "\r  Progress: {}/{} frames ({:.1}%) - {} clients complete, {} frames in progress",
+                    done, total_frames, pct, clients_done, frames_in_current
+                );
                 std::io::Write::flush(&mut std::io::stdout()).ok();
 
-                if done >= total || error_clone.load(Ordering::Relaxed) {
+                if done >= total_frames || error_clone.load(Ordering::Relaxed) {
                     println!();
                     break;
                 }
@@ -160,12 +166,12 @@ async fn main() {
             }
         });
 
-        // Generate all frames for each client in parallel
+        // Generate all frames for each client in parallel, with per-frame progress
+        let completed_for_gen = Arc::clone(&completed_frames);
         let result: Result<(), anyhow::Error> = clients_to_generate
             .par_iter()
             .try_for_each(|&client_id| {
-                cache::generate_and_save_frames(client_id)?;
-                completed.fetch_add(1, Ordering::Relaxed);
+                cache::generate_and_save_frames_with_progress(client_id, &completed_for_gen)?;
                 Ok(())
             });
 

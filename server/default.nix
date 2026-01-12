@@ -19,7 +19,7 @@
     ];
 
     commonBuildInputs = with pkgs; [
-      javaPackages.compiler.temurin-bin.jdk-25
+      javaPackages.compiler.temurin-bin.jdk-21
       maven
     ];
 

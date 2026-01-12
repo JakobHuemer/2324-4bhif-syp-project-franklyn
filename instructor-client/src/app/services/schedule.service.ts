@@ -127,6 +127,7 @@ export class ScheduleService {
       set((model) => {
         model.scheduleServiceModel.timer.serverMetricsTimerId = window.setInterval(async () => {
           await this.webApi.getServerMetrics();
+          await this.webApi.getProfilingMetrics();
         }, this.store.value.scheduleServiceModel.timer.reloadDashboardIntervalMilliseconds);
       });
     }

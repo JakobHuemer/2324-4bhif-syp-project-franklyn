@@ -49,6 +49,7 @@ const initialState: Model = {
       maxAvailableMemoryInBytes: 0,
       totalUsedMemoryInBytes: 0
     },
+    profilingMetrics: null,
     diagramBackgroundColor: "#f0f0f0",
     diagramTextColor: "#36363a",
     cpuUtilisationColor: "#0d6efd",

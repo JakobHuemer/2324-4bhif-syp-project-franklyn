@@ -1,5 +1,6 @@
 package at.htl.franklyn.server.feature.telemetry.command;
 
+import at.htl.franklyn.server.feature.metrics.ProfilingMetricsService;
 import at.htl.franklyn.server.feature.telemetry.PingPongRequestManager;
 import at.htl.franklyn.server.feature.telemetry.ScreenshotRequestManager;
 import at.htl.franklyn.server.feature.telemetry.command.disconnect.DisconnectClientCommand;
@@ -9,6 +10,7 @@ import at.htl.franklyn.server.feature.telemetry.connection.ConnectionStateServic
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationService;
+import io.micrometer.core.instrument.Timer;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
@@ -43,9 +45,15 @@ public class ExamineeCommandSocket {
     ScreenshotRequestManager screenshotRequestManager;
     @Inject
     PingPongRequestManager pingRequestManager;
+    
+    @Inject
+    ProfilingMetricsService profilingMetrics;
 
     // Key: Session Id, Value: ConnectionId
     private final ConcurrentHashMap<String, String> connections = new ConcurrentHashMap<>();
+    
+    // Track ping timers by client ID
+    private final ConcurrentHashMap<UUID, Timer.Sample> activePingTimers = new ConcurrentHashMap<>();
 
     @OnOpen
     @WithSession
@@ -58,6 +66,7 @@ public class ExamineeCommandSocket {
                             connections.put(participationId, connection.id());
                             screenshotRequestManager.registerClient(parsedId, participation.getExam().getScreencaptureInterval());
                             pingRequestManager.registerClient(parsedId);
+                            profilingMetrics.incrementConnectedClients();
                             Log.infof("%s has connected.", participationId);
                         } else {
                             // TODO: Close connection for unauthorized people?
@@ -79,6 +88,8 @@ public class ExamineeCommandSocket {
             var uuid = UUID.fromString(participationId);
             screenshotRequestManager.unregisterClient(uuid);
             pingRequestManager.unregisterClient(uuid);
+            profilingMetrics.decrementConnectedClients();
+            activePingTimers.remove(uuid);
         } catch (IllegalArgumentException ignored) { }
         return stateService.insertConnectedIfOngoing(participationId, false);
     }
@@ -87,6 +98,9 @@ public class ExamineeCommandSocket {
     @WithTransaction
     public Uni<Void> onError(Exception e, @PathParam("participationId") String participationId) {
         Log.infof("%s has lost connection: %s", participationId, e);
+        try {
+            profilingMetrics.decrementConnectedClients();
+        } catch (Exception ignored) { }
         return stateService.insertConnectedIfOngoing(participationId, false);
     }
 
@@ -94,7 +108,13 @@ public class ExamineeCommandSocket {
     public void onPongMessage(WebSocketConnection connection, Buffer data) {
         String participationId = connection.pathParam("participationId");
         try {
-            pingRequestManager.notifyClientRequestReceived(UUID.fromString(participationId));
+            UUID uuid = UUID.fromString(participationId);
+            // Stop ping latency timer
+            Timer.Sample sample = activePingTimers.remove(uuid);
+            if (sample != null) {
+                profilingMetrics.stopWebsocketPingTimer(sample);
+            }
+            pingRequestManager.notifyClientRequestReceived(uuid);
         } catch (IllegalArgumentException ignored) {}
     }
 
@@ -106,12 +126,19 @@ public class ExamineeCommandSocket {
                 .findFirst()
                 .orElse(null);
         if (c != null) {
+            // Start ping latency timer
+            Timer.Sample sample = profilingMetrics.startWebsocketPingTimer();
+            activePingTimers.put(client, sample);
+            
             return c.sendPing(magic)
-                    .onFailure().invoke(e -> Log.warnf(
-                            "Ping request to %s failed! Is the server overloaded? (Reason: %s)",
-                            client,
-                            e.getMessage()
-                    ));
+                    .onFailure().invoke(e -> {
+                        activePingTimers.remove(client);
+                        Log.warnf(
+                                "Ping request to %s failed! Is the server overloaded? (Reason: %s)",
+                                client,
+                                e.getMessage()
+                        );
+                    });
         } else {
             return Uni.createFrom().voidItem();
         }
@@ -137,6 +164,8 @@ public class ExamineeCommandSocket {
         Context ctx = Vertx.currentContext();
         final RequestScreenshotCommand screenshotCommand =
                 new RequestScreenshotCommand(new RequestScreenshotPayload(type));
+        final Timer.Sample sendTimer = profilingMetrics.startWebsocketMessageSendTimer();
+        
         return Uni.createFrom()
                 .item(connections.get(participationId.toString()))
                 .onItem().ifNull()
@@ -146,6 +175,7 @@ public class ExamineeCommandSocket {
                     .failWith(() -> new IllegalArgumentException(String.format("%s is not connected", participationId)))
                 .chain(conn ->
                         conn.sendText(screenshotCommand)
+                                .invoke(ignored -> profilingMetrics.stopWebsocketMessageSendTimer(sendTimer))
                                 .emitOn(r -> ctx.runOnContext(ignored -> r.run()))
                                 .onFailure().invoke(e ->
                                         Log.warnf(

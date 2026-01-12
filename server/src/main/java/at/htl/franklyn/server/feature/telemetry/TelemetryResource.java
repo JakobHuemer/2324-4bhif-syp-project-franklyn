@@ -1,9 +1,11 @@
 package at.htl.franklyn.server.feature.telemetry;
 
 import at.htl.franklyn.server.common.ExceptionFilter;
+import at.htl.franklyn.server.feature.metrics.ProfilingMetricsService;
 import at.htl.franklyn.server.feature.telemetry.image.FrameType;
 import at.htl.franklyn.server.feature.telemetry.image.ImageService;
 import at.htl.franklyn.server.feature.telemetry.video.*;
+import io.micrometer.core.instrument.Timer;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
@@ -41,6 +43,9 @@ public class TelemetryResource {
 
     @Inject
     Vertx vertx;
+    
+    @Inject
+    ProfilingMetricsService profilingMetrics;
 
     @POST
     @Path("/by-session/{sessionId}/screen/upload/alpha")
@@ -97,6 +102,8 @@ public class TelemetryResource {
             @PathParam("userId") Long userId,
             @PathParam("examId") Long examId
     ) {
+        final Timer.Sample downloadTimer = profilingMetrics.startImageDownloadTimer();
+        
         return Uni.createFrom()
                 .item(userId)
                 .onItem().ifNull().failWith(
@@ -114,6 +121,7 @@ public class TelemetryResource {
                 )
                 .chain(ignored -> imageService.loadLatestFrameOfUser(examId, userId))
                 .onItem().transform(buf -> Response.ok(buf).build())
+                .invoke(ignored -> profilingMetrics.stopImageDownloadTimer(downloadTimer))
                 .onFailure(IllegalStateException.class).transform(e -> new WebApplicationException(
                         "No available screenshot found",
                         Response.Status.NOT_FOUND

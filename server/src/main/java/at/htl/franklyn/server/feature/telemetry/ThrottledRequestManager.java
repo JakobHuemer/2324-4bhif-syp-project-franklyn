@@ -1,5 +1,6 @@
 package at.htl.franklyn.server.feature.telemetry;
 
+import at.htl.franklyn.server.feature.metrics.ProfilingMetricsService;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
@@ -23,11 +24,18 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
     private int maximumConcurrentRequests;
     private int requestTimeoutMilliseconds;
     private Class<T> dataClazz;
+    
+    // Profiling metrics service - to be set by subclass
+    protected ProfilingMetricsService profilingMetrics;
 
     protected void init(int maximumConcurrentRequests, int requestTimeoutMilliseconds, Class<T> dataClazz) {
         this.maximumConcurrentRequests = maximumConcurrentRequests;
         this.requestTimeoutMilliseconds = requestTimeoutMilliseconds;
         this.dataClazz = dataClazz;
+    }
+    
+    protected void setProfilingMetrics(ProfilingMetricsService profilingMetrics) {
+        this.profilingMetrics = profilingMetrics;
     }
 
     ConcurrentHashMap<K, CompletableFuture<Void>> activeRequests = new ConcurrentHashMap<>();
@@ -142,8 +150,17 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
             long newState = setAvailableClients(currentState, availableClients - 1);
             newState = setActiveRequests(newState, activeRequests + 1);
             if (state.compareAndSet(currentState, newState)) {
+                updateProfilingMetrics();
                 return true;
             }
+        }
+    }
+    
+    private void updateProfilingMetrics() {
+        if (profilingMetrics != null) {
+            long currentState = state.get();
+            profilingMetrics.setQueueSize(getAvailableClients(currentState));
+            profilingMetrics.setActiveRequests(getActiveRequests(currentState));
         }
     }
 
@@ -157,6 +174,7 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
             long newState = setAvailableClients(currentState, availableClients + 1);
             newState = setActiveRequests(newState, activeRequests - 1);
             if (state.compareAndSet(currentState, newState)) {
+                updateProfilingMetrics();
                 return true;
             }
         }
@@ -168,6 +186,7 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
             long currentState = state.get();
             int availableClients = getAvailableClients(currentState);
             if (state.compareAndSet(currentState, setAvailableClients(currentState, availableClients + 1))) {
+                updateProfilingMetrics();
                 return;
             }
         }
@@ -180,6 +199,7 @@ public abstract class ThrottledRequestManager<T extends ThrottledRequestManager.
             int activeRequests = getActiveRequests(currentState);
             assert activeRequests - 1 >= 0;
             if (state.compareAndSet(currentState, setActiveRequests(currentState, activeRequests - 1))) {
+                updateProfilingMetrics();
                 return;
             }
         }

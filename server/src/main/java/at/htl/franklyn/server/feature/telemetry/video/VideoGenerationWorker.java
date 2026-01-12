@@ -2,7 +2,9 @@ package at.htl.franklyn.server.feature.telemetry.video;
 
 import at.htl.franklyn.server.feature.exam.ExamRepository;
 import at.htl.franklyn.server.feature.examinee.ExamineeRepostiory;
+import at.htl.franklyn.server.feature.metrics.ProfilingMetricsService;
 import at.htl.franklyn.server.feature.telemetry.image.ImageRepository;
+import io.micrometer.core.instrument.Timer;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.logging.Log;
 import io.quarkus.scheduler.Scheduled;
@@ -49,6 +51,9 @@ public class VideoGenerationWorker {
     ExamRepository examRepository;
     @Inject
     ExamineeRepostiory examineeRepostiory;
+    
+    @Inject
+    ProfilingMetricsService profilingMetrics;
 
     /**
      * Check if new videos are available that need to be generated
@@ -62,11 +67,15 @@ public class VideoGenerationWorker {
         var delegate = Infrastructure.getDefaultWorkerPool();
         // This makes sure we re-use the correct Vert.x duplicated context to please hibernate
         var scheduler = ContextAwareScheduler.delegatingTo(delegate).withCurrentContext();
-
-        return videoJobRepository.getNextJob()
+        
+        // Update queued jobs count
+        return videoJobRepository.countQueuedJobs()
+                .invoke(count -> profilingMetrics.setVideoJobsQueued(count.intValue()))
+                .chain(ignored -> videoJobRepository.getNextJob())
                 // If item is null -> nothing to do
                 .onItem().ifNotNull().transformToUni(job -> {
                     Log.infof("Picking up next video job: %d (type %s)", job.getId(), job.getType());
+                    profilingMetrics.incrementVideoJobsActive();
 
                     return (switch (job.getType()) {
                         case SINGLE -> convertSingle(job.getId(), job.getExam().getId(), job.getExaminee().getId())
@@ -76,11 +85,13 @@ public class VideoGenerationWorker {
                     })
                     .onItem().transformToUni(path -> {
                         Log.infof("Finished video job %d (artifact: %s)", job.getId(), path);
+                        profilingMetrics.decrementVideoJobsActive();
                         return videoJobRepository.completeJob(job.getId(), path)
                                 .emitOn(scheduler);
                     })
                     .onFailure().recoverWithUni(failure -> {
                         Log.infof("Video job %d failed! Reason: %s", job.getId(), failure.getMessage());
+                        profilingMetrics.decrementVideoJobsActive();
                         return videoJobRepository.failJob(job.getId(), failure.getMessage())
                                 .emitOn(scheduler);
                     });
@@ -152,6 +163,7 @@ public class VideoGenerationWorker {
                 .chain(tmpFile -> Uni.createFrom()
                         .completionStage(() ->
                                 CompletableFuture.supplyAsync(() -> {
+                                    Timer.Sample ffmpegTimer = profilingMetrics.startVideoFfmpegTimer();
                                     try {
                                         ProcessBuilder pb = new ProcessBuilder(
                                                 "ffmpeg",
@@ -176,6 +188,8 @@ public class VideoGenerationWorker {
                                         Log.error("Failed to generate video: ", e);
                                         Log.errorf("Command used: ffmpeg -y -f concat -safe 0 -i %s -c:v libx264 -pix_fmt yuv420p %s", tmpFile, videoPath[0].toAbsolutePath());
                                         throw new CompletionException(e);
+                                    } finally {
+                                        profilingMetrics.stopVideoFfmpegTimer(ffmpegTimer);
                                     }
                                 })
                         )
@@ -211,6 +225,7 @@ public class VideoGenerationWorker {
                         .emitOn(ctx::runOnContext)
                 )
                 .chain(paths -> Uni.createFrom().completionStage(() -> CompletableFuture.supplyAsync(() -> {
+                    Timer.Sample zipTimer = profilingMetrics.startVideoZipTimer();
                     // For the life of me I could not convert this to run asynchronously using vertx + mutiny
                     // Thus a hack using completable futures must suffice
                     // I know this is a massive skill issue on my side but the complexity of reactive certainly doesn't help
@@ -235,6 +250,8 @@ public class VideoGenerationWorker {
                         }
                     } catch (IOException e) {
                         throw new CompletionException(e);
+                    } finally {
+                        profilingMetrics.stopVideoZipTimer(zipTimer);
                     }
                     return paths;
                 })))

@@ -1,8 +1,10 @@
 use anyhow::{Context, Result};
 use image::{ImageFormat, Rgba, RgbaImage};
+use rayon::prelude::*;
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 /// Version number for the mock screen generation.
@@ -48,33 +50,61 @@ pub struct PrecomputedFrame {
 }
 
 /// Generate and save all frames for a client, including pre-encoded PNG alpha/beta
-pub fn generate_and_save_frames(client_id: u32) -> Result<()> {
+/// Reports progress via the provided callback after each frame is saved.
+pub fn generate_and_save_frames_with_progress(client_id: u32, progress: &AtomicU32) -> Result<()> {
     use crate::mock_screen::MockScreenGenerator;
 
     let cache_dir = get_cache_dir(client_id);
     fs::create_dir_all(&cache_dir)
         .with_context(|| format!("Failed to create cache directory: {:?}", cache_dir))?;
 
-    let mut prev_img: Option<RgbaImage> = None;
+    // Step 1: Generate all frame images in parallel
+    let images: Vec<RgbaImage> = (0..FRAMES_PER_CLIENT)
+        .into_par_iter()
+        .map(|frame_idx| {
+            let mut gen = MockScreenGenerator::new_at_frame(client_id, frame_idx);
+            gen.generate_frame()
+        })
+        .collect();
 
-    for frame_idx in 0..FRAMES_PER_CLIENT {
-        let mut gen = MockScreenGenerator::new_at_frame(client_id, frame_idx);
-        let img = gen.generate_frame();
+    // Step 2: Compute diffs and encode PNGs, then save
+    // Diffs must be computed sequentially (each depends on previous frame)
+    // but PNG encoding can be parallelized per frame
+    for frame_idx in 0..FRAMES_PER_CLIENT as usize {
+        let img = &images[frame_idx];
+        let prev_img = if frame_idx > 0 {
+            Some(&images[frame_idx - 1])
+        } else {
+            None
+        };
 
-        // Encode alpha (full frame)
-        let alpha_png = encode_png(&img)?;
-
-        // Compute and encode beta (diff from previous)
-        let (beta_png, _beta_is_alpha) = if let Some(ref prev) = prev_img {
-            let (diff_img, is_alpha) = compute_diff(prev, &img);
-            if is_alpha {
-                (alpha_png.clone(), true)
-            } else {
-                (encode_png(&diff_img)?, false)
-            }
+        // Compute what we need to encode
+        let (diff_img, use_alpha_for_beta) = if let Some(prev) = prev_img {
+            let (diff, is_alpha) = compute_diff(prev, img);
+            (Some(diff), is_alpha)
         } else {
             // First frame has no previous, beta = alpha
-            (alpha_png.clone(), true)
+            (None, true)
+        };
+
+        // Encode alpha and beta PNGs in parallel
+        let (alpha_result, beta_result) = rayon::join(
+            || encode_png(img),
+            || {
+                if use_alpha_for_beta {
+                    // Will use alpha, encode it anyway (we'll copy the result)
+                    encode_png(img)
+                } else {
+                    encode_png(diff_img.as_ref().unwrap())
+                }
+            },
+        );
+
+        let alpha_png = alpha_result?;
+        let beta_png = if use_alpha_for_beta {
+            alpha_png.clone()
+        } else {
+            beta_result?
         };
 
         // Save alpha PNG
@@ -87,7 +117,8 @@ pub fn generate_and_save_frames(client_id: u32) -> Result<()> {
         let mut file = BufWriter::new(File::create(&beta_path)?);
         file.write_all(&beta_png)?;
 
-        prev_img = Some(img);
+        // Report progress after each frame is saved
+        progress.fetch_add(1, Ordering::Relaxed);
     }
 
     Ok(())

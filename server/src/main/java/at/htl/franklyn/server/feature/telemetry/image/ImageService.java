@@ -1,10 +1,12 @@
 package at.htl.franklyn.server.feature.telemetry.image;
 
 import at.htl.franklyn.server.feature.exam.ExamState;
+import at.htl.franklyn.server.feature.metrics.ProfilingMetricsService;
 import at.htl.franklyn.server.feature.telemetry.ScreenshotRequestManager;
 import at.htl.franklyn.server.feature.telemetry.command.ExamineeCommandSocket;
 import at.htl.franklyn.server.feature.telemetry.participation.Participation;
 import at.htl.franklyn.server.feature.telemetry.participation.ParticipationRepository;
+import io.micrometer.core.instrument.Timer;
 import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.unchecked.Unchecked;
@@ -45,6 +47,9 @@ public class ImageService {
 
     @Inject
     Vertx vertx;
+    
+    @Inject
+    ProfilingMetricsService profilingMetrics;
 
     private Path getScreenshotFolderPath(UUID session) {
         return Paths.get(
@@ -54,6 +59,8 @@ public class ImageService {
     }
 
     public Uni<Void> saveFrameOfSession(UUID session, InputStream frame, FrameType type) {
+        final Timer.Sample totalTimerSample = profilingMetrics.startImageSaveTotalTimer();
+        
         final File imageFile = Paths.get(
                 getScreenshotFolderPath(session).toAbsolutePath().toString(),
                 String.format("%d.%s", System.currentTimeMillis(), IMG_FORMAT)
@@ -96,7 +103,14 @@ public class ImageService {
                     }
                 }))
                 .onItem()
-                .transform(Unchecked.function(v -> ImageIO.read(frame)))
+                .transform(Unchecked.function(v -> {
+                    Timer.Sample decodeTimer = profilingMetrics.startImageDecodeTimer();
+                    try {
+                        return ImageIO.read(frame);
+                    } finally {
+                        profilingMetrics.stopImageDecodeTimer(decodeTimer);
+                    }
+                }))
                 .onItem().ifNull().failWith(new RuntimeException("Unable to read passed frame"))
                 .invoke(Unchecked.consumer(newClientFrame -> {
                     if (newClientFrame.getHeight() % 2 != 0 || newClientFrame.getWidth() % 2 != 0) {
@@ -128,14 +142,25 @@ public class ImageService {
                                 }))
                                 .onItem()
                                 .transform(Unchecked.function(alphaFrameImageEntity -> {
-                                    BufferedImage lastAlphaFrame = ImageIO.read(
-                                            Paths.get(alphaFrameImageEntity.getPath()).toFile()
-                                    );
+                                    Timer.Sample fileReadTimer = profilingMetrics.startImageFileReadTimer();
+                                    BufferedImage lastAlphaFrame;
+                                    try {
+                                        lastAlphaFrame = ImageIO.read(
+                                                Paths.get(alphaFrameImageEntity.getPath()).toFile()
+                                        );
+                                    } finally {
+                                        profilingMetrics.stopImageFileReadTimer(fileReadTimer);
+                                    }
 
-                                    Graphics2D g = lastAlphaFrame.createGraphics();
-                                    g.setComposite(AlphaComposite.SrcOver);
-                                    g.drawImage(newClientFrame, 0, 0, null);
-                                    g.dispose();
+                                    Timer.Sample mergeTimer = profilingMetrics.startBetaFrameMergeTimer();
+                                    try {
+                                        Graphics2D g = lastAlphaFrame.createGraphics();
+                                        g.setComposite(AlphaComposite.SrcOver);
+                                        g.drawImage(newClientFrame, 0, 0, null);
+                                        g.dispose();
+                                    } finally {
+                                        profilingMetrics.stopBetaFrameMergeTimer(mergeTimer);
+                                    }
 
                                     return lastAlphaFrame;
                                 }));
@@ -144,12 +169,18 @@ public class ImageService {
                     }
                 })
                 .invoke(Unchecked.consumer(img -> {
-                    ImageIO.write(
-                            img,
-                            IMG_FORMAT,
-                            imageFile
-                    );
+                    Timer.Sample encodeTimer = profilingMetrics.startImageEncodeTimer();
+                    try {
+                        ImageIO.write(
+                                img,
+                                IMG_FORMAT,
+                                imageFile
+                        );
+                    } finally {
+                        profilingMetrics.stopImageEncodeTimer(encodeTimer);
+                    }
                 }))
+                .invoke(v -> profilingMetrics.stopImageSaveTotalTimer(totalTimerSample))
                 .replaceWithVoid();
     }
 

@@ -11,7 +11,11 @@ import {
   ExamDto,
   Exam,
   ExamState,
-  CreateExam, Job, JobDto, JobState
+  CreateExam, Job, JobDto, JobState,
+  ProfilingMetricsDto,
+  ProfilingMetrics,
+  HistogramData,
+  VertxPoolMetrics
 } from "../model";
 import {ToastService} from "./toast.service";
 
@@ -50,6 +54,70 @@ export class WebApiService {
     set((model) => {
       model.metricsDashboardModel.serverMetrics = serverMetrics;
     });
+  }
+
+  public async getProfilingMetrics(): Promise<void> {
+    try {
+      const dto = await lastValueFrom(
+        this.httpClient
+          .get<ProfilingMetricsDto>(
+            `${environment.serverBaseUrl}/metrics/profiling`,
+            {headers: this.headers}
+          )
+      );
+
+      const profilingMetrics: ProfilingMetrics = {
+        queueSize: dto.queue_size,
+        activeRequests: dto.active_requests,
+        timeoutsTotal: dto.timeouts_total,
+        uploadsTotal: dto.uploads_total,
+        uploadsPerSecond: dto.uploads_per_second,
+        connectedClients: dto.connected_clients,
+        videoJobsQueued: dto.video_jobs_queued,
+        videoJobsActive: dto.video_jobs_active,
+        averageImageUploadSizeBytes: dto.average_image_upload_size_bytes,
+        averageImageDownloadSizeBytes: dto.average_image_download_size_bytes,
+        screenshotRequestLatency: this.mapHistogramData(dto.screenshot_request_latency),
+        imageDecode: this.mapHistogramData(dto.image_decode),
+        imageEncode: this.mapHistogramData(dto.image_encode),
+        betaFrameMerge: this.mapHistogramData(dto.beta_frame_merge),
+        imageFileRead: this.mapHistogramData(dto.image_file_read),
+        imageSaveTotal: this.mapHistogramData(dto.image_save_total),
+        websocketMessageSend: this.mapHistogramData(dto.websocket_message_send),
+        websocketPingLatency: this.mapHistogramData(dto.websocket_ping_latency),
+        imageDownload: this.mapHistogramData(dto.image_download),
+        videoFfmpeg: this.mapHistogramData(dto.video_ffmpeg),
+        videoZip: this.mapHistogramData(dto.video_zip),
+        vertxWorkerPool: this.mapVertxPoolMetrics(dto.vertx_worker_pool),
+        vertxEventLoop: this.mapVertxPoolMetrics(dto.vertx_event_loop),
+      };
+
+      set((model) => {
+        model.metricsDashboardModel.profilingMetrics = profilingMetrics;
+      });
+    } catch (err) {
+      console.error('Failed to fetch profiling metrics:', err);
+    }
+  }
+
+  private mapHistogramData(dto: { p50_ms: number; p90_ms: number; p99_ms: number; max_ms: number; count: number }): HistogramData {
+    return {
+      p50Ms: dto.p50_ms,
+      p90Ms: dto.p90_ms,
+      p99Ms: dto.p99_ms,
+      maxMs: dto.max_ms,
+      count: dto.count
+    };
+  }
+
+  private mapVertxPoolMetrics(dto: { pool_size: number; in_use: number; ratio: number; queue_size: number; completed: number }): VertxPoolMetrics {
+    return {
+      poolSize: dto.pool_size,
+      inUse: dto.in_use,
+      ratio: dto.ratio,
+      queueSize: dto.queue_size,
+      completed: dto.completed
+    };
   }
 
   //region Job-WebApi calls

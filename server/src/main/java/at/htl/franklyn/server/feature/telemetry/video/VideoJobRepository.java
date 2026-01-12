@@ -48,4 +48,8 @@ public class VideoJobRepository implements PanacheRepository<VideoJob> {
                 """, examId)
                 .list();
     }
+
+    public Uni<Long> countQueuedJobs() {
+        return count("state = ?1", VideoJobState.QUEUED);
+    }
 }
