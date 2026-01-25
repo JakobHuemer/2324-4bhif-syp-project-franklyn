@@ -104,7 +104,9 @@ public class ImageService {
                         for (int i = 0; i < PERSISTANCE_BUFFER - 1; i++) {
                             imageRepository.persist(fileList.get(i));
                         }
-                        return imageRepository.persist(fileList.get(PERSISTANCE_BUFFER - 1)).replaceWithVoid();
+                        Image lastImage = fileList.get(PERSISTANCE_BUFFER - 1);
+                        fileList.clear();
+                        return imageRepository.persist(lastImage).replaceWithVoid();
                     } else {
                         return null;
                     }
