@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "F_IMAGE")
-public class Image {
+public class
+Image {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     @Column(name = "I_ID")

@@ -61,6 +61,7 @@ public class TelemetryResource {
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> new WebApplicationException(
                         "invalid sessionId / participationId", Response.Status.BAD_REQUEST
                 ))
+                // TODO: change this to only save periodically
                 .chain(session -> imageService.saveFrameOfSession(session, alphaFrame, FrameType.ALPHA))
                 .onFailure(ExceptionFilter.NO_WEBAPP).transform(e -> {
                     Log.warnf("Could not save frame of %s (Reason: %s)", sessionId, e.getMessage());

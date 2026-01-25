@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -51,13 +52,18 @@ public class ImageService {
     @Inject
     ProfilingMetricsService profilingMetrics;
 
+    ArrayList<Image> fileList = new ArrayList<>();
+
+    // how many IMages are saved into the list before persisting
+    final int PERSISTANCE_BUFFER = 10;
+
     private Path getScreenshotFolderPath(UUID session) {
         return Paths.get(
                 screenshotsPath,
                 session.toString()
         );
     }
-
+    // TODO: also change here to only save periodically
     public Uni<Void> saveFrameOfSession(UUID session, InputStream frame, FrameType type) {
         final Timer.Sample totalTimerSample = profilingMetrics.startImageSaveTotalTimer();
         
@@ -93,7 +99,16 @@ public class ImageService {
                             imageFile.getAbsolutePath(),
                             type
                     );
-                    return imageRepository.persist(image).replaceWithVoid();
+                    fileList.add(image);
+                    if (fileList.size() == PERSISTANCE_BUFFER) {
+                        for (int i = 0; i < PERSISTANCE_BUFFER - 1; i++) {
+                            imageRepository.persist(fileList.get(i));
+                        }
+                        return imageRepository.persist(fileList.get(PERSISTANCE_BUFFER - 1)).replaceWithVoid();
+                    } else {
+                        return null;
+                    }
+
                 })
                 .invoke(Unchecked.consumer(v -> {
                     File frameDirectory = Paths.get(screenshotsPath, session.toString()).toFile();
