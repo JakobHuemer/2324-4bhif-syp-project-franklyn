@@ -48,7 +48,7 @@ public class ImageService {
 
     @Inject
     Vertx vertx;
-    
+
     @Inject
     ProfilingMetricsService profilingMetrics;
 
@@ -60,50 +60,45 @@ public class ImageService {
     private Path getScreenshotFolderPath(UUID session) {
         return Paths.get(
                 screenshotsPath,
-                session.toString()
-        );
+                session.toString());
     }
+
     // TODO: also change here to only save periodically
     public Uni<Void> saveFrameOfSession(UUID session, InputStream frame, FrameType type) {
         final Timer.Sample totalTimerSample = profilingMetrics.startImageSaveTotalTimer();
-        
+
         final File imageFile = Paths.get(
                 getScreenshotFolderPath(session).toAbsolutePath().toString(),
-                String.format("%d.%s", System.currentTimeMillis(), IMG_FORMAT)
-        ).toAbsolutePath().toFile();
+                String.format("%d.%s", System.currentTimeMillis(), IMG_FORMAT)).toAbsolutePath().toFile();
 
         return participationRepository
                 // fail if participation with given session does not exist
                 .findByIdWithExam(session)
                 .onItem().ifNull().failWith(new RuntimeException("Session not found"))
                 .invoke(Unchecked.consumer(particpation -> {
-                            var uploadAllowed = screenshotRequestManager.notifyClientRequestReceived(
-                                    particpation.getId()
-                            );
-                            if (!uploadAllowed) {
-                                throw new RuntimeException("Upload not allowed");
-                            }
-                        })
-                )
+                    var uploadAllowed = screenshotRequestManager.notifyClientRequestReceived(
+                            particpation.getId());
+                    if (!uploadAllowed) {
+                        throw new RuntimeException("Upload not allowed");
+                    }
+                }))
                 // Fail if exam is not ongoing
-                .onItem().transform(participation ->
-                        participation.getExam().getState() == ExamState.ONGOING
-                                ? participation
-                                : null
-                )
+                .onItem().transform(participation -> participation.getExam().getState() == ExamState.ONGOING
+                        ? participation
+                        : null)
                 .onItem().ifNull().failWith(new RuntimeException("Exam not ongoing"))
                 .chain(participation -> {
                     Image image = new Image(
                             LocalDateTime.now(),
                             participation,
                             imageFile.getAbsolutePath(),
-                            type
-                    );
+                            type);
                     fileList.add(image);
-                    if (fileList.size() == PERSISTANCE_BUFFER) {
-                        for (int i = 0; i < PERSISTANCE_BUFFER - 1; i++) {
-                            imageRepository.persist(fileList.get(i));
-                        }
+                    if (fileList.size() >= PERSISTANCE_BUFFER) {
+                        // for (int i = 0; i < PERSISTANCE_BUFFER - 1; i++) {
+                        // imageRepository.persist(fileList.get(i));
+                        // }
+                        imageRepository.persist(fileList.subList(0, fileList.size() - 1));
                         Image lastImage = fileList.get(PERSISTANCE_BUFFER - 1);
                         fileList.clear();
                         return imageRepository.persist(lastImage).replaceWithVoid();
@@ -139,22 +134,22 @@ public class ImageService {
                     // Merge with last alpha frame then save
                     if (type == FrameType.BETA) {
                         return imageRepository.find(
-                                        """
-                                                participation.id = ?1 \
-                                                and captureTimestamp = (\
-                                                    select max(captureTimestamp) from Image i \
-                                                        where i.participation.id = ?1 and frameType = ?2\
-                                                ) and frameType = ?2
-                                                """,
-                                        session,
-                                        FrameType.ALPHA
-                                )
+                                """
+                                        participation.id = ?1 \
+                                        and captureTimestamp = (\
+                                            select max(captureTimestamp) from Image i \
+                                                where i.participation.id = ?1 and frameType = ?2\
+                                        ) and frameType = ?2
+                                        """,
+                                session,
+                                FrameType.ALPHA)
                                 .firstResult()
                                 .onItem().ifNull().failWith(Unchecked.supplier(() -> {
                                     // Request new alpha frame so the next client frame can be processed
                                     Log.warnf("No alpha frame found for %s. A new one will be requested", session);
                                     screenshotRequestManager.forceRequestNewAlpha(session)
-                                            .subscribe().with(v -> {});
+                                            .subscribe().with(v -> {
+                                            });
                                     throw new IllegalStateException("Can not store beta frame without previous alpha");
                                 }))
                                 .onItem()
@@ -163,8 +158,7 @@ public class ImageService {
                                     BufferedImage lastAlphaFrame;
                                     try {
                                         lastAlphaFrame = ImageIO.read(
-                                                Paths.get(alphaFrameImageEntity.getPath()).toFile()
-                                        );
+                                                Paths.get(alphaFrameImageEntity.getPath()).toFile());
                                     } finally {
                                         profilingMetrics.stopImageFileReadTimer(fileReadTimer);
                                     }
@@ -191,8 +185,7 @@ public class ImageService {
                         ImageIO.write(
                                 img,
                                 IMG_FORMAT,
-                                imageFile
-                        );
+                                imageFile);
                     } finally {
                         profilingMetrics.stopImageEncodeTimer(encodeTimer);
                     }
